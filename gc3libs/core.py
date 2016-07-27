@@ -1192,7 +1192,7 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
     | False
     """
 
-    def __init__(self, controller, tasks=[], store=None,
+    def __init__(self, controller, tasks=(), store=None,
                  can_submit=True, can_retrieve=True,
                  max_in_flight=0, max_submitted=0,
                  output_dir=None,
