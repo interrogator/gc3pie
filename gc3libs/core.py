@@ -1127,67 +1127,62 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
     Manage a collection of tasks, until a terminal state is reached.
     Specifically:
 
-    * tasks in `NEW` state are submitted;
-
-    * the state of tasks in `SUBMITTED`, `RUNNING` or `STOPPED` state
-      is updated;
-
-    * when a task reaches `TERMINATED` state, its output is downloaded.
+    * tasks in state ``NEW`` are submitted;
+    * the state of tasks in ``SUBMITTED``, ``RUNNING``
+      or ``STOPPED`` state is updated;
+    * when a task reaches ``TERMINATED`` state,
+      its output is automatically downloaded.
 
     The behavior of `Engine` instances can be further customized by
     setting the following instance attributes:
 
-    `can_submit`
-      Boolean value: if `False`, no task will be submitted.
+      `can_submit`
+        Boolean value: if `False`, no task will be submitted.
 
-    `can_retrieve`
-      Boolean value: if `False`, no output will ever be retrieved.
+      `can_retrieve`
+        Boolean value: if `False`, no output will ever be retrieved.
 
-    `max_in_flight`
-      If >0, limit the number of tasks in `SUBMITTED` or `RUNNING`
-      state: if the number of tasks in `SUBMITTED`, `RUNNING` or
-      `STOPPED` state is greater than `max_in_flight`, then no new
-      submissions will be attempted.
+      `max_in_flight`
+        If >0, limit the number of tasks in ``SUBMITTED`` or ``RUNNING``
+        state: if the number of tasks in ``SUBMITTED``, ``RUNNING`` or
+        ``STOPPED`` state is greater than `max_in_flight`, then no new
+        submissions will be attempted.
 
-    `max_submitted`
-      If >0, limit the number of tasks in `SUBMITTED` state: if the
-      number of tasks in `SUBMITTED` state is greater than
-      `max_submitted`, then no new submissions will be attempted.
+      `max_submitted`
+        If >0, limit the number of tasks in ``SUBMITTED`` state: if the
+        number of tasks in ``SUBMITTED``, ``RUNNING`` or ``STOPPED`` state is
+        greater than `max_submitted`, then no new submissions will be
+        attempted.
 
-    `output_dir`
-      Base directory for job output; if not `None`, each task's
-      results will be downloaded in a subdirectory named after the
-      task's `permanent_id`.
+      `output_dir`
+        Base directory for job output; if not ``None``, each task's
+        results will be downloaded in a subdirectory named after the
+        task's `permanent_id`.
 
-    `scheduler`
-      A factory function for creating objects that conform to the
-      `Scheduler` interface to control task submission; see the
-      `Scheduler`:class: documentation for details.  The default value
-      implements a first-come first-serve algorithm: tasks are
-      submitted in the order they have been added to the `Engine`.
+      `scheduler`
+        A factory function for creating objects that conform to the
+        `Scheduler` interface to control task submission; see the
+        `Scheduler`:class: documentation for details.  The default
+        value implements a first-come first-serve algorithm: tasks are
+        submitted in the order they have been added to the `Engine`.
 
-    `retrieve_running`
-      If ``True``, snapshot output from RUNNING jobs at every
-      invocation of `progress`:meth:
+      `retrieve_running`
+        If ``True``, snapshot output from RUNNING jobs at every
+        invocation of `progress`:meth:
 
-    `retrieve_overwrites`
-      If ``True``, overwrite files in the output directory of any job
-      (as opposed to moving destination away and downloading a fresh
-      copy). See `Core.fetch_output`:meth: for details.
+      `retrieve_overwrites`
+        If ``True``, overwrite files in the output directory of any
+        job (as opposed to moving destination away and downloading a
+        fresh copy). See `Core.fetch_output`:meth: for details.
 
-    `retrieve_changed_only`
-      If both this and `overwrite` are ``True``, then only changed
-      files are downloaded. See `Core.fetch_output`:meth: for details.
+      `retrieve_changed_only`
+        If both this and `overwrite` are ``True``, then only changed
+        files are downloaded. See `Core.fetch_output`:meth: for
+        details.
 
-    `forget_terminated`
-      When ``True``, `Engine.remove`:meth: is automatically called
-      on tasks when their state turns to ``TERMINATED``.
-
-      .. warning::
-
-        For historical reasons, the default for this option is
-        ``False`` but this can (and should!) be changed in future
-        releases.
+      `forget_terminated`
+        When ``True``, `Engine.remove`:meth: is automatically called
+        on tasks when their state turns to ``TERMINATED``.
 
     Any of the above can also be set by passing a keyword argument to
     the constructor (assume ``g`` is a `Core`:class: instance)::
@@ -1213,14 +1208,14 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
           A `gc3libs.Core` instance, that will be used to operate on
           tasks.  This is the only required argument.
 
-        :param list apps:
+        :param list tasks:
           Initial list of tasks to be managed by this Engine.  Tasks can
           be later added and removed with the `add` and `remove`
           methods (which see).  Defaults to the empty list.
 
         :param store:
-          An instance of `gc3libs.persistence.Store`, or `None`.  If
-          not `None`, it will be used to persist tasks after each
+          An instance of `gc3libs.persistence.Store`, or ``None`` (default).
+          If not `None`, it will be used to persist tasks after each
           iteration; by default no store is used so no task state is
           persisted.
 
@@ -1595,12 +1590,13 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
 
           * tasks in `NEW` state are submitted;
 
-          * the state of tasks in `SUBMITTED`, `RUNNING`, `STOPPED` or
-            `UNKNOWN` state is updated;
+          * the state of tasks in ``SUBMITTED``, ``RUNNING``,
+            ``STOPPED`` or ``UNKNOWN`` state is updated;
 
-          * when a task reaches `TERMINATING` state, its output is downloaded.
+          * when a task reaches ``TERMINATING`` state,
+            its output is downloaded.
 
-          * tasks in `TERMINATED` status are simply ignored.
+          * tasks in ``TERMINATED`` status are simply ignored.
 
         The `max_in_flight` and `max_submitted` limits (if >0) are
         taken into account when attempting submission of tasks.
@@ -2034,9 +2030,9 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
         Return a dictionary mapping each state name into the count of
         tasks in that state. In addition, the following keys are defined:
 
-        * `ok`:  count of TERMINATED tasks with return code 0
+        * `ok`:  count of ``TERMINATED`` tasks with return code 0
 
-        * `failed`: count of TERMINATED tasks with nonzero return code
+        * `failed`: count of ``TERMINATED`` tasks with nonzero return code
 
         * `total`: total count of managed tasks, whatever their state
 
