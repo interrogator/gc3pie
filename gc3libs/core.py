@@ -28,6 +28,7 @@ import posix
 import sys
 import time
 import tempfile
+from uuid import uuid4 as uuid
 from warnings import warn
 
 from dictproxyhack import dictproxy
@@ -38,6 +39,7 @@ from gc3libs import Application, Run, Task
 import gc3libs.exceptions
 from gc3libs.quantity import Duration
 import gc3libs.utils as utils
+from gc3libs.xlcollections import XlList
 
 
 __docformat__ = 'reStructuredText'
@@ -1192,6 +1194,7 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
     | False
     """
 
+
     def __init__(self, controller, tasks=(), store=None,
                  can_submit=True, can_retrieve=True,
                  max_in_flight=0, max_submitted=0,
@@ -2150,6 +2153,27 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
     @utils.same_docstring_as(Core.get_backend)
     def get_backend(self, name):
         return self._core.get_backend(name)
+
+
+class XlEngine(Engine):
+    """
+    A variant of `Engine`:class: internally using "XL" data structures.
+    """
+
+    class TaskQueue(Engine.TaskQueue):
+        def __init__(self):
+            backing_file = ('/var/tmp/{0}.{1}.dbm'
+                            .format(self.__class__.__name__, uuid()))
+            # If the backing DBM file already exists, XlList/Shove will
+            # automatically load its contents; since this kind of persistence
+            # is already managed in the Engine through the `.store` parameter,
+            # ensure that backing files are created anew.
+            if os.path.exists(backing_file):
+                os.remove(backing_file)
+            self._queue = XlList(
+                store=('dbm://' + backing_file),
+                cache='memlru://'
+            )
 
 
 class BgEngine(object):
