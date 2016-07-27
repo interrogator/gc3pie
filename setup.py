@@ -215,6 +215,8 @@ setuptools.setup(
         'prettytable',
         # pyCLI -- object-oriented command-line app programming
         'pyCLI',
+        # needed by xlcollections
+        'shove',
         # needed by DependentTaskCollection
         # (but incompatible with Py 2.6, so we include a patched copy)
         #toposort==1.0
