@@ -3,7 +3,7 @@
 """
 Test for classes and functions in the `utils` module.
 """
-# Copyright (C) 2012, 2013, University of Zurich. All rights reserved.
+# Copyright (C) 2012, 2013, 2018, University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -22,6 +22,7 @@ __docformat__ = 'reStructuredText'
 
 
 from itertools import izip
+from uuid import uuid4
 
 # 3rd party imports
 import mock
@@ -133,6 +134,14 @@ Max realtime timeout      unlimited            unlimited            us
     assert hard['max_data_size'] == None
     assert hard['max_file_size'] == None
     assert hard['max_cpu_time'] == None
+
+
+def test_uuid_to_integer():
+    for bitsize in 8, 16, 32, 64:
+        mask = 2**bitsize - 1
+        for _ in xrange(100):
+            val = gc3libs.utils.uuid_to_integer(bitsize, uuid4())
+            assert val == (val & mask)
 
 
 class TestYieldAtNext(object):

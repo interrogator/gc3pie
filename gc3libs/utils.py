@@ -29,6 +29,7 @@ __docformat__ = 'reStructuredText'
 from collections import defaultdict, deque
 import contextlib
 import functools
+import operator
 import os
 import os.path
 import random
@@ -39,6 +40,7 @@ import tempfile
 import time
 import cStringIO as StringIO
 import UserDict
+import uuid
 
 
 from gc3libs.compat._collections import OrderedDict
@@ -2249,6 +2251,55 @@ def update_parameter_in_file(path, var_in, new_val, regex_in):
         gc3libs.log.critical(
             'update_parameter_in_file could not find parameter'
             ' in sepcified file')
+
+
+def uuid_to_integer(bitsize, uuid):
+    """
+    Map a UUID into an integer of `bitsize` significant bits.
+
+    Note that no such mapping can be bijective so different UUIDs may to the
+    same integer number. The lower ``bitsize``, the higher the chance of
+    collisions.
+
+    Examples::
+
+    | >>> from uuid import uuid4
+    | >>> uuid_to_integer(64, uuid4())
+    | 15716293280606657581L
+    | >>> uuid_to_integer(32, uuid4())
+    | 3687141210
+    | >>> uuid_to_integer(16, uuid4())
+    | 12714
+
+    :param int bitsize:
+        Max number of significant bits in the result.
+        Must be a power of 2 in the range 8..128.
+    :param UUID uuid: A `uuid.UUID` object to digest
+    """
+    raw = uuid.bytes
+    stride = nparts = bitsize / 8
+    steps = len(raw) / nparts
+    b = [
+        reduce(operator.xor,
+               (ord(raw[i+stride*j]) for j in range(steps)))
+        for i in range(nparts)
+    ]
+    return sum(b[i]<<(8*i) for i in range(nparts))
+
+
+def uuid_to_int16(uuid):
+    """Digest a UUID to a 16-bit integer."""
+    return uuid_to_integer(16, uuid)
+
+
+def uuid_to_int32(uuid):
+    """Digest a UUID to a 32-bit integer."""
+    return uuid_to_integer(32, uuid)
+
+
+def uuid_to_int64(uuid):
+    """Digest a UUID to a 64-bit integer."""
+    return uuid_to_integer(64, uuid)
 
 
 def write_contents(path, data):
