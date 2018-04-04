@@ -5,18 +5,13 @@ Disk-backed collections, for handling a large number of items.
 (I.e., potentially they would not fit into memory.)
 """
 
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function)
 
-from collections import MutableSequence
+from collections import deque, MutableMapping, MutableSequence
 from itertools import izip
 import sys
 
-import shove
-
-
-# needed to work around Shove's issue 3
-def _identity(x):
-    return x
+from pylru import WriteThroughCacheManager
 
 
 class XlList(MutableSequence):
@@ -26,50 +21,68 @@ class XlList(MutableSequence):
     .. warning::
 
       The implementation is very naive and builds simply on top of the
-      shove_ Python module.  Performance of this code is very likely
+      pylru_ Python module.  Performance of this code is very likely
       to be dismal, and no attempt at optimization has been done yet.
 
-    Instances of `XlList` are created just like "normal" lists, by
-    passing any iterable to the `XlList` constructor::
+    Instances of `XlList` are created with two mandatory parameters:
 
-      >>> x = XlList([1,2,3])
+    - a *store* (can be any Python object implementing a
+      Mapping/dict-like interface), which will be used for saving and
+      loading objects when they are not kept in memory; and
 
-    Of course, the iterable can be another `XlList` instance too::
+    - a *size*, i.e., the maximum number of objects that should be
+      kept in memory at any given time: if the list gets larger than
+      this *size*, items are removed from the memory cache and will be
+      loaded again from the *store* when accessed.
 
-      >>> y = XlList(x)
-      >>> for value in y:
+    So the following code creates an empty `XlList` with maximum
+    in-memory size of 100 objects (note that this example uses a
+    regular Python dictionary as the *store*, which is pointless
+    because the ``dict`` object keeps all data in memory and does not
+    persist any portion of it -- but it makes for easy demoing the
+    `XlList` interface)::
+
+      >>> store = dict()
+      >>> l = XlList(store, 100)
+      >>> len(l)
+      0
+
+    Like for standard Python containers, an additional iterable can be
+    passed to populate the list with items::
+
+      >>> x = XlList(store, 100, [1,2,3])
+      >>> for value in x:
       ...   print(value)
       1
       2
       3
 
-    By default, all data is still kept in memory; additional
-    parameters should be passed to the constructor to actually store
-    the data on disk and configure the RAM cache size and eviction
-    policy.
+    Finally, the optional keyword argument *key* allows controlling
+    how items are saved and retrieved from the *store*.  The *key*
+    function takes two arguments, *index* and *value*, and must return
+    a "handle" (any Python hashable object) that will be used to save
+    the object into the *store* and will be later used to retrieve it.
+    In other words, the following equation must hold: ``value ==
+    store[key(index, value)]``.  The default setting for *key* is to
+    take the entire pair *(index, value)* as the combined key, which
+    is rather pointless as the key index becomes then larger than the
+    entire *store*!
 
-    ::
+    .. warning::
 
-      >>> from tempfile import mkdtemp
-      >>> tmpdir = mkdtemp(prefix='xllist.', suffix='.tmp.d')
-      >>> x = XlList([1,2,3], store=('file://'+tmpdir))
-
-    An additional method `sync` is provided to force flushing cached
-    data to the persistent storage::
-
-      >>> x.sync()
-
-    When a list has been persisted, it retrieves contents from the
-    disk-based storage upon initialization::
-
-      >>> del x
-      >>> x = XlList(store=('file://'+tmpdir))
-      >>> len(x)
-      3
+      The same *store* can back multiple ``XlList`` instances.
+      Whether this makes sense depends on the actual use of the lists,
+      on the store, and on the *key* function.  However, keep in mind
+      that modification or deletion of items in a list will affect
+      other items in a different list, if they map to the same backing
+      key: for instance, deleting an item may make lookup operations
+      in other lists sharing the same backing store fail with
+      ``KeyError``.
 
     XlLists compare equal to normal lists or other XlLists, as long
     as all items are equal and occur in exactly the same order::
 
+      >>> y = XlList(store, 10, x)
       >>> x == y
       True
       >>> x == [1, 2, 3]
@@ -150,28 +163,21 @@ class XlList(MutableSequence):
     # ones are substituted by an ellipsis in string representations
     max_repr_items = 10
 
-    def __init__(self, iterable=None, **kwargs):
+    def __init__(self, store, maxsize, iterable=None,
+                 key=(lambda index, value: (index, value))):
         """
-        XlList() -> new empty XlList
+        XlList(store, size) -> new empty XlList with backing store
 
-        XlList(iterable) -> new XlList initialized from iterable's items
-
-        Any keyword arguments are passed unchanged to the
-        `shove.Shove`:class: constructor (which see).
+        XlList(store, size, iterable) -> new XlList initialized from iterable's items
         """
-        self._data = shove.Shove(**kwargs)
-        self._top_index = len(self._data)
-        # Shove's `FileStore` forces all keys to be strings;
-        # work around that by using an additional "key formatting" layer
-        store_uri = kwargs.get('store', 'none')
-        if store_uri.startswith('file:'):
-            self._to_key = str
-        else:
-            self._to_key = _identity
+        self._cache = WriteThroughCacheManager(store, maxsize)
+        self._munge = key
+        self._index_to_key = []
         # initialize from given items
         if iterable:
             for item in iterable:
                 self.append(item)
+
 
     def __delitem__(self, index_or_slice):
         try:
@@ -186,41 +192,38 @@ class XlList(MutableSequence):
         """Implement `__delitem__` on a single item index."""
         try:
             idx = int(index)
-            if idx < 0:
-                idx += self._top_index
-            del self._data[self._to_key(idx)]
         except (ValueError, TypeError):
             raise TypeError("XlList indices must be integers")
-        except KeyError:
+        if idx < 0:
+            idx += len(self._index_to_key)
+        if not (0 <= idx < len(self._index_to_key)):
             raise IndexError("list index `{0}` out of range".format(index))
-        for idx in xrange(idx, self._top_index-1):
-            self[idx] = self[idx+1]
-        self._top_index -= 1
+        key = self._index_to_key[idx]
+        del self._cache[key]
+        del self._index_to_key[index]
 
     def _del_items(self, start, stop, step):
         """Implement `__delitem__` on a slice. """
-        dst = start
-        top = len(self)
+        top = len(self._index_to_key)
         for cur in xrange(start, top):
             if cur < stop and 0 == (cur - start) % step:
                 # index in deletion range, delete it and skip to next
-                del self._data[str(cur)]
-            else:
-                # renumber
-                self._data[str(dst)] = self._data[str(cur)]
-                dst += 1
-        self._top_index -= (stop - start) / step
+                key = self._index_to_key[cur]
+                del self._cache[key]
+        del self._index_to_key[start:stop:step]
+
 
     def __eq__(self, other):
         # shortcut
         if len(self) != len(other):
             return False
         # check equality of all items
-        for index in xrange(self._top_index):
+        for index in xrange(len(self._index_to_key)):
             if self[index] != other[index]:
                 return False
         # all items are ==, so are the lists
         return True
+
 
     def __getitem__(self, index_or_slice):
         try:
@@ -235,22 +238,27 @@ class XlList(MutableSequence):
         """Implement `__getitem__` on a single item ref."""
         try:
             idx = int(index)
-            if idx < 0:
-                idx += self._top_index
-            return self._data[self._to_key(idx)]
         except (ValueError, TypeError):
             raise TypeError("XlList indices must be integers")
-        except KeyError as err:
-
+        if idx < 0:
+            idx += len(self._index_to_key)
+        if not (0 <= idx < len(self._index_to_key)):
             raise IndexError("list index `{0}` out of range".format(index))
+        # FIXME: may raise `KeyError` -- what should we do?
+        key = self._index_to_key[idx]
+        return self._cache[key]
 
     def _get_items(self, start, stop, step):
         """Implement `__getitem__` on a slice. """
-        return self.__class__(self._data[self._to_key(idx)] for idx in xrange(start, stop, step))
+        return self.__class__(
+            self._cache.store, self._cache.size(),
+            (self._cache[self._index_to_key[idx]]
+             for idx in xrange(start, stop, step)),
+            self._munge)
 
 
     def __len__(self):
-        return self._top_index
+        return len(self._index_to_key)
 
 
     def __setitem__(self, index_or_slice, value):
@@ -266,14 +274,19 @@ class XlList(MutableSequence):
         """Implement `__setitem__` on a single item ref."""
         try:
             idx = int(index)
-            if idx < 0:
-                idx += self._top_index
-            self._data[self._to_key(idx)] = value
         except (ValueError, TypeError):
-            import traceback as tb; tb.print_exc(file=sys.stderr)
             raise TypeError("XlList indices must be integers")
-        except KeyError:
+        if idx < 0:
+            idx += len(self._index_to_key)
+        if not (0 <= idx < len(self._index_to_key)):
             raise IndexError("list index `{0}` out of range".format(index))
+        self._set_item1_unchecked(idx, value)
+
+    def _set_item1_unchecked(self, index, value):
+        """Set a list item, performs no checks on *index*."""
+        key = self._munge(index, value)
+        self._index_to_key[index] = key
+        self._cache[key] = value
 
     def _set_items(self, start, stop, step, values):
         """Implement `__setitem__` on a slice."""
@@ -285,22 +298,17 @@ class XlList(MutableSequence):
                     "attempt to assign sequence of size {0}"
                     " to extended slice of size {1}"
                     .format(replacement_size, slice_size))
-        else:
-            # step is +1/-1
-            delta = slice_size - replacement_size
-            self._top_index = self._top_index + delta
-            if delta > 0:
-                # need to make room, from top index downwards
-                for index in xrange(self._top_index-1, stop+delta-1, -1):
-                    self._data[self._to_key(index)] = self._data[self._to_key(index-delta)]
-            elif delta < 0:
-                # shrinking list, from bottom index upwards
-                for index in xrange(stop+delta, self._top_index):
-                    self._data[self._to_key(index)] = self._data[self._to_key(index-delta)]
-        # now do the replacement
-        for index, value in izip(xrange(start, stop, step), values):
-            self._data[self._to_key(index)] = value
-
+            # now do the replacement, one element at a time
+            for index, value in izip(xrange(start, stop, step), values):
+                self._set_item1_unchecked(index, value)
+        else:  # step is +1/-1
+            delta = replacement_size - slice_size
+            self._index_to_key[start:stop:step] = \
+                    [None] * (delta if delta>0 else -delta)
+            for offset, value in enumerate(values):
+                index = ((start + offset) if step == +1
+                         else (stop - offset))
+                self._set_item1_unchecked(index, value)
 
 
     def __repr__(self):
@@ -318,17 +326,18 @@ class XlList(MutableSequence):
 
 
     def append(self, value):
-        self[self._top_index] = value
-        self._top_index += 1
+        key = self._munge(len(self._index_to_key), value)
+        self._cache[key] = value
+        self._index_to_key.append(key)
+
+
+    def forget(self, index):
+        key = self._index_to_key[index]
+        del self._cache[key]
 
 
     def insert(self, index, value):
-        # make room for new index
-        for idx in xrange(self._top_index-1, index-1, -1):
-            self[idx+1] = self[idx]
-        self[index] = value
-        self._top_index += 1
-
-
-    def sync(self):
-        self._data.sync()
+        assert 0 <= index < len(self._index_to_key)
+        key = self._munge(index, value)
+        self._index_to_key.insert(index, key)
+        self._cache[key] = value
