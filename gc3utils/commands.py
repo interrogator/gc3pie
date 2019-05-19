@@ -3,7 +3,7 @@
 """
 Implementation of the command-line front-ends.
 """
-# Copyright (C) 2009-2018  University of Zurich. All rights reserved.
+# Copyright (C) 2009-2019  University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -19,7 +19,8 @@ Implementation of the command-line front-ends.
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #
-from __future__ import absolute_import, print_function
+from __future__ import absolute_import, print_function, unicode_literals
+
 __docformat__ = 'reStructuredText'
 __author__ = ', '.join([
     "Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>",
