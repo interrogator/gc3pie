@@ -2596,7 +2596,7 @@ Run `help CMD` to get help on command CMD.
                     logging.handlers.BufferingHandler,
                     logging.handlers.HTTPHandler,
                     logging.handlers.MemoryHandler,
-                    logging.handlers.SMTPHandler,
+                    logging.handlers.SMTPHandler
             )):
                 continue
             # code below works for StreamHandler and FileHandler
