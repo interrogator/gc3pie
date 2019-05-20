@@ -3,7 +3,7 @@
 """
 Test persistence backends.
 """
-# Copyright (C) 2011, 2012,  University of Zurich. All rights reserved.
+# Copyright (C) 2011, 2012, 2019,  University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -20,10 +20,12 @@ Test persistence backends.
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #
 from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
 from builtins import range
 from builtins import object
+
+
 __docformat__ = 'reStructuredText'
+
 
 # stdlib imports
 import os
@@ -321,18 +323,18 @@ def test_task_objects_buggy(task):
         store.load(id)
     finally:
         os.remove(tmpfile)
-            
+
 
 class TestFilesystemStore(GenericStoreChecks):
 
-    @pytest.fixture(autouse=True)    
+    @pytest.fixture(autouse=True)
     def setUp(self):
         from gc3libs.persistence.filesystem import FilesystemStore
         self.tmpdir = tempfile.mkdtemp()
         self.store = FilesystemStore(self.tmpdir)
 
         yield
-        
+
         shutil.rmtree(self.tmpdir)
 
     # XXX: there's nothing which is `FilesystemStore`-specific here!

@@ -2,7 +2,7 @@
 #
 """
 """
-# Copyright (C) 2011-2014, 2018  University of Zurich. All rights reserved.
+# Copyright (C) 2011-2014, 2018, 2019  University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -18,8 +18,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
+
+
 __docformat__ = 'reStructuredText'
+
 
 # stdlib imports
 import os

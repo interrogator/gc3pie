@@ -2,7 +2,7 @@
 #
 """
 """
-# Copyright (C) 2012, 2015, 2018  University of Zurich. All rights reserved.
+# Copyright (C) 2012, 2015, 2018, 2019  University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -19,10 +19,12 @@
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import zip
-from builtins import str
 from builtins import range
 from builtins import object
+
+
 __docformat__ = 'reStructuredText'
+
 
 # stdlib imports
 import csv

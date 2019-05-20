@@ -1,4 +1,3 @@
-
 #! /usr/bin/env python
 #
 """
@@ -63,17 +62,12 @@ The module is organized as follows:
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
 from builtins import object
-__author__ = 'Benjamin Jonen <benjamin.jonen@bf.uzh.ch>'
-# summary of user-visible changes
-__changelog__ = """
 
-"""
+
+__author__ = 'Benjamin Jonen <benjamin.jonen@bf.uzh.ch>'
 __docformat__ = 'reStructuredText'
 
-# For now use export export PYTHONPATH=~/workspace/globalOpt/gc3pie/ to allow import
-# of gc3libs
 
 # General imports
 import os

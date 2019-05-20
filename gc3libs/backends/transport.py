@@ -23,9 +23,10 @@ via SSH.
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from __future__ import division
-from builtins import str
 from past.utils import old_div
 from builtins import object
+
+
 __docformat__ = 'reStructuredText'
 
 

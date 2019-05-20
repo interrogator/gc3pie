@@ -2,7 +2,7 @@
 """
 Authentication support for the GC3Libs.
 """
-# Copyright (C) 2009-2015  University of Zurich. All rights reserved.
+# Copyright (C) 2009-2015, 2019  University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -18,9 +18,11 @@ Authentication support for the GC3Libs.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
 from builtins import object
+
+
 __docformat__ = 'reStructuredText'
+
 
 import gc3libs.exceptions
 

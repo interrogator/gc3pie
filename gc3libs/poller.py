@@ -5,7 +5,7 @@ This module implements "pollers". A "Poller" is an object that
 monitors a given URL and returns `events` whenever a new object is
 created inside that URL.
 """
-# Copyright (C) 2017-2018,  University of Zurich. All rights reserved.
+# Copyright (C) 2017-2019,  University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -23,8 +23,9 @@ created inside that URL.
 
 # stdlib imports
 from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
 from builtins import object
+
+
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 import os

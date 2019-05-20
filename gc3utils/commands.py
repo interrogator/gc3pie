@@ -21,7 +21,6 @@ Implementation of the command-line front-ends.
 #
 from __future__ import absolute_import, print_function, unicode_literals
 
-from builtins import str
 __docformat__ = 'reStructuredText'
 __author__ = ', '.join([
     "Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>",

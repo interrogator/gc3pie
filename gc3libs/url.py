@@ -21,7 +21,8 @@ Utility classes and methods for dealing with URLs.
 from __future__ import absolute_import, print_function, unicode_literals
 from future import standard_library
 standard_library.install_aliases()
-from builtins import str
+
+
 __docformat__ = 'reStructuredText'
 
 
@@ -170,6 +171,7 @@ class Url(tuple):
             else:
                 # parse `urlstring` and use kwd arguments as default values
                 try:
+                    import pdb; pdb.set_trace()
                     urldata = urllib.parse.urlsplit(
                         urlstring, scheme=scheme, allow_fragments=True)
                     # Python 2.6 parses fragments only for http(s),
@@ -196,6 +198,7 @@ class Url(tuple):
                         urldata.fragment or fragment,
                         ))
                 except (ValueError, TypeError, AttributeError) as err:
+                    raise
                     raise ValueError(
                         "Cannot parse string '%s' as a URL: %s: %s"
                         % (urlstring, err.__class__.__name__, err))
@@ -457,16 +460,16 @@ class UrlKeyDict(dict):
             return dict.__getitem__(self, key)
         except KeyError as ex:
             # map `key` to a URL and try with that
-            try:
+            #try:
                 return dict.__getitem__(self, Url(key, self._force_abs))
-            except:
-                raise ex
+            #except:
+            #    raise ex
 
     def __setitem__(self, key, value):
-        try:
+        #try:
             dict.__setitem__(self, Url(key, self._force_abs), value)
-        except:
-            dict.__setitem__(self, key, value)
+        #except:
+        #    dict.__setitem__(self, key, value)
 
 
 class UrlValueDict(dict):
