@@ -171,7 +171,6 @@ class Url(tuple):
             else:
                 # parse `urlstring` and use kwd arguments as default values
                 try:
-                    import pdb; pdb.set_trace()
                     urldata = urllib.parse.urlsplit(
                         urlstring, scheme=scheme, allow_fragments=True)
                     # Python 2.6 parses fragments only for http(s),
