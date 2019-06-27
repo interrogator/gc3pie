@@ -1,20 +1,5 @@
 #! /usr/bin/env python
 #
-"""
-GC3Libs is a python package for controlling the life-cycle of a Grid
-or batch computational job.
-
-GC3Libs provides services for submitting computational jobs to Grids
-and batch systems, controlling their execution, persisting job
-information, and retrieving the final output.
-
-GC3Libs takes an application-oriented approach to batch computing. A
-generic :class:`Application` class provides the basic operations for
-controlling remote computations, but different :class:`Application`
-subclasses can expose adapted interfaces, focusing on the most
-relevant aspects of the application being represented.
-
-"""
 # Copyright (C) 2009-2019  University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -30,11 +15,26 @@ relevant aspects of the application being represented.
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
+"""
+GC3Libs is a python package for controlling the life-cycle of a Grid
+or batch computational job.
+
+GC3Libs provides services for submitting computational jobs to Grids
+and batch systems, controlling their execution, persisting job
+information, and retrieving the final output.
+
+GC3Libs takes an application-oriented approach to batch computing. A
+generic :class:`Application` class provides the basic operations for
+controlling remote computations, but different :class:`Application`
+subclasses can expose adapted interfaces, focusing on the most
+relevant aspects of the application being represented.
+
+"""
 from __future__ import absolute_import, print_function, unicode_literals
 from __future__ import division
+from builtins import str
 from past.utils import old_div
 from builtins import object
-
 __docformat__ = 'reStructuredText'
 
 __version__ = '2.5.2'
@@ -1133,8 +1133,7 @@ class Application(Task):
           ...     gc3libs.url.UrlKeyDict, d1, True)
           >>> isinstance(d2, gc3libs.url.UrlKeyDict)
           True
-          >>> for key in sorted(d2.keys()):
-          ...   print(key.path)
+          >>> for key in sorted(d2.keys()): print(key.path)
           /tmp/1
           /tmp/2
 

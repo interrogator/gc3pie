@@ -2,7 +2,7 @@
 #
 #   codeml.py -- Simple interface to the CODEML application
 #
-#   Copyright (C) 2010, 2011, 2012, 2019  University of Zurich. All rights reserved.
+#   Copyright (C) 2010, 2011, 2012  University of Zurich. All rights reserved.
 #
 #   This program is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 Simple interface to the CODEML application.
 """
 from __future__ import absolute_import, print_function, unicode_literals
+from builtins import str
 from builtins import range
-
 __changelog__ = """
 Summary of user-visible changes:
 * 16-08-2011 AM: Extract aln_info from the .phy file and record it

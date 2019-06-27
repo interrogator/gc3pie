@@ -10,7 +10,7 @@ patterns of job group execution; they can be combined to form more
 complex workflows.  Hook methods are provided so that derived classes
 can implement problem-specific job control policies.
 """
-# Copyright (C) 2009-2019   University of Zurich. All rights reserved.
+# Copyright (C) 2009-2018   University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -26,9 +26,9 @@ can implement problem-specific job control policies.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
+from builtins import str
 from builtins import range
 from builtins import object
-
 __docformat__ = 'reStructuredText'
 
 import itertools

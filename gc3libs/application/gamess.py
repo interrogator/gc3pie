@@ -3,7 +3,7 @@
 """
 Specialized support for computational jobs running GAMESS-US.
 """
-# Copyright (C) 2009-2012, 2019  University of Zurich. All rights reserved.
+# Copyright (C) 2009-2012  University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as published by
@@ -19,8 +19,7 @@ Specialized support for computational jobs running GAMESS-US.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
-
-
+from builtins import str
 __docformat__ = 'reStructuredText'
 
 
