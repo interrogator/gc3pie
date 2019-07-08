@@ -13,18 +13,20 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import object
-__docformat__ = 'reStructuredText'
+
+import getpass
 
 # System imports
 import os
-import getpass
 import tempfile
+
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import object
 
 # Nose imports
 import pytest
@@ -35,10 +37,8 @@ from gc3libs.exceptions import TransportError
 
 
 class StubForTestTransport(object):
-
     def extra_setup(self):
-        (exitcode, tmpdir, stderror) = self.transport.execute_command(
-            'mktemp -d /tmp/test_transport.XXXXXXXXX')
+        (exitcode, tmpdir, stderror) = self.transport.execute_command("mktemp -d /tmp/test_transport.XXXXXXXXX")
         self.tmpdir = tmpdir.strip()
 
     def tearDown(self):
@@ -56,42 +56,41 @@ class StubForTestTransport(object):
         assert len(self.transport.listdir(self.tmpdir)) == 0
 
     def test_makedirs(self):
-        self.transport.makedirs(os.path.join(self.tmpdir, 'testdir'))
+        self.transport.makedirs(os.path.join(self.tmpdir, "testdir"))
         children = self.transport.listdir(self.tmpdir)
-        assert children == ['testdir']
+        assert children == ["testdir"]
 
     def test_recursive_makedirs(self):
-        self.transport.makedirs(os.path.join(self.tmpdir, 'testdir/testdir2'))
+        self.transport.makedirs(os.path.join(self.tmpdir, "testdir/testdir2"))
         children = self.transport.listdir(self.tmpdir)
-        assert children == ['testdir']
+        assert children == ["testdir"]
 
-        nephews = self.transport.listdir(
-            os.path.join(self.tmpdir, 'testdir'))
-        assert nephews == ['testdir2']
+        nephews = self.transport.listdir(os.path.join(self.tmpdir, "testdir"))
+        assert nephews == ["testdir2"]
 
     def test_open(self):
-        fd = self.transport.open(os.path.join(self.tmpdir, 'testfile'), 'w+')
+        fd = self.transport.open(os.path.join(self.tmpdir, "testfile"), "w+")
         fd.write("GC3")
         fd.close()
 
-        fd = self.transport.open(os.path.join(self.tmpdir, 'testfile'), 'r')
+        fd = self.transport.open(os.path.join(self.tmpdir, "testfile"), "r")
         assert fd.read() == "GC3"
 
     def test_remove(self):
-        fd = self.transport.open(os.path.join(self.tmpdir, 'testfile'), 'w+')
+        fd = self.transport.open(os.path.join(self.tmpdir, "testfile"), "w+")
         fd.close()
-        self.transport.remove(os.path.join(self.tmpdir, 'testfile'))
+        self.transport.remove(os.path.join(self.tmpdir, "testfile"))
         assert self.transport.listdir(self.tmpdir) == []
 
     def test_chmod(self):
-        remotefile = os.path.join(self.tmpdir, 'unauth')
-        fd = self.transport.open(remotefile, 'w+')
+        remotefile = os.path.join(self.tmpdir, "unauth")
+        fd = self.transport.open(remotefile, "w+")
         fd.close()
 
         self.transport.chmod(remotefile, 0000)
 
         try:
-            fd = self.transport.open(remotefile, 'r')
+            fd = self.transport.open(remotefile, "r")
         except TransportError:
             pass
 
@@ -120,8 +119,7 @@ class StubForTestTransport(object):
     def test_open_failure_nonexistent_file(self):
         with pytest.raises(TransportError):
             # pylint: disable=invalid-name,unused-variable
-            fd = self.transport.open(
-                os.path.join(self.tmpdir, 'nonexistent'), 'r')
+            fd = self.transport.open(os.path.join(self.tmpdir, "nonexistent"), "r")
 
     def test_open_failure_unauthorized(self):
         # we cannot rely on *any* file being unreadable, as tests may
@@ -133,7 +131,7 @@ class StubForTestTransport(object):
         # now re-open with normal Python functions
         with pytest.raises(TransportError):
             # pylint: disable=no-member
-            with self.transport.open(path, 'r') as stream:
+            with self.transport.open(path, "r") as stream:
                 assert stream is False
         try:
             os.unlink(path)
@@ -143,30 +141,31 @@ class StubForTestTransport(object):
     def test_remove_failure(self):
         with pytest.raises(TransportError):
             # pylint: disable=no-member
-            self.transport.remove(
-                os.path.join(self.tmpdir, 'nonexistent'))
+            self.transport.remove(os.path.join(self.tmpdir, "nonexistent"))
 
 
 class TestLocalTransport(StubForTestTransport):
-
     @pytest.fixture(autouse=True)
     def setUp(self):
         self.transport = transport.LocalTransport()
         self.transport.connect()
         self.extra_setup()
 
-@pytest.mark.skipif(
-    'SshTransport' not in os.environ.get('GC3PIE_TESTS_ALLOW', ''),
-    reason=("Skipping SSH test: SSH to localhost not allowed"
-            " (set env variable `GC3PIE_TESTS_ALLOW` to `SshTransport` to run)"))
-class TestSshTransport(StubForTestTransport):
 
+@pytest.mark.skipif(
+    "SshTransport" not in os.environ.get("GC3PIE_TESTS_ALLOW", ""),
+    reason=(
+        "Skipping SSH test: SSH to localhost not allowed"
+        " (set env variable `GC3PIE_TESTS_ALLOW` to `SshTransport` to run)"
+    ),
+)
+class TestSshTransport(StubForTestTransport):
     @pytest.fixture(autouse=True)
     def setUp(self):
-        self.transport = transport.SshTransport('localhost',
-                                                ignore_ssh_host_keys=True)
+        self.transport = transport.SshTransport("localhost", ignore_ssh_host_keys=True)
         self.transport.connect()
         self.extra_setup()
+
 
 # main: run tests
 

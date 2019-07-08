@@ -9,7 +9,6 @@ execution, it prints:
 * whether the program has terminated by exiting, and the exit code.
 """
 
-from __future__ import absolute_import
 import os
 from os.path import abspath, basename
 import sys
@@ -19,8 +18,9 @@ from gc3libs.cmdline import SessionBasedScript
 from gc3libs.quantity import GB
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from ex6b import GrayscaleScript
+
     GrayscaleScript().run()
 
 
@@ -28,8 +28,10 @@ class GrayscaleScript(SessionBasedScript):
     """
     Convert images to grayscale.
     """
+
     def __init__(self):
-        super(GrayscaleScript, self).__init__(version='1.0')
+        super(GrayscaleScript, self).__init__(version="1.0")
+
     def new_tasks(self, extra):
         # since `self.params.args` is already a list of file names,
         # just iterate over it to build the list of apps to run...
@@ -45,8 +47,10 @@ class GrayscaleScript(SessionBasedScript):
 
 from grayscale_app import GrayscaleApp
 
+
 class VerboseGrayscaleApp(GrayscaleApp):
     """Convert a single image file to grayscale and log termination status."""
+
     def terminated(self):
         if self.execution.signal != 0:
             log.info("Task %s killed by signal %d", self, self.execution.signal)

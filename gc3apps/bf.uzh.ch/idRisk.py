@@ -20,35 +20,31 @@ ForwardPremium-specific methods and overloads.
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #
 
-__author__ = 'Benjamin Jonen <benjamin.jonen@bf.uzh.ch>'
+__author__ = "Benjamin Jonen <benjamin.jonen@bf.uzh.ch>"
 # summary of user-visible changes
 __changelog__ = """
 
 """
-__docformat__ = 'reStructuredText'
+__docformat__ = "reStructuredText"
 
-from __future__ import absolute_import, print_function
-import gc3libs.debug
+
+import os
+import re
+
+
 import gc3libs.application.apppot
-import re, os
-import numpy as np
-from supportGc3 import lower, flatten, str2tuple, getIndex, extractVal, str2vals
-from supportGc3 import format_newVal, update_parameter_in_file, safe_eval, str2mat, mat2str, getParameter
-from paraLoop import paraLoop
-
+import gc3libs.debug
 from gc3libs import Application, Run
-import shutil
-
-import logbook, sys
 from supportGc3 import wrapLogger
 
-logger = wrapLogger(loggerName = __name__ + 'logger', streamVerb = 'DEBUG', logFile = __name__ + '.log')
+logger = wrapLogger(loggerName=__name__ + "logger", streamVerb="DEBUG", logFile=__name__ + ".log")
+
 
 class idRiskApplication(Application):
 
-    application_name = 'idrisk'
+    application_name = "idrisk"
 
-    _invalid_chars = re.compile(r'[^_a-zA-Z0-9]+', re.X)
+    _invalid_chars = re.compile(r"[^_a-zA-Z0-9]+", re.X)
 
     def __init__(self, executable, arguments, inputs, outputs, output_dir, **extra_args):
         Application.__init__(self, executable, arguments, inputs, outputs, output_dir, **extra_args)
@@ -56,17 +52,17 @@ class idRiskApplication(Application):
     def fetch_output_error(self, ex):
 
         if self.execution.state == Run.State.TERMINATING:
-        # do notify task/main application that we're done
-        # ignore error, let's continue
+            # do notify task/main application that we're done
+            # ignore error, let's continue
             self.execution.state = Run.State.TERMINATED
-            logger.debug('fetch_output_error occured... continuing')
+            logger.debug("fetch_output_error occured... continuing")
             if self.persistent_id:
-                logger.debug('jobid: %s exception: %s' % (self.persistent_id, str(ex)))
+                logger.debug("jobid: %s exception: %s" % (self.persistent_id, str(ex)))
             else:
-                logger.debug('info: %s exception: %s' % (self.info, str(ex)))
+                logger.debug("info: %s exception: %s" % (self.info, str(ex)))
             return None
         else:
-        # non-terminal state, pass on error
+            # non-terminal state, pass on error
             return ex
 
     # def submit_error(self, ex):
@@ -80,7 +76,6 @@ class idRiskApplication(Application):
     #     except AttributeError:
     #         logger.debug('no `lrms_jobid` hence submission didnt happen')
     #     return None
-
 
     def terminated(self):
         """
@@ -103,8 +98,8 @@ class idRiskApplication(Application):
         """
         output_dir = self.output_dir
         # if files are stored in `output/output/`, move them one level up
-        if os.path.isdir(os.path.join(output_dir, 'output')):
-            wrong_output_dir = os.path.join(output_dir, 'output')
+        if os.path.isdir(os.path.join(output_dir, "output")):
+            wrong_output_dir = os.path.join(output_dir, "output")
             for entry in os.listdir(wrong_output_dir):
                 dest_entry = os.path.join(output_dir, entry)
                 if os.path.isdir(dest_entry):
@@ -112,7 +107,7 @@ class idRiskApplication(Application):
                     gc3libs.utils.backup(dest_entry)
                 os.rename(os.path.join(wrong_output_dir, entry), dest_entry)
         # set the exitcode based on postprocessing the main output file
-        simulation_out = os.path.join(output_dir, 'simulation.out')
+        simulation_out = os.path.join(output_dir, "simulation.out")
         if os.path.exists(simulation_out):
             self.execution.exitcode = 0
         else:
@@ -120,10 +115,11 @@ class idRiskApplication(Application):
             self.execution.exitcode = 2
 
 
-
 class idRiskApppotApplication(idRiskApplication, gc3libs.application.apppot.AppPotApplication):
-    _invalid_chars = re.compile(r'[^_a-zA-Z0-9]+', re.X)
+    _invalid_chars = re.compile(r"[^_a-zA-Z0-9]+", re.X)
 
     def __init__(self, executable, arguments, inputs, outputs, output_dir, **extra_args):
-        print 'extra_args = %s' % extra_args
-        gc3libs.application.apppot.AppPotApplication.__init__(self, executable, arguments, inputs, outputs, output_dir, **extra_args)
+        print("extra_args = %s" % extra_args)
+        gc3libs.application.apppot.AppPotApplication.__init__(
+            self, executable, arguments, inputs, outputs, output_dir, **extra_args
+        )

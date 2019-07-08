@@ -18,7 +18,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>"
 # summary of user-visible changes
 __changelog__ = """
   2011-05-06:
@@ -36,24 +36,25 @@ for i in range(0,9):
                            +-> Seq(5)
 
 """
-__docformat__ = 'reStructuredText'
+__docformat__ = "reStructuredText"
 
 
 # ugly workaround for Issue 95,
 # see: https://github.com/uzh/gc3pie/issues/95
-#if __name__ == "__main__":
+# if __name__ == "__main__":
 #    import gdemo
 
-#import gdemo
-#import ConfigParser
-#import csv
-#import math
-from __future__ import absolute_import
+# import gdemo
+# import ConfigParser
+# import csv
+# import math
 import os
 import os.path
-#import shutil
+
+# import shutil
 import sys
-#import types
+
+# import types
 import tarfile
 
 ## interface to Gc3libs
@@ -64,53 +65,68 @@ from gc3libs.cmdline import SessionBasedScript, _Script
 from gc3libs.workflow import SequentialTaskCollection, ParallelTaskCollection
 import gc3libs.utils
 
+
 class XtandemPostApplication(Application):
     def __init__(self, param_value, output_folder, iteration, **extra_args):
 
-        gc3libs.log.info("\t\t\t\t\t\tCalling XtandemPostApplication.__init__(%d,%d) ... " % (param_value,iteration))
+        gc3libs.log.info("\t\t\t\t\t\tCalling XtandemPostApplication.__init__(%d,%d) ... " % (param_value, iteration))
 
-        arguments = ["/bin/echo", "POST-Parameter: ",str(param_value),  " POST-Iteration: ", str(iteration)]
+        arguments = ["/bin/echo", "POST-Parameter: ", str(param_value), " POST-Iteration: ", str(iteration)]
 
-        tarfile_name = os.path.join(output_folder,str(param_value),str(iteration))+"POST.tgz"
+        tarfile_name = os.path.join(output_folder, str(param_value), str(iteration)) + "POST.tgz"
 
         tar = tarfile.open(tarfile_name, "w")
 
-        for root, subFolders, files in os.walk(os.path.join(output_folder,str(param_value))):
+        for root, subFolders, files in os.walk(os.path.join(output_folder, str(param_value))):
             for file in files:
                 # arguments.append(" ["+os.path.relpath(os.path.join(root,file),output_folder)+"] ")
-                tar.add(os.path.join(root,file))
+                tar.add(os.path.join(root, file))
         tar.close()
 
         self.iteration = iteration
-        gc3libs.Application.__init__(self,
-                                     arguments = arguments,
-                                     inputs = {tarfile_name:os.path.basename(tarfile_name)},
-                                     outputs = [],
-                                     output_dir = os.path.join(output_folder,str(param_value),str(iteration),"POST"),
-                                     join = True,
-                                     stdout = "stdout.log",
-                                     **extra_args
-                                     )
+        gc3libs.Application.__init__(
+            self,
+            arguments=arguments,
+            inputs={tarfile_name: os.path.basename(tarfile_name)},
+            outputs=[],
+            output_dir=os.path.join(output_folder, str(param_value), str(iteration), "POST"),
+            join=True,
+            stdout="stdout.log",
+            **extra_args
+        )
 
     def terminated(self):
-        gc3libs.log.info("\t\t\t\t\t\tCalling XtandemPostApplication.terminated ... " )
+        gc3libs.log.info("\t\t\t\t\t\tCalling XtandemPostApplication.terminated ... ")
         self.execution.returncode = 0
+
 
 class XtandemApplicationB(Application):
     def __init__(self, param_value, input_file, output_folder, iteration, **extra_args):
 
-        gc3libs.log.info("\t\t\t\t\tCalling XtandemApplicationB.__init__(%d,%s,%d) ... " % (param_value,input_file,iteration))
+        gc3libs.log.info(
+            "\t\t\t\t\tCalling XtandemApplicationB.__init__(%d,%s,%d) ... " % (param_value, input_file, iteration)
+        )
 
         self.iteration = iteration
-        gc3libs.Application.__init__(self,
-                                     arguments = ["/bin/echo", "Parameter: ",str(param_value), " FileName: ", input_file, " Iteration: ", str(iteration)],
-                                     inputs = [],
-                                     outputs = [],
-                                     output_dir = os.path.join(output_folder,str(param_value),str(iteration),os.path.basename(input_file),"B"),
-                                     stdout = "stdout.txt",
-                                     stderr = "stderr.txt",
-                                     **extra_args
-                                     )
+        gc3libs.Application.__init__(
+            self,
+            arguments=[
+                "/bin/echo",
+                "Parameter: ",
+                str(param_value),
+                " FileName: ",
+                input_file,
+                " Iteration: ",
+                str(iteration),
+            ],
+            inputs=[],
+            outputs=[],
+            output_dir=os.path.join(output_folder, str(param_value), str(iteration), os.path.basename(input_file), "B"),
+            stdout="stdout.txt",
+            stderr="stderr.txt",
+            **extra_args
+        )
+
     def terminated(self):
         self.execution.returncode = 0
         gc3libs.log.info("\t\t\t\t\tCalling XtandemApplicationB.terminated()")
@@ -119,18 +135,30 @@ class XtandemApplicationB(Application):
 class XtandemApplicationA(Application):
     def __init__(self, param_value, input_file, output_folder, iteration, **extra_args):
 
-        gc3libs.log.info("\t\t\t\t\tCalling XtandemApplicationA.__init__(%d,%s,%d) ... " % (param_value,input_file,iteration))
+        gc3libs.log.info(
+            "\t\t\t\t\tCalling XtandemApplicationA.__init__(%d,%s,%d) ... " % (param_value, input_file, iteration)
+        )
 
         self.iteration = iteration
-        gc3libs.Application.__init__(self,
-                                     arguments = ["/bin/echo", "Parameter: ",str(param_value), " FileName: ", input_file, " Iteration: ", str(iteration)],
-                                     inputs = [],
-                                     outputs = [],
-                                     output_dir = os.path.join(output_folder,str(param_value),str(iteration),os.path.basename(input_file),"A"),
-                                     stdout = "stdout.txt",
-                                     stderr = "stderr.txt",
-                                     **extra_args
-                                     )
+        gc3libs.Application.__init__(
+            self,
+            arguments=[
+                "/bin/echo",
+                "Parameter: ",
+                str(param_value),
+                " FileName: ",
+                input_file,
+                " Iteration: ",
+                str(iteration),
+            ],
+            inputs=[],
+            outputs=[],
+            output_dir=os.path.join(output_folder, str(param_value), str(iteration), os.path.basename(input_file), "A"),
+            stdout="stdout.txt",
+            stderr="stderr.txt",
+            **extra_args
+        )
+
     def terminated(self):
         self.execution.returncode = 0
         gc3libs.log.info("\t\t\t\t\tCalling XtandemApplicationA.terminated()")
@@ -142,12 +170,7 @@ class GdemoWorkflow(SessionBasedScript):
     """
 
     def __init__(self):
-        SessionBasedScript.__init__(
-            self,
-            version = '0.2',
-            input_filename_pattern = '*.ini',
-            )
-
+        SessionBasedScript.__init__(self, version="0.2", input_filename_pattern="*.ini")
 
     def parse_args(self):
         self.input_folder = str(self.params.args[0])
@@ -165,15 +188,17 @@ class GdemoWorkflow(SessionBasedScript):
         name = "GC3Pie_demo"
 
         for param in self.parameters:
-            name = "Gdemo_param_"+str(param)
+            name = "Gdemo_param_" + str(param)
 
             gc3libs.log.info("Calling Gdemo_workflow.next_tastk() for param [%d] ... " % param)
 
-            yield (name, gdemo_workflow.MainSequentialIteration, [
-                    param,
-                    self.input_folder,
-                    self.output_folder,
-                    ], extra_args)
+            yield (
+                name,
+                gdemo_workflow.MainSequentialIteration,
+                [param, self.input_folder, self.output_folder],
+                extra_args,
+            )
+
 
 ## support classes
 
@@ -183,27 +208,18 @@ class GdemoWorkflow(SessionBasedScript):
 #
 # This is the crucial point:
 
+
 class MainParallelIteration(ParallelTaskCollection):
+    def __init__(self, param_value, input_file_folder, output_folder, **extra):
 
-    def __init__(self, param_value,
-                 input_file_folder,
-                 output_folder, **extra):
+        self.jobname = "Gdemo_MainParal_" + str(param_value)
 
-        self.jobname = "Gdemo_MainParal_"+str(param_value)
-
-        gc3libs.log.info("\t\tCalling MainParallelIteration.__init(%d,%s)" % (param_value,input_file_folder))
+        gc3libs.log.info("\t\tCalling MainParallelIteration.__init(%d,%s)" % (param_value, input_file_folder))
 
         self.tasks = []
         for input_file in os.listdir(input_file_folder):
-            self.tasks.append(
-                InnerParallelIteration(
-                    param_value,
-                    os.path.abspath(input_file),
-                    output_folder
-                    )
-                )
+            self.tasks.append(InnerParallelIteration(param_value, os.path.abspath(input_file), output_folder))
         ParallelTaskCollection.__init__(self, self.tasks, **extra)
-
 
     def __str__(self):
         return self.jobname
@@ -214,38 +230,18 @@ class MainParallelIteration(ParallelTaskCollection):
 
 
 class InnerParallelIteration(ParallelTaskCollection):
-    def __init__(self, param_value,
-                 input_file,
-                 output_folder,
-                 **extra):
+    def __init__(self, param_value, input_file, output_folder, **extra):
 
-
-        gc3libs.log.info("\t\t\tCalling InnerParallelIteration.init(%d,%s)" % (param_value,input_file))
+        gc3libs.log.info("\t\t\tCalling InnerParallelIteration.init(%d,%s)" % (param_value, input_file))
 
         tasks = []
 
-        self.jobname = "Gdemo_paral_"+str(param_value)
+        self.jobname = "Gdemo_paral_" + str(param_value)
         extra_args = extra.copy()
         # XXX: do I need this ?
-        extra_args['parent'] = self.jobname
-        tasks.append(
-            InnerSequentialIterationA(
-                param_value,
-                input_file,
-                output_folder,
-                iteration=0,
-                **extra_args
-                )
-            )
-        tasks.append(
-            InnerSequentialIterationB(
-                param_value,
-                input_file,
-                output_folder,
-                iteration=0,
-                **extra_args
-                )
-            )
+        extra_args["parent"] = self.jobname
+        tasks.append(InnerSequentialIterationA(param_value, input_file, output_folder, iteration=0, **extra_args))
+        tasks.append(InnerSequentialIterationB(param_value, input_file, output_folder, iteration=0, **extra_args))
 
         # actually init jobs
         ParallelTaskCollection.__init__(self, tasks, **extra)
@@ -257,15 +253,19 @@ class InnerParallelIteration(ParallelTaskCollection):
         gc3libs.log.info("\t\t\tInnerParallelIteration.terminated")
         self.execution.returncode = 0
 
+
 class InnerSequentialIterationA(SequentialTaskCollection):
     def __init__(self, param_value, input_file_name, output_folder, iteration, **extra_args):
 
-        gc3libs.log.info("\t\t\t\tCalling InnerSequentialIterationA.__init__ for param [%d] and file [%s]" % (param_value, input_file_name))
+        gc3libs.log.info(
+            "\t\t\t\tCalling InnerSequentialIterationA.__init__ for param [%d] and file [%s]"
+            % (param_value, input_file_name)
+        )
 
         self.param_value = param_value
         self.input_file = input_file_name
         self.output_folder = output_folder
-        self.jobname = "Gdemo_InnerSequenceA_"+str(self.param_value)
+        self.jobname = "Gdemo_InnerSequenceA_" + str(self.param_value)
 
         initial_task = XtandemApplicationA(param_value, input_file_name, output_folder, iteration)
         SequentialTaskCollection.__init__(self, [initial_task], **extra_args)
@@ -276,7 +276,7 @@ class InnerSequentialIterationA(SequentialTaskCollection):
     def next(self, iteration):
         if iteration < 4:
             gc3libs.log.info("\t\t\t\tCalling InnerSequentialIterationA.next(%d) ... " % int(iteration))
-            self.add(XtandemApplicationA(self.param_value, self.input_file, self.output_folder, iteration+1))
+            self.add(XtandemApplicationA(self.param_value, self.input_file, self.output_folder, iteration + 1))
             return Run.State.RUNNING
         else:
             self.execution.returncode = 0
@@ -289,12 +289,15 @@ class InnerSequentialIterationA(SequentialTaskCollection):
 class InnerSequentialIterationB(SequentialTaskCollection):
     def __init__(self, param_value, input_file_name, output_folder, iteration, **extra_args):
 
-        gc3libs.log.info("\t\t\t\tCalling InnerSequentialIterationB.__init__ for param [%d] and file [%s]" % (param_value, input_file_name))
+        gc3libs.log.info(
+            "\t\t\t\tCalling InnerSequentialIterationB.__init__ for param [%d] and file [%s]"
+            % (param_value, input_file_name)
+        )
 
         self.param_value = param_value
         self.input_file = input_file_name
         self.output_folder = output_folder
-        self.jobname = "Gdemo_InnerSequenceB_"+str(self.param_value)
+        self.jobname = "Gdemo_InnerSequenceB_" + str(self.param_value)
 
         initial_task = XtandemApplicationB(param_value, input_file_name, output_folder, iteration)
         SequentialTaskCollection.__init__(self, [initial_task], **extra_args)
@@ -305,7 +308,7 @@ class InnerSequentialIterationB(SequentialTaskCollection):
     def next(self, iteration):
         if iteration < 4:
             gc3libs.log.info("\t\t\t\tCalling InnerSequentialIterationB.next(%d) ... " % int(iteration))
-            self.add(XtandemApplicationB(self.param_value, self.input_file, self.output_folder, iteration+1))
+            self.add(XtandemApplicationB(self.param_value, self.input_file, self.output_folder, iteration + 1))
             return Run.State.RUNNING
         else:
             self.execution.returncode = 0
@@ -320,12 +323,13 @@ class MainSequentialIteration(SequentialTaskCollection):
         self.param_value = param_value
         self.inputfile_folder = inputfile_folder
         self.output_folder = output_folder
-        self.jobname = "Gdemo_MainSequence_"+str(self.param_value)
+        self.jobname = "Gdemo_MainSequence_" + str(self.param_value)
 
+        gc3libs.log.info(
+            "\t Calling MainSequentialIteration.__init(%d,%s,%s)" % (param_value, inputfile_folder, output_folder)
+        )
 
-        gc3libs.log.info("\t Calling MainSequentialIteration.__init(%d,%s,%s)" % (param_value,inputfile_folder,output_folder))
-
-        self.initial_task = MainParallelIteration(param_value,inputfile_folder,output_folder)
+        self.initial_task = MainParallelIteration(param_value, inputfile_folder, output_folder)
 
         SequentialTaskCollection.__init__(self, [self.initial_task], **extra_args)
 
@@ -333,7 +337,7 @@ class MainSequentialIteration(SequentialTaskCollection):
 
         if iteration < 3:
             gc3libs.log.info("\t Calling MainSequentialIteration.next(%d) ... " % int(iteration))
-            self.add(XtandemPostApplication(self.param_value, self.output_folder, iteration+1))
+            self.add(XtandemPostApplication(self.param_value, self.output_folder, iteration + 1))
             return Run.State.RUNNING
         else:
             self.execution.returncode = 0
@@ -343,8 +347,8 @@ class MainSequentialIteration(SequentialTaskCollection):
         gc3libs.log.info("\t MainSequentialIteration.terminated [%s]" % self.execution.returncode)
 
 
-
 # run script
-if __name__ == '__main__':
+if __name__ == "__main__":
     import gdemo_workflow
+
     GdemoWorkflow().run()

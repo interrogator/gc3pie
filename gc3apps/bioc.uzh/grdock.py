@@ -33,45 +33,47 @@ Input parameters consists of:
 Options:
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import re
+import shutil
+import sys
+import tempfile
+import time
+
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, MiB, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2015-02-17:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import grdock
+
     grdock.GrdockScript().run()
 
-import os
-import sys
-import time
-import tempfile
-import re
 
-import shutil
 # import csv
 
-from pkg_resources import Requirement, resource_filename
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 DEFAULT_CORES = 1
-DEFAULT_MEMORY = Memory(1500,MB)
-DEFAULT_WALLTIME = Duration(300,hours)
+DEFAULT_MEMORY = Memory(1500, MB)
+DEFAULT_WALLTIME = Duration(300, hours)
 
 ## custom application class
 class GrdockApplication(Application):
@@ -87,41 +89,37 @@ class GrdockApplication(Application):
     same ligand index as a suffix:
     Es: input ligand: Docking1.sd -> output: Docked1.sd
     """
-    application_name = 'grbdock'
+
+    application_name = "grbdock"
 
     def __init__(self, docking_file, docking_index, **extra_args):
 
-        self.output_dir = extra_args['output_dir']
+        self.output_dir = extra_args["output_dir"]
         self.docking_index = docking_index
 
         inputs = dict()
         outputs = dict()
 
-        grdock_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/grdock_wrapper.sh")
+        grdock_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/grdock_wrapper.sh")
 
         inputs[grdock_wrapper_sh] = os.path.basename(grdock_wrapper_sh)
 
         inputs[docking_file] = os.path.basename(docking_file)
 
-        if extra_args['data_folder']:
-            for element in os.listdir(extra_args['data_folder']):
-                inputs[os.path.abspath(os.path.join(extra_args['data_folder'],
-                                                   element))] = os.path.basename(element)
+        if extra_args["data_folder"]:
+            for element in os.listdir(extra_args["data_folder"]):
+                inputs[os.path.abspath(os.path.join(extra_args["data_folder"], element))] = os.path.basename(element)
 
-        arguments = "./%s -n %s -o Docked%s %s results" % (inputs[grdock_wrapper_sh],
-                                                           extra_args['rbdock_iterations'],
-                                                           self.docking_index,
-                                                           os.path.basename(docking_file))
+        arguments = "./%s -n %s -o Docked%s %s results" % (
+            inputs[grdock_wrapper_sh],
+            extra_args["rbdock_iterations"],
+            self.docking_index,
+            os.path.basename(docking_file),
+        )
 
         Application.__init__(
-            self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = ["results/"],
-            stdout = 'grdock.log',
-            join=True,
-            **extra_args)
+            self, arguments=arguments, inputs=inputs, outputs=["results/"], stdout="grdock.log", join=True, **extra_args
+        )
 
 
 class GrdockScript(SessionBasedScript):
@@ -146,27 +144,36 @@ class GrdockScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GrdockApplication,
+            version=__version__,  # module version == script version
+            application=GrdockApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GrdockApplication,
-            )
+            stats_only_for=GrdockApplication,
+        )
 
     def setup_options(self):
-        self.add_param("-i", "--iterations", metavar="[NUM]",
-                       dest="rbdock_iterations", default="20",
-                       help="Number of iterations for rbdock. "
-                       "Default: 20")
+        self.add_param(
+            "-i",
+            "--iterations",
+            metavar="[NUM]",
+            dest="rbdock_iterations",
+            default="20",
+            help="Number of iterations for rbdock. " "Default: 20",
+        )
 
-        self.add_param("-d", "--data", metavar="[STRING]",
-                       dest="data_folder", default=None,
-                       help="Path to data folder (e.g. where "
-                       "crebbp-without-water-Tripos.mol2, "
-                       "Pseudo-Ligand-in-pose.sd, Water-in-3P1C.pdb "
-                       "and/or Docking.sd, could be retrieved")
+        self.add_param(
+            "-d",
+            "--data",
+            metavar="[STRING]",
+            dest="data_folder",
+            default=None,
+            help="Path to data folder (e.g. where "
+            "crebbp-without-water-Tripos.mol2, "
+            "Pseudo-Ligand-in-pose.sd, Water-in-3P1C.pdb "
+            "and/or Docking.sd, could be retrieved",
+        )
 
     def parse_args(self):
         """
@@ -180,14 +187,13 @@ class GrdockScript(SessionBasedScript):
                 self.input_dockings.append(os.path.abspath(argument))
             if os.path.isdir(argument):
                 # walk through it and recursively search for valid .sd files
-                for root,dirs,files in os.walk(argument):
+                for root, dirs, files in os.walk(argument):
                     for ff in files:
                         if ff.endswith(".sd"):
-                            self.input_dockings.append(os.path.join(root,ff))
+                            self.input_dockings.append(os.path.join(root, ff))
 
         if self.params.data_folder:
             assert os.path.isdir(self.params.data_folder)
-
 
     def new_tasks(self, extra):
         """
@@ -199,32 +205,24 @@ class GrdockScript(SessionBasedScript):
 
             # extract root folder name to be used as jobname
             jobname = os.path.basename(docking_file)
-            res = re.findall('\d+.', docking_file, flags=re.IGNORECASE)
+            res = re.findall("\d+.", docking_file, flags=re.IGNORECASE)
             if res:
                 docking_index = res[-1]
             else:
-                gc3libs.log.warning("Failed to extract index number from input "
-                                    "dockig file %s." % docking_file)
+                gc3libs.log.warning("Failed to extract index number from input " "dockig file %s." % docking_file)
                 docking_index = "none"
 
             extra_args = extra.copy()
 
-            extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                        'run_%s' % jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION',
-                                                                        'run_%s' % jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE',
-                                                                        'run_%s' % jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME',
-                                                                        'run_%s' % jobname)
+            extra_args["output_dir"] = self.params.output
+            extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", "run_%s" % jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", "run_%s" % jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", "run_%s" % jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", "run_%s" % jobname)
 
-            extra_args['rbdock_iterations'] = self.params.rbdock_iterations
-            extra_args['data_folder'] = self.params.data_folder
+            extra_args["rbdock_iterations"] = self.params.rbdock_iterations
+            extra_args["data_folder"] = self.params.data_folder
 
-            tasks.append(GrdockApplication(
-                docking_file,
-                docking_index,
-                **extra_args))
+            tasks.append(GrdockApplication(docking_file, docking_index, **extra_args))
 
         return tasks

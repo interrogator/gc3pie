@@ -19,28 +19,31 @@
 #  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 # stdlib imports
-from __future__ import absolute_import, print_function, unicode_literals
-from future import standard_library
-standard_library.install_aliases()
-from io import StringIO
+
 import os
+import re
 import shutil
 import tempfile
-import re
+from io import StringIO
+
+from future import standard_library
 
 # GC3Pie imports
 from gc3libs import Run
+from gc3libs.testing.helpers import SuccessfulApp, UnsuccessfulApp, temporary_core
 from gc3libs.workflow import SequentialTaskCollection, StagedTaskCollection, StopOnError
 
-from gc3libs.testing.helpers import SuccessfulApp, UnsuccessfulApp, temporary_core
+standard_library.install_aliases()
 
 
 def test_staged_task_collection_progress():
     class ThreeStageCollection(StagedTaskCollection):
         def stage0(self):
             return SuccessfulApp()
+
         def stage1(self):
             return SuccessfulApp()
+
         def stage2(self):
             return UnsuccessfulApp()
 
@@ -54,13 +57,13 @@ def test_staged_task_collection_progress():
         while coll.tasks[0].execution.state != Run.State.TERMINATED:
             coll.progress()
         assert coll.execution.state in [Run.State.SUBMITTED, Run.State.RUNNING]
-        #assert_equal(coll.execution.exitcode, 0)
+        # assert_equal(coll.execution.exitcode, 0)
 
         # second task is successful
         while coll.tasks[1].execution.state != Run.State.TERMINATED:
             coll.progress()
-        #assert_equal(coll.execution.state, Run.State.RUNNING)
-        #assert_equal(coll.execution.exitcode, 0)
+        # assert_equal(coll.execution.state, Run.State.RUNNING)
+        # assert_equal(coll.execution.exitcode, 0)
 
         # third task is unsuccessful
         while coll.tasks[2].execution.state != Run.State.TERMINATED:
@@ -72,21 +75,22 @@ def test_staged_task_collection_progress():
 def test_staged_task_collection_stage():
     class TwoStageCollection(StagedTaskCollection):
         def stage0(self):
-            return SuccessfulApp(name='stage0')
+            return SuccessfulApp(name="stage0")
+
         def stage1(self):
-            return UnsuccessfulApp(name='stage1')
+            return UnsuccessfulApp(name="stage1")
 
     with temporary_core() as core:
         coll = TwoStageCollection()
         coll.attach(core)
         coll.submit()
         stage = coll.stage()
-        assert isinstance(stage, SuccessfulApp), ("stage=%r" % (stage,))
-        assert stage.jobname == 'stage0'
+        assert isinstance(stage, SuccessfulApp), "stage=%r" % (stage,)
+        assert stage.jobname == "stage0"
 
         # advance to next task
         while coll.tasks[0].execution.state != Run.State.TERMINATED:
             coll.progress()
         stage = coll.stage()
         assert isinstance(stage, UnsuccessfulApp)
-        assert stage.jobname == 'stage1'
+        assert stage.jobname == "stage1"

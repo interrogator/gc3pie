@@ -19,39 +19,82 @@ Driver script for running the `housing` application on SMSCG.
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #
-__author__ = 'Riccardo Murri <riccardo.murri@uzh.ch>, Benjamin Jonen < benjamin.jonen@bf.uzh.ch>'
+__author__ = "Riccardo Murri <riccardo.murri@uzh.ch>, Benjamin Jonen < benjamin.jonen@bf.uzh.ch>"
 # summary of user-visible changes
 __changelog__ = """
 """
-__docformat__ = 'reStructuredText'
+__docformat__ = "reStructuredText"
 
 
-## Calls:
-## -x /home/benjamin/workspace/fpProj/model/bin/forwardPremiumOut -b ../base/ para.loop  -C 1 -N -X i686
-## 5-x /home/benjamin/workspace/idrisk/bin/idRiskOut -b ../base/ para.loop  -C 1 -N -X i686
-## -x /home/benjamin/workspace/idrisk/model/bin/idRiskOut -b ../base/ para.loop  -C 1 -N
-## Need to set path to linux kernel and apppot, e.g.: export PATH=$PATH:~/workspace/apppot:~/workspace/
+# Calls:
+# -x /home/benjamin/workspace/fpProj/model/bin/forwardPremiumOut -b ../base/ para.loop  -C 1 -N -X i686
+# 5-x /home/benjamin/workspace/idrisk/bin/idRiskOut -b ../base/ para.loop  -C 1 -N -X i686
+# -x /home/benjamin/workspace/idrisk/model/bin/idRiskOut -b ../base/ para.loop  -C 1 -N
+# Need to set path to linux kernel and apppot, e.g.: export PATH=$PATH:~/workspace/apppot:~/workspace/
 
 # Preliminary imports
-from __future__ import absolute_import, print_function
-import os, shutil
 
-## Remove all files in curPath if -N option specified.
-if __name__ == '__main__':
+import os
+import re
+import shutil
+import sys
+import time
+
+# std module imports
+import numpy as np
+
+import cli
+
+# gc3 library imports
+import gc3libs
+import gc3libs.application.apppot
+import gc3libs.cmdline
+import gc3libs.core
+import gc3libs.utils
+
+# gc3libs.cmdline._Script.pre_run = pre_run
+import logbook
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, existing_file
+from gc3libs.compat import lockfile
+from housing import housingApplication, housingApppotApplication
+from paraLoop import paraLoop
+from plotSimulation import plotSimulation
+from pymods.classes.tableDict import tableDict
+from pymods.support.support import catFile, wrapLogger
+from supportGc3 import (
+    extractVal,
+    flatten,
+    format_newVal,
+    getIndex,
+    getParameter,
+    lower,
+    mat2str,
+    safe_eval,
+    str2mat,
+    str2tuple,
+    str2vals,
+    update_parameter_in_file,
+)
+
+# Remove all files in curPath if -N option specified.
+if __name__ == "__main__":
     import sys
-    if '-N' in sys.argv:
 
-        path2Pymods = os.path.join(os.path.dirname(__file__), '../')
+    if "-N" in sys.argv:
+
+        path2Pymods = os.path.join(os.path.dirname(__file__), "../")
         if not sys.path.count(path2Pymods):
             sys.path.append(path2Pymods)
         from pymods.support.support import rmFilesAndFolders
+
         curPath = os.getcwd()
         filesAndFolder = os.listdir(curPath)
-        if 'ghousing.log' in filesAndFolder:
-            if 'para.loop' in os.listdir(os.getcwd()):
-                shutil.copyfile(os.path.join(curPath, 'para.loop'), os.path.join('/tmp', 'para.loop'))
+        if "ghousing.log" in filesAndFolder:
+            if "para.loop" in os.listdir(os.getcwd()):
+                shutil.copyfile(os.path.join(curPath, "para.loop"), os.path.join("/tmp", "para.loop"))
                 rmFilesAndFolders(curPath)
-                shutil.copyfile(os.path.join('/tmp', 'para.loop'), os.path.join(curPath, 'para.loop'))
+                shutil.copyfile(os.path.join("/tmp", "para.loop"), os.path.join(curPath, "para.loop"))
             else:
                 rmFilesAndFolders(curPath)
 
@@ -61,48 +104,26 @@ if __name__ == '__main__':
 if __name__ == "__main__":
     import ghousing
 
-# std module imports
-import numpy as np
-import re
-import sys
-import time
-import cli
 
-from supportGc3 import lower, flatten, str2tuple, getIndex, extractVal, str2vals
-from supportGc3 import format_newVal, update_parameter_in_file, safe_eval, str2mat, mat2str, getParameter
-
-from housing import housingApplication, housingApppotApplication
-from paraLoop import paraLoop
-
-path2Pymods = os.path.join(os.path.dirname(__file__), '../')
+path2Pymods = os.path.join(os.path.dirname(__file__), "../")
 if not sys.path.count(path2Pymods):
     sys.path.append(path2Pymods)
 
-from pymods.support.support import catFile
-from pymods.support.support import wrapLogger
-from pymods.classes.tableDict import tableDict
 
-# gc3 library imports
-import gc3libs
-from gc3libs import Application, Run, Task
-from gc3libs.compat import lockfile
-from gc3libs.cmdline import SessionBasedScript, existing_file
-import gc3libs.utils
-import gc3libs.application.apppot
-
-#import gc3libs.debug
+# import gc3libs.debug
 
 # import personal libraries
-path2SrcPy = os.path.join(os.path.dirname(__file__), '../src')
+path2SrcPy = os.path.join(os.path.dirname(__file__), "../src")
 if not sys.path.count(path2SrcPy):
     sys.path.append(path2SrcPy)
-from plotSimulation import plotSimulation
 
 
-### Temporary evil overloads
+## Temporary evil overloads
+
 
 class Error(Exception):
     pass
+
 
 class Abort(Error):
     """Raised when an application exits unexpectedly.
@@ -117,6 +138,7 @@ class Abort(Error):
         self.status = status
         message = "Application terminated (%s)" % self.status
         super(Abort, self).__init__(message, self.status)
+
 
 def engineProgress(self):
     """
@@ -149,7 +171,7 @@ def engineProgress(self):
     # update status of SUBMITTED/RUNNING tasks before launching
     # new ones, otherwise we would be checking the status of
     # some tasks twice...
-    #gc3libs.log.debug("Engine.progress: updating status of tasks [%s]"
+    # gc3libs.log.debug("Engine.progress: updating status of tasks [%s]"
     #                  % str.join(', ', [str(task) for task in self._in_flight]))
     transitioned = []
     for index, task in enumerate(self._in_flight):
@@ -169,28 +191,28 @@ def engineProgress(self):
                 if isinstance(task, Application):
                     currently_in_flight += 1
             elif state == Run.State.STOPPED:
-                transitioned.append(index) # task changed state, mark as to remove
+                transitioned.append(index)  # task changed state, mark as to remove
                 self._stopped.append(task)
             elif state == Run.State.TERMINATING:
-                transitioned.append(index) # task changed state, mark as to remove
+                transitioned.append(index)  # task changed state, mark as to remove
                 self._terminating.append(task)
             elif state == Run.State.TERMINATED:
-                transitioned.append(index) # task changed state, mark as to remove
+                transitioned.append(index)  # task changed state, mark as to remove
                 self._terminated.append(task)
-        #except gc3libs.exceptions.ConfigurationError:
-            ## Unrecoverable; no sense in continuing -- pass
-            ## immediately on to client code and let it handle
-            ## this...
-            #raise
+        # except gc3libs.exceptions.ConfigurationError:
+        ## Unrecoverable; no sense in continuing -- pass
+        ## immediately on to client code and let it handle
+        ## this...
+        # raise
         except:
-            gc3libs.log.debug('Error in updating task. Raising error. ')
+            gc3libs.log.debug("Error in updating task. Raising error. ")
             raise
     # remove tasks that transitioned to other states
     for index in reversed(transitioned):
         del self._in_flight[index]
 
     # execute kills and update count of submitted/in-flight tasks
-    #gc3libs.log.debug("Engine.progress: killing tasks [%s]"
+    # gc3libs.log.debug("Engine.progress: killing tasks [%s]"
     #                  % str.join(', ', [str(task) for task in self._to_kill]))
     transitioned = []
     for index, task in enumerate(self._to_kill):
@@ -208,10 +230,10 @@ def engineProgress(self):
                     currently_in_flight -= 1
             self._terminated.append(task)
             transitioned.append(index)
-        except Exception, x:
-            gc3libs.log.error("Ignored error in killing task '%s': %s: %s"
-                              % (task, x.__class__.__name__, str(x)),
-                              exc_info=True)
+        except Exception as x:
+            gc3libs.log.error(
+                "Ignored error in killing task '%s': %s: %s" % (task, x.__class__.__name__, str(x)), exc_info=True
+            )
     # remove tasks that transitioned to other states
     for index in reversed(transitioned):
         del self._to_kill[index]
@@ -219,7 +241,7 @@ def engineProgress(self):
     # update state of STOPPED tasks; again need to make before new
     # submissions, because it can alter the count of in-flight
     # tasks.
-    #gc3libs.log.debug("Engine.progress: updating status of stopped tasks [%s]"
+    # gc3libs.log.debug("Engine.progress: updating status of stopped tasks [%s]"
     #                  % str.join(', ', [str(task) for task in self._stopped]))
     transitioned = []
     for index, task in enumerate(self._stopped):
@@ -234,18 +256,19 @@ def engineProgress(self):
                     if task.execution.state == Run.State.SUBMITTED:
                         currently_submitted += 1
                 self._in_flight.append(task)
-                transitioned.append(index) # task changed state, mark as to remove
+                transitioned.append(index)  # task changed state, mark as to remove
             elif state == Run.State.TERMINATING:
                 self._terminating.append(task)
-                transitioned.append(index) # task changed state, mark as to remove
+                transitioned.append(index)  # task changed state, mark as to remove
             elif state == Run.State.TERMINATED:
                 self._terminated.append(task)
-                transitioned.append(index) # task changed state, mark as to remove
-        except Exception, x:
-            gc3libs.log.error("Ignoring error in updating state of STOPPED task '%s': %s: %s"
-                              % (task, x.__class__.__name__, str(x)),
-                              exc_info=True)
-        # except Exception, x:
+                transitioned.append(index)  # task changed state, mark as to remove
+        except Exception as x:
+            gc3libs.log.error(
+                "Ignoring error in updating state of STOPPED task '%s': %s: %s" % (task, x.__class__.__name__, str(x)),
+                exc_info=True,
+            )
+        # except Exception as x:
         #     gc3libs.log.error("Ignoring error in updating state of STOPPED task '%s': %s: %s"
         #                       % (task, x.__class__.__name__, str(x)),
         #                       exc_info=True)
@@ -254,14 +277,14 @@ def engineProgress(self):
         del self._stopped[index]
 
     # now try to submit NEW tasks
-    #gc3libs.log.debug("Engine.progress: submitting new tasks [%s]"
+    # gc3libs.log.debug("Engine.progress: submitting new tasks [%s]"
     #                  % str.join(', ', [str(task) for task in self._new]))
     transitioned = []
     if self.can_submit:
         index = 0
-        while (currently_submitted < limit_submitted
-               and currently_in_flight < limit_in_flight
-               and index < len(self._new)):
+        while (
+            currently_submitted < limit_submitted and currently_in_flight < limit_in_flight and index < len(self._new)
+        ):
             task = self._new[index]
             # try to submit; go to SUBMITTED if successful, FAILED if not
             if currently_submitted < limit_submitted and currently_in_flight < limit_in_flight:
@@ -274,24 +297,25 @@ def engineProgress(self):
                     if isinstance(task, Application):
                         currently_submitted += 1
                         currently_in_flight += 1
-                except Exception, x:
-  #                  sys.excepthook(*sys.exc_info()) # DEBUG
+                except Exception as x:
+                    #                  sys.excepthook(*sys.exc_info()) # DEBUG
                     import traceback
+
                     traceback.print_exc()
-                    gc3libs.log.error("Ignored error in submitting task '%s': %s: %s"
-                                      % (task, x.__class__.__name__, str(x)))
-                    task.execution.history("Submission failed: %s: %s"
-                                           % (x.__class__.__name__, str(x)))
-                    #raise
-                #except Exception:
-                    #gc3libs.log.error("Ignored error in submitting task. BJ addition")
+                    gc3libs.log.error(
+                        "Ignored error in submitting task '%s': %s: %s" % (task, x.__class__.__name__, str(x))
+                    )
+                    task.execution.history("Submission failed: %s: %s" % (x.__class__.__name__, str(x)))
+                    # raise
+                # except Exception:
+                # gc3libs.log.error("Ignored error in submitting task. BJ addition")
             index += 1
     # remove tasks that transitioned to SUBMITTED state
     for index in reversed(transitioned):
         del self._new[index]
 
     # finally, retrieve output of finished tasks
-    #gc3libs.log.debug("Engine.progress: fetching output of tasks [%s]"
+    # gc3libs.log.debug("Engine.progress: fetching output of tasks [%s]"
     #                  % str.join(', ', [str(task) for task in self._terminating]))
     if self.can_retrieve:
         transitioned = []
@@ -299,19 +323,23 @@ def engineProgress(self):
             # try to get output
             try:
                 self._core.fetch_output(task)
-            except gc3libs.exceptions.UnrecoverableDataStagingError, ex:
-                gc3libs.log.error("Error in fetching output of task '%s',"
-                                  " will mark it as TERMINATED"
-                                  " (with error exit code %d): %s: %s",
-                                  task, posix.EX_IOERR,
-                                  ex.__class__.__name__, str(ex), exc_info=True)
-                task.execution.returncode = (Run.Signals.DataStagingFailure,
-                                             posix.EX_IOERR)
+            except gc3libs.exceptions.UnrecoverableDataStagingError as ex:
+                gc3libs.log.error(
+                    "Error in fetching output of task '%s',"
+                    " will mark it as TERMINATED"
+                    " (with error exit code %d): %s: %s",
+                    task,
+                    posix.EX_IOERR,
+                    ex.__class__.__name__,
+                    str(ex),
+                    exc_info=True,
+                )
+                task.execution.returncode = (Run.Signals.DataStagingFailure, posix.EX_IOERR)
                 task.execution.state = Run.State.TERMINATED
                 task.changed = True
-            #except Exception, x:
-                #gc3libs.log.error("Ignored error in fetching output of task '%s': %s: %s"
-                                  #% (task, x.__class__.__name__, str(x)), exc_info=True)
+            # except Exception as x:
+            # gc3libs.log.error("Ignored error in fetching output of task '%s': %s: %s"
+            #% (task, x.__class__.__name__, str(x)), exc_info=True)
             if task.execution.state == Run.State.TERMINATED:
                 self._terminated.append(task)
                 self._core.free(task)
@@ -322,20 +350,20 @@ def engineProgress(self):
         for index in reversed(transitioned):
             del self._terminating[index]
 
-import gc3libs.core
-gc3libs.core.Engine.progress = engineProgress
 
+gc3libs.core.Engine.progress = engineProgress
 
 
 def pre_run(self):
     """
         Temporary overload for pre_run method of gc3libs.cmdline._Script.
     """
-    import cli # pyCLI
+    import cli  # pyCLI
     import cli.app
     import cli._ext.argparse as argparse
     from cli.util import ifelse, ismethodof
     import logging
+
     ## finish setup
     self.setup_options()
     self.setup_args()
@@ -346,7 +374,7 @@ def pre_run(self):
     ## setup GC3Libs logging
     loglevel = max(1, logging.ERROR - 10 * max(0, self.params.verbose - self.verbose_logging_threshold))
     gc3libs.configure_logger(loglevel, self.name)
-    self.log = logging.getLogger('gc3.gc3utils') # alternate: ('gc3.' + self.name)
+    self.log = logging.getLogger("gc3.gc3utils")  # alternate: ('gc3.' + self.name)
     self.log.setLevel(loglevel)
 
     self.log.propagate = True
@@ -356,14 +384,15 @@ def pre_run(self):
     from logging import getLogger
     from logbook.compat import redirect_logging
     from logbook.compat import RedirectLoggingHandler
-#    redirect_logging() # does the same thing as adding a RedirectLoggingHandler... might as well be explicit
+
+    #    redirect_logging() # does the same thing as adding a RedirectLoggingHandler... might as well be explicit
     self.log.parent.handlers = []
     self.log.parent.addHandler(RedirectLoggingHandler())
-    print self.log.handlers
-    print self.log.parent.handlers
-    print self.log.root.handlers
+    print(self.log.handlers)
+    print(self.log.parent.handlers)
+    print(self.log.root.handlers)
 
-    self.log.critical('Successfully overridden gc3pie error handling. ')
+    self.log.critical("Successfully overridden gc3pie error handling. ")
 
     # interface to the GC3Libs main functionality
     self._core = self._make_core()
@@ -371,26 +400,30 @@ def pre_run(self):
     # call hook methods from derived classes
     self.parse_args()
 
-logger = wrapLogger(loggerName = 'ghousing.log', streamVerb = 'INFO', logFile = os.path.join(os.getcwd(), 'ghousing.log'))
-gc3utilsLogger = wrapLogger(loggerName = 'gc3ghousing.log', streamVerb = 'INFO', logFile = os.path.join(os.getcwd(), 'ghousing.log'),
-                            streamFormat = '{record.time:%Y-%m-%d %H:%M:%S} - {record.channel}: {record.message}',
-                            fileFormat = '{record.time:%Y-%m-%d %H:%M:%S} - {record.channel}: {record.message}')
+
+logger = wrapLogger(loggerName="ghousing.log", streamVerb="INFO", logFile=os.path.join(os.getcwd(), "ghousing.log"))
+gc3utilsLogger = wrapLogger(
+    loggerName="gc3ghousing.log",
+    streamVerb="INFO",
+    logFile=os.path.join(os.getcwd(), "ghousing.log"),
+    streamFormat="{record.time:%Y-%m-%d %H:%M:%S} - {record.channel}: {record.message}",
+    fileFormat="{record.time:%Y-%m-%d %H:%M:%S} - {record.channel}: {record.message}",
+)
+
 
 def dispatch_record(record):
     """Passes a record on to the handlers on the stack.  This is useful when
     log records are created programmatically and already have all the
     information attached and should be dispatched independent of a logger.
     """
-#    logbook.base._default_dispatcher.call_handlers(record)
+    #    logbook.base._default_dispatcher.call_handlers(record)
     gc3utilsLogger.call_handlers(record)
 
-import gc3libs.cmdline
-#gc3libs.cmdline._Script.pre_run = pre_run
-import logbook
-#logbook.dispatch_record = dispatch_record
+
+# logbook.dispatch_record = dispatch_record
 
 
-## custom application class
+# custom application class
 
 
 class ghousing(SessionBasedScript, paraLoop):
@@ -399,44 +432,55 @@ Read `.loop` files and execute the `housingOut` program accordingly.
     """
 
     def __init__(self):
-        SessionBasedScript.__init__(
-            self,
-            version = '1.0',
-            input_filename_pattern = '*.loop',
-            stats_only_for = Application,
-        )
-        paraLoop.__init__(self, 'INFO')
+        SessionBasedScript.__init__(self, version="1.0", input_filename_pattern="*.loop", stats_only_for=Application)
+        paraLoop.__init__(self, "INFO")
 
     def setup_options(self):
-        self.add_param("-b", "--initial", metavar="DIR",
-                       dest="initial",
-                       help="Include directory contents in any job's input."
-                       " Use this to specify the initial guess files.")
-        self.add_param("-n", "--dry-run",
-                       dest = 'dryrun', action="store_true", default = False,
-                       help="Take the loop for a test run")
-        self.add_param("-x", "--executable", metavar="PATH",
-                       dest="executable", default=os.path.join(
-                           os.getcwd(), "forwardPremiumOut"),
-                       help="Path to the `idRisk` executable binary"
-                       "(Default: %(default)s)")
-        self.add_param("-X", "--architecture", metavar="ARCH",
-                       dest="architecture", default=Run.Arch.X86_64,
-                       help="Processor architecture required by the executable"
-                       " (one of: 'i686' or 'x86_64', without quotes)")
-        self.add_param("-A", "--apppot", metavar="PATH",
-                       dest="apppot",
-                       type=existing_file, default=None,
-                       help="Use an AppPot image to run idRisk."
-                       " PATH can point either to a complete AppPot system image"
-                       " file, or to a `.changes` file generated with the"
-                       " `apppot-snap` utility.")
-        self.add_param("-rte", "--rte", action="store_true", default=None,
-                       help="Use an AppPot image to run idRisk."
-                       "use predeployed image")
-
-
-
+        self.add_param(
+            "-b",
+            "--initial",
+            metavar="DIR",
+            dest="initial",
+            help="Include directory contents in any job's input." " Use this to specify the initial guess files.",
+        )
+        self.add_param(
+            "-n", "--dry-run", dest="dryrun", action="store_true", default=False, help="Take the loop for a test run"
+        )
+        self.add_param(
+            "-x",
+            "--executable",
+            metavar="PATH",
+            dest="executable",
+            default=os.path.join(os.getcwd(), "forwardPremiumOut"),
+            help="Path to the `idRisk` executable binary" "(Default: %(default)s)",
+        )
+        self.add_param(
+            "-X",
+            "--architecture",
+            metavar="ARCH",
+            dest="architecture",
+            default=Run.Arch.X86_64,
+            help="Processor architecture required by the executable" " (one of: 'i686' or 'x86_64', without quotes)",
+        )
+        self.add_param(
+            "-A",
+            "--apppot",
+            metavar="PATH",
+            dest="apppot",
+            type=existing_file,
+            default=None,
+            help="Use an AppPot image to run idRisk."
+            " PATH can point either to a complete AppPot system image"
+            " file, or to a `.changes` file generated with the"
+            " `apppot-snap` utility.",
+        )
+        self.add_param(
+            "-rte",
+            "--rte",
+            action="store_true",
+            default=None,
+            help="Use an AppPot image to run idRisk." "use predeployed image",
+        )
 
     def parse_args(self):
         """
@@ -445,13 +489,11 @@ Read `.loop` files and execute the `housingOut` program accordingly.
         if not os.path.exists(self.params.executable):
             raise gc3libs.exceptions.InvalidUsage(
                 "Path '%s' to the 'housingOut' executable does not exist;"
-                " use the '-x' option to specify a valid one."
-                % self.params.executable)
+                " use the '-x' option to specify a valid one." % self.params.executable
+            )
         if os.path.isdir(self.params.executable):
-            self.params.executable = os.path.join(self.params.executable,
-                                                  'housing')
-        gc3libs.utils.test_file(self.params.executable, os.R_OK|os.X_OK,
-                                gc3libs.exceptions.InvalidUsage)
+            self.params.executable = os.path.join(self.params.executable, "housing")
+        gc3libs.utils.test_file(self.params.executable, os.R_OK | os.X_OK, gc3libs.exceptions.InvalidUsage)
 
     def run(self):
         """
@@ -461,144 +503,148 @@ Read `.loop` files and execute the `housingOut` program accordingly.
         """
         try:
             return cli.app.CommandLineApp.run(self)
-        except gc3libs.exceptions.InvalidUsage, ex:
+        except gc3libs.exceptions.InvalidUsage as ex:
             # Fatal errors do their own printing, we only add a short usage message
             sys.stderr.write("Type '%s --help' to get usage help.\n" % self.name)
             return 64  # EX_USAGE in /usr/include/sysexits.h
         except KeyboardInterrupt:
             sys.stderr.write("%s: Exiting upon user request (Ctrl+C)\n" % self.name)
             return 13
-        except SystemExit, ex:
+        except SystemExit as ex:
             return ex.code
         # the following exception handlers put their error message
         # into `msg` and the exit code into `rc`; the closing stanza
         # tries to log the message and only outputs it to stderr if
         # this fails
-        except lockfile.Error, ex:
+        except lockfile.Error as ex:
             exc_info = sys.exc_info()
-            msg = ("Error manipulating the lock file (%s: %s)."
-                   " This likely points to a filesystem error"
-                   " or a stale process holding the lock."
-                   " If you cannot get this command to run after"
-                   " a system reboot, please write to gc3pie@googlegroups.com"
-                   " including any output you got by running '%s -vvvv %s'.")
+            msg = (
+                "Error manipulating the lock file (%s: %s)."
+                " This likely points to a filesystem error"
+                " or a stale process holding the lock."
+                " If you cannot get this command to run after"
+                " a system reboot, please write to gc3pie@googlegroups.com"
+                " including any output you got by running '%s -vvvv %s'."
+            )
             if len(sys.argv) > 0:
-                msg %= (ex.__class__.__name__, str(ex),
-                        self.name, str.join(' ', sys.argv[1:]))
+                msg %= (ex.__class__.__name__, str(ex), self.name, str.join(" ", sys.argv[1:]))
             else:
-                msg %= (ex.__class__.__name__, str(ex), self.name, '')
+                msg %= (ex.__class__.__name__, str(ex), self.name, "")
             rc = 1
-        except AssertionError, ex:
+        except AssertionError as ex:
             exc_info = sys.exc_info()
-            msg = ("BUG: %s\n"
-                   "Please send an email to gc3pie@googlegroups.com"
-                   " including any output you got by running '%s -vvvv %s'."
-                   " Thanks for your cooperation!")
+            msg = (
+                "BUG: %s\n"
+                "Please send an email to gc3pie@googlegroups.com"
+                " including any output you got by running '%s -vvvv %s'."
+                " Thanks for your cooperation!"
+            )
             if len(sys.argv) > 0:
-                msg %= (str(ex), self.name, str.join(' ', sys.argv[1:]))
+                msg %= (str(ex), self.name, str.join(" ", sys.argv[1:]))
             else:
-                msg %= (str(ex), self.name, '')
+                msg %= (str(ex), self.name, "")
             rc = 1
-        #except Exception, ex:
-            #msg = "%s: %s" % (ex.__class__.__name__, str(ex))
-            #if isinstance(ex, cli.app.Abort):
-                #rc = (ex.status)
-            #elif isinstance(ex, EnvironmentError):
-                #rc = 74  # EX_IOERR in /usr/include/sysexits.h
-            #else:
-                ## generic error exit
-                #rc = 1
+        # except Exception as ex:
+        # msg = "%s: %s" % (ex.__class__.__name__, str(ex))
+        # if isinstance(ex, cli.app.Abort):
+        # rc = (ex.status)
+        # elif isinstance(ex, EnvironmentError):
+        # rc = 74  # EX_IOERR in /usr/include/sysexits.h
+        # else:
+        ## generic error exit
+        # rc = 1
         ## output error message and -maybe- backtrace...
-        #try:
-            #self.log.critical(msg,
-                              #exc_info=(self.params.verbose > self.verbose_logging_threshold + 2))
-        #except:
-            ## no logging setup, output to stderr
-            #sys.stderr.write("%s: FATAL ERROR: %s\n" % (self.name, msg))
-            #if self.params.verbose > self.verbose_logging_threshold + 2:
-                #sys.excepthook(* sys.exc_info())
+        # try:
+        # self.log.critical(msg,
+        # exc_info=(self.params.verbose > self.verbose_logging_threshold + 2))
+        # except:
+        ## no logging setup, output to stderr
+        # sys.stderr.write("%s: FATAL ERROR: %s\n" % (self.name, msg))
+        # if self.params.verbose > self.verbose_logging_threshold + 2:
+        # sys.excepthook(* sys.exc_info())
         ## ...and exit
-        #return 1
+        # return 1
 
+    # def run(self):
+    # """
+    # Execute `cli.app.Application.run`:meth: if any exception is
+    # raised, catch it, output an error message and then exit with
+    # an appropriate error code.
+    # """
 
-    #def run(self):
-        #"""
-        #Execute `cli.app.Application.run`:meth: if any exception is
-        #raised, catch it, output an error message and then exit with
-        #an appropriate error code.
-        #"""
-
-      ##  return cli.app.CommandLineApp.run(self)
-        #import cli
-        #try:
-            #return cli.app.CommandLineApp.run(self)
-        #except gc3libs.exceptions.InvalidUsage, ex:
-            ## Fatal errors do their own printing, we only add a short usage message
-            #sys.stderr.write("Type '%s --help' to get usage help.\n" % self.name)
-            #return 64 # EX_USAGE in /usr/include/sysexits.h
-        #except KeyboardInterrupt:
-            #sys.stderr.write("%s: Exiting upon user request (Ctrl+C)\n" % self.name)
-            #return 13
-        #except SystemExit, ex:
-            #return ex.code
-        ## the following exception handlers put their error message
-        ## into `msg` and the exit code into `rc`; the closing stanza
-        ## tries to log the message and only outputs it to stderr if
-        ## this fails
-        #except lockfile.Error, ex:
-            #exc_info = sys.exc_info()
-            #msg = ("Error manipulating the lock file (%s: %s)."
-                   #" This likely points to a filesystem error"
-                   #" or a stale process holding the lock."
-                   #" If you cannot get this command to run after"
-                   #" a system reboot, please write to gc3pie@googlegroups.com"
-                   #" including any output you got by running '%s -vvvv %s'.")
-            #if len(sys.argv) > 0:
-                #msg %= (ex.__class__.__name__, str(ex),
-                        #self.name, str.join(' ', sys.argv[1:]))
-            #else:
-                #msg %= (ex.__class__.__name__, str(ex), self.name, '')
-            #rc = 1
-        #except AssertionError, ex:
-            #exc_info = sys.exc_info()
-            #msg = ("BUG: %s\n"
-                   #"Please send an email to gc3pie@googlegroups.com"
-                   #" including any output you got by running '%s -vvvv %s'."
-                   #" Thanks for your cooperation!")
-            #if len(sys.argv) > 0:
-                #msg %= (str(ex), self.name, str.join(' ', sys.argv[1:]))
-            #else:
-                #msg %= (str(ex), self.name, '')
-            #rc = 1
-        #except NotImplementedError, nE:
-            #pass
+    ##  return cli.app.CommandLineApp.run(self)
+    # import cli
+    # try:
+    # return cli.app.CommandLineApp.run(self)
+    # except gc3libs.exceptions.InvalidUsage as ex:
+    ## Fatal errors do their own printing, we only add a short usage message
+    # sys.stderr.write("Type '%s --help' to get usage help.\n" % self.name)
+    # return 64 # EX_USAGE in /usr/include/sysexits.h
+    # except KeyboardInterrupt:
+    # sys.stderr.write("%s: Exiting upon user request (Ctrl+C)\n" % self.name)
+    # return 13
+    # except SystemExit as ex:
+    # return ex.code
+    ## the following exception handlers put their error message
+    ## into `msg` and the exit code into `rc`; the closing stanza
+    ## tries to log the message and only outputs it to stderr if
+    ## this fails
+    # except lockfile.Error as ex:
+    # exc_info = sys.exc_info()
+    # msg = ("Error manipulating the lock file (%s: %s)."
+    # " This likely points to a filesystem error"
+    # " or a stale process holding the lock."
+    # " If you cannot get this command to run after"
+    # " a system reboot, please write to gc3pie@googlegroups.com"
+    # " including any output you got by running '%s -vvvv %s'.")
+    # if len(sys.argv) > 0:
+    # msg %= (ex.__class__.__name__, str(ex),
+    # self.name, str.join(' ', sys.argv[1:]))
+    # else:
+    # msg %= (ex.__class__.__name__, str(ex), self.name, '')
+    # rc = 1
+    # except AssertionError as ex:
+    # exc_info = sys.exc_info()
+    # msg = ("BUG: %s\n"
+    # "Please send an email to gc3pie@googlegroups.com"
+    # " including any output you got by running '%s -vvvv %s'."
+    # " Thanks for your cooperation!")
+    # if len(sys.argv) > 0:
+    # msg %= (str(ex), self.name, str.join(' ', sys.argv[1:]))
+    # else:
+    # msg %= (str(ex), self.name, '')
+    # rc = 1
+    # except NotImplementedError, nE:
+    # pass
 
     def new_tasks(self, extra):
         # Generating new tasks for both paramter files
-        self.logger.info('\ngenParamters.in: ')
-        self.logger.info('-----------------')
-        catFile(os.path.join(self.params.initial, 'input', 'genParameters.in'))
-        self.logger.info('\nctryParameters.in: ')
-        self.logger.info('-----------------')
-        catFile(os.path.join(self.params.initial, 'input', 'ctryParameters.in'))
-        self.logger.info('\npara.loop: ')
-        self.logger.info('-----------------')
-        catFile(os.path.join(os.getcwd(), 'para.loop'))
-        self.logger.info('\nPress [y] to confirm the input files and continue execution of ghousing.py. Press [q] to exit')
-        #import select
-        #rlist, wlist, xlist = select.select([sys.stdin], [], [], None)
+        self.logger.info("\ngenParamters.in: ")
+        self.logger.info("-----------------")
+        catFile(os.path.join(self.params.initial, "input", "genParameters.in"))
+        self.logger.info("\nctryParameters.in: ")
+        self.logger.info("-----------------")
+        catFile(os.path.join(self.params.initial, "input", "ctryParameters.in"))
+        self.logger.info("\npara.loop: ")
+        self.logger.info("-----------------")
+        catFile(os.path.join(os.getcwd(), "para.loop"))
+        self.logger.info(
+            "\nPress [y] to confirm the input files and continue execution of ghousing.py. Press [q] to exit"
+        )
+        # import select
+        # rlist, wlist, xlist = select.select([sys.stdin], [], [], None)
         selection = raw_input()
-        if selection.lower() == 'q':
-            self.logger.critical('Exiting upon user request...')
+        if selection.lower() == "q":
+            self.logger.critical("Exiting upon user request...")
             os._exit(1)
         # setup AppPot parameters
         use_apppot = False
-        #bug = use_apppot[0]
+        # bug = use_apppot[0]
         apppot_img = None
         apppot_changes = None
         if self.params.apppot:
             use_apppot = True
-            if self.params.apppot.endswith('.changes.tar.gz'):
+            if self.params.apppot.endswith(".changes.tar.gz"):
                 apppot_changes = self.params.apppot
             else:
                 apppot_img = self.params.apppot
@@ -607,246 +653,311 @@ Read `.loop` files and execute the `housingOut` program accordingly.
 
         # create a tar.gz archive of the code
         import tarfile
-        tar = tarfile.open(os.path.join(os.getcwd(), 'codeBase.tar.gz'), "w:gz")
-        for name in [self.params.initial, os.path.join(self.params.initial, '../code')]:
+
+        tar = tarfile.open(os.path.join(os.getcwd(), "codeBase.tar.gz"), "w:gz")
+        for name in [self.params.initial, os.path.join(self.params.initial, "../code")]:
             tar.add(name)
         tar.close()
-        #codeBaseFolder = os.path.join(os.getcwd(), 'codeBase/')
-        #codeFolder = os.path.join(self.params.initial, '../code/')
-        #shutil.copytree(self.params.initial, os.path.join(codeBaseFolder, 'base'))
-        #shutil.copytree(codeFolder, os.path.join(codeBaseFolder, 'code'))
+        # codeBaseFolder = os.path.join(os.getcwd(), 'codeBase/')
+        # codeFolder = os.path.join(self.params.initial, '../code/')
+        # shutil.copytree(self.params.initial, os.path.join(codeBaseFolder, 'base'))
+        # shutil.copytree(codeFolder, os.path.join(codeBaseFolder, 'code'))
 
         # Copy base dir
-        localBaseDir = os.path.join(os.getcwd(), 'localBaseDir')
+        localBaseDir = os.path.join(os.getcwd(), "localBaseDir")
         gc3libs.utils.copytree(self.params.initial, localBaseDir)
 
         # update ctry Parameters. Important, before I do the para.loop adjustments
         ctryInParaLoop = False
         for para_loop in inputs:
             if os.path.isdir(para_loop):
-                para_loop = os.path.join(para_loop, 'para.loop')
-            paraLoopFile = open(para_loop, 'r')
+                para_loop = os.path.join(para_loop, "para.loop")
+            paraLoopFile = open(para_loop, "r")
             paraLoopFile.readline()
             for line in paraLoopFile:
-                if not line.rstrip(): continue
+                if not line.rstrip():
+                    continue
                 eles = line.split()
                 var = eles[0]
                 val = eles[6]
-                if var == 'ctry':
+                if var == "ctry":
                     ctryInParaLoop = True
                     ctry = val
-        localBaseDirInputFolder = os.path.join(localBaseDir, 'input')
-        genParametersFile = os.path.join(localBaseDirInputFolder, 'genParameters.in')
-        ctryParametersFile = os.path.join(localBaseDirInputFolder, 'ctryParameters.in')
-        updateCtryParametersFile = bool(getParameter(genParametersFile, 'updateCtryParametersFile', 'space-separated'))
+        localBaseDirInputFolder = os.path.join(localBaseDir, "input")
+        genParametersFile = os.path.join(localBaseDirInputFolder, "genParameters.in")
+        ctryParametersFile = os.path.join(localBaseDirInputFolder, "ctryParameters.in")
+        updateCtryParametersFile = bool(getParameter(genParametersFile, "updateCtryParametersFile", "space-separated"))
         if not ctryInParaLoop:
-            ctry = getParameter(genParametersFile, 'ctry', 'space-separated')
+            ctry = getParameter(genParametersFile, "ctry", "space-separated")
         if updateCtryParametersFile:
-            shutil.copy(os.path.join(localBaseDirInputFolder, ctry + 'CtryParameters.in'), os.path.join(localBaseDirInputFolder, 'ctryParameters.in'))
+            shutil.copy(
+                os.path.join(localBaseDirInputFolder, ctry + "CtryParameters.in"),
+                os.path.join(localBaseDirInputFolder, "ctryParameters.in"),
+            )
 
         for para_loop in inputs:
             path_to_base_dir = os.path.dirname(para_loop)
-#            self.log.debug("Processing loop file '%s' ...", para_loop)
+            #            self.log.debug("Processing loop file '%s' ...", para_loop)
             for jobname, substs in self.process_para_file(para_loop):
-##                self.log.debug("Job '%s' defined by substitutions: %s.",
-##                               jobname, substs)
+                #                self.log.debug("Job '%s' defined by substitutions: %s.",
+                #                               jobname, substs)
                 executable = os.path.basename(self.params.executable)
-                inputs = { self.params.executable:executable }
+                inputs = {self.params.executable: executable}
                 # make a "stage" directory where input files are collected
                 path_to_stage_dir = self.make_directory_path(self.params.output, jobname)
-                input_dir = path_to_stage_dir #os.path.join(path_to_stage_dir, 'input')
+                input_dir = path_to_stage_dir  # os.path.join(path_to_stage_dir, 'input')
                 gc3libs.utils.mkdir(input_dir)
                 prefix_len = len(input_dir) + 1
                 # 2. apply substitutions to parameter files
                 for (path, changes) in substs.iteritems():
                     for (var, val, index, regex) in changes:
-                        update_parameter_in_file(os.path.join(localBaseDir, path),
-                                                 var, index, val, regex)
+                        update_parameter_in_file(os.path.join(localBaseDir, path), var, index, val, regex)
                 fillInputDir(localBaseDir, input_dir)
                 # 3. build input file list
-                for dirpath,dirnames,filenames in os.walk(input_dir):
+                for dirpath, dirnames, filenames in os.walk(input_dir):
                     for filename in filenames:
                         # cut the leading part, which is == to path_to_stage_dir
                         relpath = dirpath[prefix_len:]
                         # ignore output directory contents in resubmission
-                        if relpath. startswith('output'):
+                        if relpath.startswith("output"):
                             continue
                         remote_path = os.path.join(relpath, filename)
                         inputs[os.path.join(dirpath, filename)] = remote_path
                 # all contents of the `output` directory are to be fetched
-                outputs = { 'output/':'' }
+                outputs = {"output/": ""}
                 kwargs = extra.copy()
-                kwargs['stdout'] = os.path.join('housingStdOut.log')
-                kwargs['join'] = True
-                kwargs['output_dir'] = os.path.join(path_to_stage_dir, 'output')
-                kwargs['requested_architecture'] = self.params.architecture
+                kwargs["stdout"] = os.path.join("housingStdOut.log")
+                kwargs["join"] = True
+                kwargs["output_dir"] = os.path.join(path_to_stage_dir, "output")
+                kwargs["requested_architecture"] = self.params.architecture
 
-#                print 'inputs = %s' % inputs
-#                print 'outputs = %s' % outputs
+                #                print 'inputs = %s' % inputs
+                #                print 'outputs = %s' % outputs
 
-#                kwargs.setdefault('tags', [ ])
+                #                kwargs.setdefault('tags', [ ])
 
                 # adaptions for uml
                 if self.params.rte:
-                    kwargs['apppot_tag'] = 'ENV/APPPOT-0.26'
-#                    kwargs['tags'] = ['TEST/APPPOT-IBF-1.0']
-#                    kwargs['tags'] = ['TEST/APPPOT-IBF-1.1']
-                    kwargs['tags'] = ['APPS/ECON/APPPOT-IBF-1.0']
+                    kwargs["apppot_tag"] = "ENV/APPPOT-0.26"
+                    #                    kwargs['tags'] = ['TEST/APPPOT-IBF-1.0']
+                    #                    kwargs['tags'] = ['TEST/APPPOT-IBF-1.1']
+                    kwargs["tags"] = ["APPS/ECON/APPPOT-IBF-1.0"]
 
                     cls = housingApppotApplication
-                    pathToExecutable = '/home/user/job/' + executable
+                    pathToExecutable = "/home/user/job/" + executable
                 elif use_apppot:
                     if apppot_img is not None:
-                        kwargs['apppot_img'] = apppot_img
+                        kwargs["apppot_img"] = apppot_img
                     if apppot_changes is not None:
-                        kwargs['apppot_changes'] = apppot_changes
+                        kwargs["apppot_changes"] = apppot_changes
                     cls = housingApppotApplication
-                    pathToExecutable = '/home/user/job/' + executable
+                    pathToExecutable = "/home/user/job/" + executable
                 else:
                     cls = housingApplication
                     pathToExecutable = executable
 
-#                print 'kwargs = %s' % kwargs
+                #                print 'kwargs = %s' % kwargs
                 # hand over job to create
                 yield (jobname, cls, [pathToExecutable, [], inputs, outputs], kwargs)
 
+
 def fillInputDir(baseDir, input_dir):
-    '''
+    """
       Copy folder /input and all files in the base dir to input_dir.
       This is slightly more involved than before because we need to
       exclude the markov directory which contains markov information
       for all country pairs.
-    '''
-    gc3libs.utils.copytree(baseDir , input_dir)
+    """
+    gc3libs.utils.copytree(baseDir, input_dir)
+
 
 def combinedThresholdPlot():
     import copy
-    folders = [folder for folder in os.listdir(os.getcwd()) if os.path.isdir(folder) and not folder == 'localBaseDir' and not folder == 'ghousing.jobs']
-    tableList = [ (folder, os.path.join(os.getcwd(), folder, 'output', 'ownershipThreshold_1.out')) for folder in folders ]
-    tableDicts = dict([ (folder, tableDict.fromTextFile(table, width = np.max([len(folder) for folder in folders]) + 5, prec = 10)) for folder, table in tableList if os.path.isfile(table)])
+
+    folders = [
+        folder
+        for folder in os.listdir(os.getcwd())
+        if os.path.isdir(folder) and not folder == "localBaseDir" and not folder == "ghousing.jobs"
+    ]
+    tableList = [
+        (folder, os.path.join(os.getcwd(), folder, "output", "ownershipThreshold_1.out")) for folder in folders
+    ]
+    tableDicts = dict(
+        [
+            (folder, tableDict.fromTextFile(table, width=np.max([len(folder) for folder in folders]) + 5, prec=10))
+            for folder, table in tableList
+            if os.path.isfile(table)
+        ]
+    )
     tableKeys = tableDicts.keys()
     tableKeys.sort()
     if tableDicts:
         for ixTable, tableKey in enumerate(tableKeys):
-#            print tableKey
-#            print tableDicts[tableKey]
+            #            print tableKey
+            #            print tableDicts[tableKey]
             table = copy.deepcopy(tableDicts[tableKey])
-            table.keep(['age', 'yst1'])
-            table.rename('yst1', tableKey)
+            table.keep(["age", "yst1"])
+            table.rename("yst1", tableKey)
             if ixTable == 0:
                 fullTable = copy.deepcopy(table)
             else:
-                fullTable.merge(table, 'age')
-                if '_merge' in fullTable.cols:
-                    fullTable.drop('_merge')
+                fullTable.merge(table, "age")
+                if "_merge" in fullTable.cols:
+                    fullTable.drop("_merge")
                 logger.info(fullTable)
         logger.info(fullTable)
-        f = open(os.path.join(os.getcwd(), 'ownerThresholds'), 'w')
+        f = open(os.path.join(os.getcwd(), "ownerThresholds"), "w")
         print >> f, fullTable
         f.flush()
         ax = 3
-        plotSimulation(table = os.path.join(os.getcwd(), 'ownerThresholds'), xVar = 'age', yVars = list(fullTable.cols), figureFile = os.path.join(os.getcwd(), 'ownerThresholds.png'), verb = 'CRITICAL' )
+        plotSimulation(
+            table=os.path.join(os.getcwd(), "ownerThresholds"),
+            xVar="age",
+            yVars=list(fullTable.cols),
+            figureFile=os.path.join(os.getcwd(), "ownerThresholds.png"),
+            verb="CRITICAL",
+        )
+
 
 def combinedOwnerSimuPlot():
     import copy
-    logger.debug('starting combinedOwnerSimuPlot')
-    folders = [folder for folder in os.listdir(os.getcwd()) if os.path.isdir(folder) and not folder == 'localBaseDir' and not folder == 'ghousing.jobs']
-    logger.debug('folders are %s ' % folders)
-    tableList = [ (folder, os.path.join(os.getcwd(), folder, 'output', 'aggregate.out')) for folder in folders ]
-    tableDicts = dict([ (folder, tableDict.fromTextFile(table, width = np.max([len(folder) for folder in folders]) + 5, prec = 10)) for folder, table in tableList if os.path.isfile(table)])
+
+    logger.debug("starting combinedOwnerSimuPlot")
+    folders = [
+        folder
+        for folder in os.listdir(os.getcwd())
+        if os.path.isdir(folder) and not folder == "localBaseDir" and not folder == "ghousing.jobs"
+    ]
+    logger.debug("folders are %s " % folders)
+    tableList = [(folder, os.path.join(os.getcwd(), folder, "output", "aggregate.out")) for folder in folders]
+    tableDicts = dict(
+        [
+            (folder, tableDict.fromTextFile(table, width=np.max([len(folder) for folder in folders]) + 5, prec=10))
+            for folder, table in tableList
+            if os.path.isfile(table)
+        ]
+    )
     tableKeys = tableDicts.keys()
     tableKeys.sort()
     if tableDicts:
         for ixTable, tableKey in enumerate(tableKeys):
             table = copy.deepcopy(tableDicts[tableKey])
-            table.keep(['age', 'owner'])
-            table.rename('owner', tableKey)
+            table.keep(["age", "owner"])
+            table.rename("owner", tableKey)
             if ixTable == 0:
                 fullTable = copy.deepcopy(table)
             else:
-                fullTable.merge(table, 'age')
-                fullTable.drop('_merge')
+                fullTable.merge(table, "age")
+                fullTable.drop("_merge")
             logger.info(fullTable)
 
-        empOwnershipFile = os.path.join(os.getcwd(), 'localBaseDir', 'input', 'PSIDOwnershipProfilealleduc.out')
-        empOwnershipTable = tableDict.fromTextFile(empOwnershipFile, width = 20, prec = 10)
-        empOwnershipTable.rename('PrOwnership', 'empOwnership')
-        fullTable.merge(empOwnershipTable, 'age')
-        fullTable.drop('_merge')
+        empOwnershipFile = os.path.join(os.getcwd(), "localBaseDir", "input", "PSIDOwnershipProfilealleduc.out")
+        empOwnershipTable = tableDict.fromTextFile(empOwnershipFile, width=20, prec=10)
+        empOwnershipTable.rename("PrOwnership", "empOwnership")
+        fullTable.merge(empOwnershipTable, "age")
+        fullTable.drop("_merge")
         if fullTable:
             logger.info(fullTable)
-            f = open(os.path.join(os.getcwd(), 'ownerSimu'), 'w')
+            f = open(os.path.join(os.getcwd(), "ownerSimu"), "w")
             print >> f, fullTable
             f.flush()
         else:
-            logger.info('no owner simus')
-        logger.debug('done combinedOwnerSimuPlot')
+            logger.info("no owner simus")
+        logger.debug("done combinedOwnerSimuPlot")
 
-        plotSimulation(table = os.path.join(os.getcwd(), 'ownerSimu'), xVar = 'age', yVars = list(fullTable.cols), yVarRange = (0., 1.), figureFile = os.path.join(os.getcwd(), 'ownerSimu.png'), verb = 'CRITICAL' )
+        plotSimulation(
+            table=os.path.join(os.getcwd(), "ownerSimu"),
+            xVar="age",
+            yVars=list(fullTable.cols),
+            yVarRange=(0.0, 1.0),
+            figureFile=os.path.join(os.getcwd(), "ownerSimu.png"),
+            verb="CRITICAL",
+        )
+
 
 def combineRunningTimes():
-    folders = [folder for folder in os.listdir(os.getcwd()) if os.path.isdir(folder) and not folder == 'localBaseDir' and not folder == 'ghousing.jobs']
-    runTimeFileList = [ (folder, os.path.join(os.getcwd(), folder, 'output', 'runningTime.out')) for folder in folders ]
-    print runTimeFileList
-    runTimes = {} # in minutes
+    folders = [
+        folder
+        for folder in os.listdir(os.getcwd())
+        if os.path.isdir(folder) and folder != "localBaseDir" and folder != "ghousing.jobs"
+    ]
+    runTimeFileList = [(folder, os.path.join(os.getcwd(), folder, "output", "runningTime.out")) for folder in folders]
+    print(runTimeFileList)
+    runTimes = {}  # in minutes
     for folder, fle in runTimeFileList:
-        if not os.path.isfile(fle): continue
+        if not os.path.isfile(fle):
+            continue
         runningTimeFile = open(fle)
         lines = runningTimeFile.readlines()
         for line in lines:
-            if line.find('Full running'):
-                match = re.match('(.*=)([0-9\.\s]*)(.*)', line.rstrip()).groups()
+            if line.find("Full running"):
+                match = re.match("(.*=)([0-9\.\s]*)(.*)", line.rstrip()).groups()
                 if not match:
-                    runTimeSec = 0.
+                    runTimeSec = 0.0
                 else:
-                    runTimeSec = float(match [1].strip()) # in seconds
-        runTimes[folder] = runTimeSec / 60.
-    logger.info('running times are \n %s' % runTimes)
-    f = open(os.path.join(os.getcwd(), 'runTimes.out'), 'w')
+                    runTimeSec = float(match[1].strip())  # in seconds
+        runTimes[folder] = runTimeSec / 60.0
+    logger.info("running times are \n %s" % runTimes)
+    f = open(os.path.join(os.getcwd(), "runTimes.out"), "w")
     folderKeys = runTimes.keys()
     folderKeys.sort()
     for key in folderKeys:
-        print >> f, '%s = %f12.1' % (key, runTimes[key])
+        print >> f, "%s = %f12.1" % (key, runTimes[key])
     f.flush()
     f.close()
 
+
 def getDateTimeStr():
     import datetime
+
     cDate = datetime.date.today()
     cTime = datetime.datetime.time(datetime.datetime.now())
-    dateString = '%04d-%02d-%02d-%02d-%02d-%02d' % (cDate.year, cDate.month, cDate.day, cTime.hour, cTime.minute, cTime.second)
+    dateString = "%04d-%02d-%02d-%02d-%02d-%02d" % (
+        cDate.year,
+        cDate.month,
+        cDate.day,
+        cTime.hour,
+        cTime.minute,
+        cTime.second,
+    )
     return dateString
 
 
-## run scriptfg
+# run scriptfg
 
 
-if __name__ == '__main__':
-    #logger.info('Starting: \n%s' % ' '.join(sys.argv))
-    logger.info('\n%s - Starting: \n%s' % (getDateTimeStr(), ' '.join(sys.argv)))
-    os.system('cat ghousing.log')
-    os.system('cd ~/workspace/housingProj/model/code && hg log > ' + os.path.join(os.getcwd(), 'hgLog'))
-    #os._exit(1)
+if __name__ == "__main__":
+    # logger.info('Starting: \n%s' % ' '.join(sys.argv))
+    logger.info("\n%s - Starting: \n%s" % (getDateTimeStr(), " ".join(sys.argv)))
+    os.system("cat ghousing.log")
+    os.system("cd ~/workspace/housingProj/model/code && hg log > " + os.path.join(os.getcwd(), "hgLog"))
+    # os._exit(1)
     ghousing().run()
-    #from guppy import hpy
-    #h = hpy()
-    #print h.heap()
+    # from guppy import hpy
+    # h = hpy()
+    # print h.heap()
     # create overview plots across parameter combinations
     try:
         combinedThresholdPlot()
     except:
-        logger.critical('problem creating combinedThresholdPlot. Investigate...')
+        logger.critical("problem creating combinedThresholdPlot. Investigate...")
     try:
         combinedOwnerSimuPlot()
     except:
-        logger.critical('problem creating combinedOwnerSimuPlot. Investigate...')
+        logger.critical("problem creating combinedOwnerSimuPlot. Investigate...")
     try:
         combineRunningTimes()
     except:
-        logger.critical('problem creating combineRunningTimes. Investigate...')
+        logger.critical("problem creating combineRunningTimes. Investigate...")
     # some find commands to copy result graphs to a common directory.
-    os.system("find -maxdepth 1 -type d -iregex './p.*' -exec bash -c 'x='{}' && mkdir -p ownerPlots && y=${x#./} && echo $y && cp ${y}/output/ownership_aggregate.out.png ownerPlots/${y}.png 2>/dev/null' \; ; ld ownerPlots/")
-    os.system("find -maxdepth 1 -type d -iregex './p.*' -exec bash -c 'x='{}' && mkdir -p aggregatePlots && y=${x#./} && echo $y && cp ${y}/output/aggregate.png aggregatePlots/${y}.png' \; ; ld aggregatePlots/")
-    os.system("find -maxdepth 1 -type d -iregex './p.*' -exec bash -c 'x='{}' && mkdir -p ownerBdry && y=${x#./} && echo $y && cp ${y}/output/ownerBdry1.png ownerBdry/${y}.png' \; ; ld ownerBdry")
+    os.system(
+        "find -maxdepth 1 -type d -iregex './p.*' -exec bash -c 'x='{}' && mkdir -p ownerPlots && y=${x#./} && echo $y && cp ${y}/output/ownership_aggregate.out.png ownerPlots/${y}.png 2>/dev/null' \; ; ld ownerPlots/"
+    )
+    os.system(
+        "find -maxdepth 1 -type d -iregex './p.*' -exec bash -c 'x='{}' && mkdir -p aggregatePlots && y=${x#./} && echo $y && cp ${y}/output/aggregate.png aggregatePlots/${y}.png' \; ; ld aggregatePlots/"
+    )
+    os.system(
+        "find -maxdepth 1 -type d -iregex './p.*' -exec bash -c 'x='{}' && mkdir -p ownerBdry && y=${x#./} && echo $y && cp ${y}/output/ownerBdry1.png ownerBdry/${y}.png' \; ; ld ownerBdry"
+    )
 
-    logger.info('main done')
+    logger.info("main done")

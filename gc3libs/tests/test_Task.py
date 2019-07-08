@@ -18,20 +18,17 @@ Test class `Task`:class:.
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-__docformat__ = 'reStructuredText'
-
 
 ## imports
 import pytest
-
 from gc3libs import Run, Task
-
-
 from gc3libs.testing.helpers import SuccessfulApp, UnsuccessfulApp, temporary_core
+
+__docformat__ = "reStructuredText"
 
 
 ## tests
+
 
 def test_task_progress():
     with temporary_core() as core:
@@ -47,37 +44,36 @@ def test_task_progress():
 
 
 def test_task_state_handlers():
-    report = {
-        'submitted': False,
-        'terminating': False,
-        'terminated': False,
-    }
+    report = {"submitted": False, "terminating": False, "terminated": False}
 
     class HandlerTestApp(SuccessfulApp):
         def __init__(self, report):
             super(HandlerTestApp, self).__init__()
             self.report = report
+
         def submitted(self):
-            self.report['submitted'] = True
+            self.report["submitted"] = True
             print("Submitted!")
+
         def terminating(self):
-            self.report['terminating'] = True
+            self.report["terminating"] = True
             print("Terminating!")
+
         def terminated(self):
             print("Terminated!")
-            self.report['terminated'] = True
+            self.report["terminated"] = True
 
     with temporary_core() as core:
         task = HandlerTestApp(report)
         task.attach(core)
         task.submit()
-        assert report['submitted']
+        assert report["submitted"]
 
         # run until terminated
         while task.execution.state != Run.State.TERMINATED:
             task.progress()
-        assert report['terminating']
-        assert report['terminated']
+        assert report["terminating"]
+        assert report["terminated"]
 
 
 def test_task_redo1():
@@ -111,8 +107,7 @@ def test_task_redo2():
         assert task.execution.state == Run.State.SUBMITTED
 
         # cannot redo a task that is not yet terminated
-        with pytest.raises(AssertionError,
-                   message="`Task.redo()` succeeded on task not yet finished"):
+        with pytest.raises(AssertionError, message="`Task.redo()` succeeded on task not yet finished"):
             task.redo()
 
 
@@ -128,4 +123,5 @@ def test_task_redo3():
 
 if "__main__" == __name__:
     import pytest
+
     pytest.main(["-v", __file__])

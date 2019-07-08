@@ -17,25 +17,18 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-__docformat__ = 'reStructuredText'
-
 
 import pytest
-
 from gc3libs import Application
 from gc3libs.workflow import RetryableTask
 
+__docformat__ = "reStructuredText"
+
 
 class MyApplication(Application):
-
     def __init__(self):
-        Application.__init__(self,
-                             arguments=[''],
-                             inputs=[],
-                             outputs=[],
-                             output_dir=None)
-        self.execution.state = 'TERMINATED'
+        Application.__init__(self, arguments=[""], inputs=[], outputs=[], output_dir=None)
+        self.execution.state = "TERMINATED"
         self.execution.returncode = 0
         self.changed = False
 
@@ -60,4 +53,5 @@ def test_persisted_change():
 if "__main__" == __name__:
     # pylint: disable=ungrouped-imports
     import pytest
+
     pytest.main(["-v", __file__])

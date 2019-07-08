@@ -18,17 +18,17 @@ Part of the code used in this module originally comes from:
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import zip
-__docformat__ = 'reStructuredText'
-
 
 import functools
 import inspect
+
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import zip
 
 import gc3libs
 
@@ -88,22 +88,20 @@ def trace(fn, log=gc3libs.log.debug):
     argcount = code.co_argcount
     argnames = code.co_varnames[:argcount]
     fn_defaults = fn.__defaults__ or list()
-    argdefs = dict(list(zip(argnames[-len(fn_defaults):], fn_defaults)))
+    argdefs = dict(list(zip(argnames[-len(fn_defaults) :], fn_defaults)))
 
     @functools.wraps(fn)
     def wrapped(*v, **k):
         # Collect function arguments by chaining together positional,
         # defaulted, extra positional and keyword arguments.
-        positional = [format_arg_value(nm_val)
-                      for nm_val in zip(argnames, v)]
-        defaulted = [format_arg_value((a, argdefs[a]))
-                     for a in argnames[len(v):] if a not in k]
+        positional = [format_arg_value(nm_val) for nm_val in zip(argnames, v)]
+        defaulted = [format_arg_value((a, argdefs[a])) for a in argnames[len(v) :] if a not in k]
         nameless = [repr(val) for val in v[argcount:]]
-        keyword = [format_arg_value((key, val))
-                   for key, val in list(k.items())]
+        keyword = [format_arg_value((key, val)) for key, val in list(k.items())]
         args = positional + defaulted + nameless + keyword
-        log("%s(%s)" % (name(fn), ', '.join(args)))
+        log("%s(%s)" % (name(fn), ", ".join(args)))
         return fn(*v, **k)
+
     return wrapped
 
 
@@ -116,7 +114,7 @@ def trace_instancemethod(cls, method, log=gc3libs.log.debug):
     """
     mname = method_name(method)
     # Avoid recursion printing method calls
-    never_echo = "__str__", "__repr__",
+    never_echo = "__str__", "__repr__"
     if mname in never_echo:
         pass
     elif is_classmethod(method):
@@ -149,5 +147,5 @@ def trace_module(mod, log=gc3libs.log.debug):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="debug",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="debug", optionflags=doctest.NORMALIZE_WHITESPACE)

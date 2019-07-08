@@ -31,7 +31,6 @@ work on the source for `exercise_A_2.py`:
 #  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 # stdlib imports
-from __future__ import absolute_import
 import logging
 import sys
 import time
@@ -50,18 +49,21 @@ import gc3libs.core
 loglevel = logging.DEBUG
 gc3libs.configure_logger(loglevel, "gdemo")
 
+
 class GdemoSimpleApp(gc3libs.Application):
     """This simple application will run /bin/hostname on the remove
     host, and retrive the output in a file named `stdout.txt` into a
     directory `mygc3job` inside the current directory."""
+
     def __init__(self):
         gc3libs.Application.__init__(
             self,
-            arguments = ['/bin/cat', '/proc/cpuinfo'], # mandatory
-            inputs = [],                  # mandatory
-            outputs = [],                 # mandatory
-            output_dir = "./mygc3job",    # mandatory
-            stdout = "stdout.txt",)
+            arguments=["/bin/cat", "/proc/cpuinfo"],  # mandatory
+            inputs=[],  # mandatory
+            outputs=[],  # mandatory
+            output_dir="./mygc3job",  # mandatory
+            stdout="stdout.txt",
+        )
 
     def terminated(self):
         """
@@ -75,55 +77,53 @@ class GdemoSimpleApp(gc3libs.Application):
         The default implementation does nothing, override in derived
         classes to implement additional behavior.
         """
-        fname = os.path.join(self.output_dir, 'stdout.txt')
+        fname = os.path.join(self.output_dir, "stdout.txt")
         fd = open(fname)
-        self.model_name = 'UNKNOWN'
+        self.model_name = "UNKNOWN"
         for line in fd:
-            if line.startswith('model name'):
-                self.model_name = line.split(':', 1)[1].strip()
+            if line.startswith("model name"):
+                self.model_name = line.split(":", 1)[1].strip()
                 break
         fd.close()
+
 
 # create an instance of GdemoSimpleApp
 applications = [GdemoSimpleApp() for i in range(10)]
 
 # create an instance of Core. Read configuration from your default
 # configuration file
-cfg = gc3libs.config.Configuration(*gc3libs.Default.CONFIG_FILE_LOCATIONS,
-                                   **{'auto_enable_auth': True})
+cfg = gc3libs.config.Configuration(*gc3libs.Default.CONFIG_FILE_LOCATIONS, **{"auto_enable_auth": True})
 core = gc3libs.core.Core(cfg)
 
 # in case you want to select a specific resource, call
 # `Core.select_resource(...)`
-if len(sys.argv)>1:
+if len(sys.argv) > 1:
     core.select_resource(sys.argv[1])
 
 for app in applications:
     core.submit(app)
     # After submssion, you have to check the application for its state:
-    print  "Job id: %s" % app.execution.lrms_jobid
+    print("Job id: %s" % app.execution.lrms_jobid)
 
 
 while True:
-    unfinished=[]
+    unfinished = []
     for app in applications:
         # Periodically check the status of your application.
-        if app.execution.state in [ gc3libs.Run.State.SUBMITTED,
-                                    gc3libs.Run.State.RUNNING,
-                                    ]:
+        if app.execution.state in [gc3libs.Run.State.SUBMITTED, gc3libs.Run.State.RUNNING]:
             unfinished.append(app)
             try:
                 core.update_job_state(app)
                 sys.stdout.write("[ %s ]\r" % app.execution.state)
                 sys.stdout.flush()
-            except Exception, ex:
+            except Exception as ex:
                 sys.stdout.write("Error getting status of an application: %s" % ex)
     if not unfinished:
         break
 
     time.sleep(5)
 
-print "Job is now in state %s. Fetching output." % app.execution.state
+print("Job is now in state %s. Fetching output." % app.execution.state)
 
 # You can specify a different `download_dir` option if you want to
 # override the value used in the GdemoSimpleApp initialization
@@ -140,6 +140,6 @@ for app in applications:
     else:
         model_names[app.model_name] += 1
 
-print "Model names:"
-for (k,v) in model_names.iteritems():
-    print "Model '%s': %d" % (k,v)
+print("Model names:")
+for (k, v) in model_names.iteritems():
+    print("Model '%s': %d" % (k, v))

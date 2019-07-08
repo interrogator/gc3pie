@@ -27,41 +27,41 @@ See the output of ``gsisp.py --help`` for program usage
 instructions.
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import posix
+import random
+import re
+import shutil
+import sys
+import tempfile
+import time
+
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, MiB, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2016-01-15:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gsisp
+
     gsisp.Gsispingsispipt().run()
 
-import os
-import sys
-import time
-import tempfile
-import re
-
-import shutil
-import random
-import posix
-
-from pkg_resources import Requirement, resource_filename
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 PARAMETERS_FILE = "parameters.in"
 
@@ -70,19 +70,20 @@ class GsispingApplication(Application):
     """
     Custom class to wrap the execution of the sisp script.
     """
-    application_name = 'gsisp'
+
+    application_name = "gsisp"
 
     def __init__(self, input_folder, param_file, **extra_args):
 
-        self.output_dir = extra_args['results_dir']
+        self.output_dir = extra_args["results_dir"]
 
         inputs = dict()
         outputs = dict()
         executables = []
-        self.jobname = extra_args['jobname']
+        self.jobname = extra_args["jobname"]
 
         # Check if binary to be executed is provided as part of input arguments
-        if 'sisp' in extra_args:
+        if "sisp" in extra_args:
             inputs[os.path.abspath(extra_args["sisp"])] = "./sisp"
             executables.append("./sisp")
 
@@ -90,27 +91,29 @@ class GsispingApplication(Application):
         inputs[param_file] = PARAMETERS_FILE
 
         # Set output
-        outputs['output/'] = os.path.join(self.output_dir,"./output")
+        outputs["output/"] = os.path.join(self.output_dir, "./output")
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gsisp.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout="gsisp.log",
             join=True,
-            executables = executables,
-            **extra_args)
+            executables=executables,
+            **extra_args
+        )
 
     def termianted(self):
         """
         Check output folder
         """
         try:
-            assert os.path.isdir(os.path.join(self.output_dir,"./output"))
+            assert os.path.isdir(os.path.join(self.output_dir, "./output"))
         except AssertionError as ex:
             self.execution.returncode = (0, posix.EX_OSFILE)
-            gc3libs.log.error("Job %s failed: %s" (self.jobname,ex.message))
+            gc3libs.log.error("Job %s failed: %s"(self.jobname, ex.message))
+
 
 class Gsispingsispipt(SessionBasedScript):
     """
@@ -131,26 +134,29 @@ class Gsispingsispipt(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GsispingApplication,
+            version=__version__,  # module version == script version
+            application=GsispingApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GsispingApplication,
-            )
+            stats_only_for=GsispingApplication,
+        )
 
     def setup_args(self):
 
-        self.add_param('parameters', type=str,
-                       help="Root localtion of input parameters. "
-                       "Note: only folders containing `%s` files will be "
-                       " considered." % PARAMETERS_FILE)
+        self.add_param(
+            "parameters",
+            type=str,
+            help="Root localtion of input parameters. "
+            "Note: only folders containing `%s` files will be "
+            " considered." % PARAMETERS_FILE,
+        )
 
     def setup_options(self):
-        self.add_param("-S", "--sisp", metavar="PATH",
-                       dest="sisp", default=None,
-                       help="Location of the sisp binary file.")
+        self.add_param(
+            "-S", "--sisp", metavar="PATH", dest="sisp", default=None, help="Location of the sisp binary file."
+        )
 
     def parse_args(self):
         """
@@ -158,14 +164,11 @@ class Gsispingsispipt(SessionBasedScript):
         """
 
         if not os.path.isdir(self.params.parameters):
-            raise OSError("No such file or directory: %s ",
-                          os.path.abspath(self.params.parameters))
+            raise OSError("No such file or directory: %s ", os.path.abspath(self.params.parameters))
 
         if self.params.sisp:
             if not os.path.isfile(self.params.sisp):
-                raise gc3libs.exceptions.InvalidUsage("Sisp binary "
-                                                      " file %s not found"
-                                                      % self.params.sisp)
+                raise gc3libs.exceptions.InvalidUsage("Sisp binary " " file %s not found" % self.params.sisp)
             else:
                 self.params.sisp = os.path.abspath(self.params.sisp)
 
@@ -173,9 +176,9 @@ class Gsispingsispipt(SessionBasedScript):
 
         try:
             self.folders = dict()
-            for root,dir,files in os.walk(self.params.parameters):
+            for root, dir, files in os.walk(self.params.parameters):
                 if PARAMETERS_FILE in files:
-                    self.folders[os.path.abspath(root)] = os.path.join(root,files[files.index(PARAMETERS_FILE)])
+                    self.folders[os.path.abspath(root)] = os.path.join(root, files[files.index(PARAMETERS_FILE)])
             assert len(self.folders) > 0, "No valid input paramenters found"
         except AssertionError as ex:
             gc3libs.log.error(ex.message)
@@ -197,13 +200,10 @@ class Gsispingsispipt(SessionBasedScript):
             extra_args = extra.copy()
 
             if self.params.sisp:
-                extra_args['sisp'] = self.params.sisp
+                extra_args["sisp"] = self.params.sisp
 
-            extra_args['jobname'] = jobname
-            extra_args['results_dir'] = parameter_folder
-            tasks.append(GsispingApplication(
-                parameter_folder,
-                self.folders[parameter_folder],
-                **extra_args))
+            extra_args["jobname"] = jobname
+            extra_args["results_dir"] = parameter_folder
+            tasks.append(GsispingApplication(parameter_folder, self.folders[parameter_folder], **extra_args))
 
         return tasks

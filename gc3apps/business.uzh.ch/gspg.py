@@ -46,99 +46,100 @@ This would trigger the re-run of the whole workflow only
 for lines between 3000 and 7500
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import shutil
+import sys
+import tempfile
+import time
+
+import pandas
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2013-07-03:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: http://code.google.com/p/gc3pie/issues/detail?id=95
 if __name__ == "__main__":
     import gspg
+
     gspg.GspgScript().run()
 
-import os
-import sys
-import time
-import tempfile
 
-import shutil
-import pandas
 # import csv
 
-from pkg_resources import Requirement, resource_filename
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 ## custom application class
 class GspgApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
-    application_name = 'gspg'
+
+    application_name = "gspg"
 
     def __init__(self, input_file, **extra_args):
-
 
         executables = []
         inputs = dict()
 
         inputs[input_file] = "./input.csv"
-        gspg_wrapper = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gspg_wrapper.py")
+        gspg_wrapper = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gspg_wrapper.py")
 
         inputs[gspg_wrapper] = "./wrapper.py"
-
 
         self.output_folder = "./results"
 
         # setup output references
         # self.result_dir = result_dir
-        self.output_dir = extra_args['output_dir']
-        self.output_filename = 'results-%s.csv' % extra_args['index_chunk']
-        self.output_file = os.path.join(self.output_dir,self.output_filename)
+        self.output_dir = extra_args["output_dir"]
+        self.output_filename = "results-%s.csv" % extra_args["index_chunk"]
+        self.output_file = os.path.join(self.output_dir, self.output_filename)
 
-        outputs = [("./results.csv",self.output_filename)]
+        outputs = [("./results.csv", self.output_filename)]
 
-        arguments ="python ./wrapper.py ./input.csv "
+        arguments = "python ./wrapper.py ./input.csv "
 
         # check the optional inputs
 
-        if extra_args.has_key('ctx'):
-            inputs[extra_args['ctx']] = "./bin/ctx.p4"
-            arguments +=  "--ctx ./bin/ctx.p4 "
+        if extra_args.has_key("ctx"):
+            inputs[extra_args["ctx"]] = "./bin/ctx.p4"
+            arguments += "--ctx ./bin/ctx.p4 "
             executables.append("./bin/ctx.p4")
 
-        gc3libs.log.debug("Creating application for executing: %s",
-                          arguments)
+        gc3libs.log.debug("Creating application for executing: %s", arguments)
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gspg.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout="gspg.log",
             join=True,
-            executables = executables,
-            **extra_args)
+            executables=executables,
+            **extra_args
+        )
 
     def terminated(self):
         """
         Check whether output file has been properly created
         """
         pass
+
 
 class GspgScript(SessionBasedScript):
     """
@@ -170,29 +171,34 @@ class GspgScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GspgApplication,
+            version=__version__,  # module version == script version
+            application=GspgApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GspgApplication,
-            )
+            stats_only_for=GspgApplication,
+        )
 
     def setup_args(self):
 
-        self.add_param('csv_input_file', type=str,
-                       help="Input .csv file")
+        self.add_param("csv_input_file", type=str, help="Input .csv file")
 
     def setup_options(self):
 
-        self.add_param("-M", "--ctx", metavar="[PATH]",
-                       dest="ctx", default=None,
-                       help="Location of local copy of ctx binary")
+        self.add_param(
+            "-M", "--ctx", metavar="[PATH]", dest="ctx", default=None, help="Location of local copy of ctx binary"
+        )
 
-        self.add_param("-k", "--chunk", metavar="INT", type=int,
-                       dest="chunk_size", default=1000,
-                       help="How to split the edges input data set.")
+        self.add_param(
+            "-k",
+            "--chunk",
+            metavar="INT",
+            type=int,
+            dest="chunk_size",
+            default=1000,
+            help="How to split the edges input data set.",
+        )
 
     def parse_args(self):
         """
@@ -203,22 +209,19 @@ class GspgScript(SessionBasedScript):
         try:
             assert os.path.isfile(self.params.csv_input_file)
         except ValueError:
-            raise gc3libs.exceptions.InvalidUsage(
-                "Input CSV file %s not found" % self.params.csv_input_file)
+            raise gc3libs.exceptions.InvalidUsage("Input CSV file %s not found" % self.params.csv_input_file)
 
         if self.params.ctx:
             try:
                 assert os.path.isfile(self.params.ctx)
             except ValueError:
-                raise gc3libs.exceptions.InvalidUsage(
-                    "CTX binary file %s not found" % self.params.ctx)
+                raise gc3libs.exceptions.InvalidUsage("CTX binary file %s not found" % self.params.ctx)
 
         # Verify that 'self.params.chunk_size' is int
         try:
             assert int(self.params.chunk_size)
         except ValueError:
-            raise gc3libs.exceptions.InvalidUsage(
-                "-k option accepts only numbers")
+            raise gc3libs.exceptions.InvalidUsage("-k option accepts only numbers")
 
     def new_tasks(self, extra):
         """
@@ -227,33 +230,33 @@ class GspgScript(SessionBasedScript):
         """
         tasks = []
 
-        for (input_file, index_chunk) in self._generate_chunked_files_and_list(self.params.csv_input_file,
-                                                                              self.params.chunk_size):
+        for (input_file, index_chunk) in self._generate_chunked_files_and_list(
+            self.params.csv_input_file, self.params.chunk_size
+        ):
 
             jobname = "gspg-%s" % (str(index_chunk))
 
             extra_args = extra.copy()
 
-            extra_args['index_chunk'] = str(index_chunk)
-            extra_args['chunk_size'] = int(self.params.chunk_size)
+            extra_args["index_chunk"] = str(index_chunk)
+            extra_args["chunk_size"] = int(self.params.chunk_size)
 
-            extra_args['jobname'] = jobname
+            extra_args["jobname"] = jobname
 
-            extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', jobname)
+            extra_args["output_dir"] = self.params.output
+            extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", jobname)
 
             if self.params.ctx:
-                extra_args['ctx'] = self.params.ctx
+                extra_args["ctx"] = self.params.ctx
 
-            self.log.debug("Creating Application for index : %d - %d" %
-                           (index_chunk, (index_chunk + self.params.chunk_size)))
+            self.log.debug(
+                "Creating Application for index : %d - %d" % (index_chunk, (index_chunk + self.params.chunk_size))
+            )
 
-            tasks.append(GspgApplication(
-                    input_file,
-                    **extra_args))
+            tasks.append(GspgApplication(input_file, **extra_args))
 
         return tasks
 
@@ -268,16 +271,18 @@ class GspgScript(SessionBasedScript):
         """
 
         chunks = []
-        chunk_files_dir = os.path.join(self.session.path,"tmp")
+        chunk_files_dir = os.path.join(self.session.path, "tmp")
 
         # creating 'chunk_files_dir'
-        if not(os.path.isdir(chunk_files_dir)):
+        if not (os.path.isdir(chunk_files_dir)):
             try:
                 os.mkdir(chunk_files_dir)
-            except OSError, osx:
-                gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
-                                  "Error %s." % str(osx) +
-                                  "Using default '/tmp'")
+            except OSError as osx:
+                gc3libs.log.error(
+                    "Failed while creating tmp folder %s. " % chunk_files_dir
+                    + "Error %s." % str(osx)
+                    + "Using default '/tmp'"
+                )
                 chunk_files_dir = "/tmp"
 
         # XXX: by convenction, 1st row contains headers
@@ -286,8 +291,8 @@ class GspgScript(SessionBasedScript):
         index = 0
         for chunk in reader:
             index += 1
-            filename = "%s/chunk_%s.csv" % (chunk_files_dir,index)
+            filename = "%s/chunk_%s.csv" % (chunk_files_dir, index)
             chunk.to_csv(filename, header=True, index=False)
-            chunks.append((filename,index))
+            chunks.append((filename, index))
 
         return chunks

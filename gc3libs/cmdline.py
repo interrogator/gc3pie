@@ -42,13 +42,6 @@ The following public classes are exported from this module:
   `SessionBasedDaemon`:class: via XML-RPC.
 """
 
-from __future__ import (absolute_import, division, print_function)
-
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import range
-from builtins import object
 
 # stdlib modules
 import atexit
@@ -56,7 +49,6 @@ import fnmatch
 import json
 import logging
 import logging.handlers
-from logging.handlers import SysLogHandler
 import math
 import multiprocessing.dummy as mp
 import os
@@ -64,67 +56,68 @@ import os.path
 import signal
 import stat
 import sys
-import time
 import threading
-try:
-    from io import StringIO
-except ImportError:
-    from io import StringIO
-from collections import defaultdict
-try:
-    # Python 2
-    from SimpleXMLRPCServer import SimpleXMLRPCServer
-except ImportError:
-    # Python 3
-    from xmlrpc.server import SimpleXMLRPCServer
-from warnings import warn
+import time
 import xmlrpc.client
+from builtins import object, range, str
+from collections import defaultdict
+from logging.handlers import SysLogHandler
+from warnings import warn
 
+import yaml
 
 # 3rd party modules
 import cli  # pyCLI
-import cli.app
 import cli._ext.argparse as argparse
+import cli.app
 import daemon
-import lockfile
-from lockfile.pidlockfile import PIDLockFile
-from prettytable import PrettyTable
-import yaml
-
 
 # interface to GC3Pie
 import gc3libs
 import gc3libs.config
 import gc3libs.core
 import gc3libs.exceptions
-from gc3libs.exceptions import InvalidUsage
 import gc3libs.persistence
-from gc3libs.utils import (
-    basename_sans,
-    deploy_configuration_file,
-    prettyprint,
-    read_contents,
-    remove as rm_f,
-    same_docstring_as,
-    test_file,
-    write_contents,
-)
 import gc3libs.url
-from gc3libs.url import Url
-from gc3libs.quantity import Memory, GB, Duration, hours
-from gc3libs.session import Session, TemporarySession
+import lockfile
+from future import standard_library
+from gc3libs.exceptions import InvalidUsage
 from gc3libs.poller import make_poller
+from gc3libs.quantity import GB, Duration, Memory, hours
+from gc3libs.session import Session, TemporarySession
+from gc3libs.url import Url
+from gc3libs.utils import basename_sans, deploy_configuration_file, prettyprint, read_contents
+from gc3libs.utils import remove as rm_f
+from gc3libs.utils import same_docstring_as, test_file, write_contents
+from lockfile.pidlockfile import PIDLockFile
+from prettytable import PrettyTable
+
+standard_library.install_aliases()
+
+
+try:
+    from io import StringIO
+except ImportError:
+    from io import StringIO
+
+try:
+    # Python 2
+    from SimpleXMLRPCServer import SimpleXMLRPCServer
+except ImportError:
+    # Python 3
+    from xmlrpc.server import SimpleXMLRPCServer
 
 
 ## file metadata
-__author__ = 'Riccardo Murri <riccardo.murri@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Riccardo Murri <riccardo.murri@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 ##
 # types for command-line parsing; see
 # http://docs.python.org/dev/library/argparse.html#type
 ##
+
 
 def nonnegative_int(num):
     """
@@ -171,12 +164,10 @@ def nonnegative_int(num):
     try:
         value = int(num)
         if value < 0:
-            raise argparse.ArgumentTypeError(
-                "'%s' is not a non-negative integer number." % (num,))
+            raise argparse.ArgumentTypeError("'%s' is not a non-negative integer number." % (num,))
         return value
     except ValueError:
-        raise argparse.ArgumentTypeError(
-            "'%s' is not a non-negative integer number." % (num,))
+        raise argparse.ArgumentTypeError("'%s' is not a non-negative integer number." % (num,))
 
 
 def positive_int(num):
@@ -240,37 +231,30 @@ def positive_int(num):
     try:
         value = int(num)
         if value <= 0:
-            raise argparse.ArgumentTypeError(
-                "'%s' is not a positive integer number." % (num,))
+            raise argparse.ArgumentTypeError("'%s' is not a positive integer number." % (num,))
         return value
     except ValueError:
-        raise argparse.ArgumentTypeError(
-            "'%s' is not a positive integer number." % (num,))
+        raise argparse.ArgumentTypeError("'%s' is not a positive integer number." % (num,))
 
 
 def existing_file(path):
-    test_file(path, os.F_OK | os.R_OK,
-              argparse.ArgumentTypeError)
+    test_file(path, os.F_OK | os.R_OK, argparse.ArgumentTypeError)
     return path
 
 
 def executable_file(path):
-    test_file(path, os.F_OK | os.R_OK | os.X_OK,
-              argparse.ArgumentTypeError)
+    test_file(path, os.F_OK | os.R_OK | os.X_OK, argparse.ArgumentTypeError)
     return path
 
 
 def existing_directory(path):
-    test_file(path, os.F_OK | os.R_OK | os.X_OK,
-              argparse.ArgumentTypeError, isdir=True)
+    test_file(path, os.F_OK | os.R_OK | os.X_OK, argparse.ArgumentTypeError, isdir=True)
     return path
 
 
 def valid_directory(path):
     if os.path.exists(path) and not os.path.isdir(path):
-        raise argparse.ArgumentTypeError(
-            "path '%s' already exists but is not a directory."
-            % (path,))
+        raise argparse.ArgumentTypeError("path '%s' already exists but is not a directory." % (path,))
     return path
 
 
@@ -278,8 +262,9 @@ def valid_directory(path):
 # script classes
 ##
 
+
 def make_logger(verbosity, name=None, threshold=0, progname=None):
-    loglevel = max(1, logging.WARNING - 10*max(0, verbosity - threshold))
+    loglevel = max(1, logging.WARNING - 10 * max(0, verbosity - threshold))
     return gc3libs.configure_logger(loglevel, progname or name or "gc3utils")
 
 
@@ -311,8 +296,8 @@ class _Script(cli.app.CommandLineApp):
         done in `parse_args`:meth:
         """
         raise NotImplementedError(
-            "Abstract method `_Script.setup_args()` called,"
-            " which should have been implemented in a derived class")
+            "Abstract method `_Script.setup_args()` called," " which should have been implemented in a derived class"
+        )
 
     def setup_options(self):
         """
@@ -377,28 +362,23 @@ class _Script(cli.app.CommandLineApp):
         """
         # use keyword arguments to set additional instance attrs
         for k, v in list(extra_args.items()):
-            if k not in ['name', 'description']:
+            if k not in ["name", "description"]:
                 setattr(self, k, v)
         # init and setup pyCLI classes
-        if 'version' not in extra_args:
+        if "version" not in extra_args:
             try:
-                extra_args['version'] = self.version
+                extra_args["version"] = self.version
             except AttributeError:
                 raise AssertionError("Missing required parameter 'version'.")
-        if 'description' not in extra_args:
+        if "description" not in extra_args:
             if self.__doc__ is not None:
-                extra_args['description'] = self.__doc__
+                extra_args["description"] = self.__doc__
             else:
-                raise AssertionError(
-                    "Missing required parameter 'description'.")
+                raise AssertionError("Missing required parameter 'description'.")
 
         # init superclass
-        extra_args.setdefault(
-            'name',
-            os.path.splitext(
-                os.path.basename(
-                    sys.argv[0]))[0])
-        extra_args.setdefault('reraise', Exception)
+        extra_args.setdefault("name", os.path.splitext(os.path.basename(sys.argv[0]))[0])
+        extra_args.setdefault("reraise", Exception)
         super(_Script, self).__init__(**extra_args)
 
         # provide some defaults
@@ -409,9 +389,8 @@ class _Script(cli.app.CommandLineApp):
         """
         Allow orverriding command-line options in subclasses.
         """
-        kwargs.setdefault('conflict_handler', 'resolve')
-        kwargs.setdefault('formatter_class',
-                          cli._ext.argparse.RawDescriptionHelpFormatter)
+        kwargs.setdefault("conflict_handler", "resolve")
+        kwargs.setdefault("formatter_class", cli._ext.argparse.RawDescriptionHelpFormatter)
         return cli.app.CommandLineApp.argparser_factory(*args, **kwargs)
 
     @property
@@ -425,7 +404,7 @@ class _Script(cli.app.CommandLineApp):
         if self._description is not None:
             return self._description
         else:
-            return getattr(self.main, "__doc__", '')
+            return getattr(self.main, "__doc__", "")
 
     def setup(self):
         """
@@ -445,18 +424,19 @@ class _Script(cli.app.CommandLineApp):
             default=0,
             help="Print more detailed information about the program's"
             " activity. Increase verbosity each time this option is"
-            " encountered on the command line.")
+            " encountered on the command line.",
+        )
 
-        self.add_param("--config-files",
-                       action="store",
-                       default=','.join(gc3libs.Default.CONFIG_FILE_LOCATIONS),
-                       help="Comma separated list of configuration files",
-                       )
+        self.add_param(
+            "--config-files",
+            action="store",
+            default=",".join(gc3libs.Default.CONFIG_FILE_LOCATIONS),
+            help="Comma separated list of configuration files",
+        )
 
         # finish setup
         self.setup_options()
         self.setup_args()
-
 
     def pre_run(self):
         """
@@ -473,13 +453,11 @@ class _Script(cli.app.CommandLineApp):
         super(_Script, self).pre_run()
 
         # setup GC3Libs logging
-        self.log = make_logger(self.params.verbose, 'gc3utils',
-                               threshold=self.verbose_logging_threshold)
-        self.log.info("Starting %s at %s; invoked as '%s'",
-                      self.name, time.asctime(), ' '.join(sys.argv))
+        self.log = make_logger(self.params.verbose, "gc3utils", threshold=self.verbose_logging_threshold)
+        self.log.info("Starting %s at %s; invoked as '%s'", self.name, time.asctime(), " ".join(sys.argv))
 
         # Read config file(s) from command line
-        self.params.config_files = self.params.config_files.split(',')
+        self.params.config_files = self.params.config_files.split(",")
         # interface to the GC3Libs main functionality
         self.config = self._make_config(self.params.config_files)
         try:
@@ -489,8 +467,8 @@ class _Script(cli.app.CommandLineApp):
             # user-readable message.
             raise gc3libs.exceptions.FatalError(
                 "No computational resources defined."
-                " Please edit the configuration file(s): '%s'."
-                % ("', '".join(self.params.config_files)))
+                " Please edit the configuration file(s): '%s'." % ("', '".join(self.params.config_files))
+            )
 
         # call hook methods from derived classes
         self.parse_args()
@@ -506,12 +484,10 @@ class _Script(cli.app.CommandLineApp):
         except gc3libs.exceptions.InvalidUsage:
             # Fatal errors do their own printing,
             # we only add a short usage message
-            sys.stderr.write(
-                "Type '%s --help' to get usage help.\n" % self.name)
+            sys.stderr.write("Type '%s --help' to get usage help.\n" % self.name)
             return os.EX_USAGE  # see: /usr/include/sysexits.h
         except KeyboardInterrupt:
-            sys.stderr.write(
-                "%s: Exiting upon user request (Ctrl+C)\n" % self.name)
+            sys.stderr.write("%s: Exiting upon user request (Ctrl+C)\n" % self.name)
             self.terminate()
             return 13
         except SystemExit:
@@ -522,29 +498,32 @@ class _Script(cli.app.CommandLineApp):
         # tries to log the message and only outputs it to stderr if
         # this fails
         except lockfile.Error as ex:
-            msg = ("Error manipulating the lock file (%s: %s)."
-                   " This likely points to a filesystem error"
-                   " or a stale process holding the lock."
-                   " If you cannot get this command to run after"
-                   " a system reboot, please write to gc3pie@googlegroups.com"
-                   " including any output you got by running '%s -vvvv %s'."
-                   " (You need to be subscribed to post to the mailing list)")
+            msg = (
+                "Error manipulating the lock file (%s: %s)."
+                " This likely points to a filesystem error"
+                " or a stale process holding the lock."
+                " If you cannot get this command to run after"
+                " a system reboot, please write to gc3pie@googlegroups.com"
+                " including any output you got by running '%s -vvvv %s'."
+                " (You need to be subscribed to post to the mailing list)"
+            )
             if len(sys.argv) > 0:
-                msg %= (ex.__class__.__name__, ex,
-                        self.name, ' '.join(sys.argv[1:]))
+                msg %= (ex.__class__.__name__, ex, self.name, " ".join(sys.argv[1:]))
             else:
-                msg %= (ex.__class__.__name__, ex, self.name, '')
+                msg %= (ex.__class__.__name__, ex, self.name, "")
             rc = os.EX_UNAVAILABLE  # see: /usr/include/sysexits.h
         except AssertionError as ex:
-            msg = ("BUG: %s\n"
-                   "Please send an email to gc3pie@googlegroups.com"
-                   " including any output you got by running '%s -vvvv %s'."
-                   " (You need to be subscribed to post to the mailing list)"
-                   " Thanks for your cooperation!")
+            msg = (
+                "BUG: %s\n"
+                "Please send an email to gc3pie@googlegroups.com"
+                " including any output you got by running '%s -vvvv %s'."
+                " (You need to be subscribed to post to the mailing list)"
+                " Thanks for your cooperation!"
+            )
             if len(sys.argv) > 0:
-                msg %= (ex, self.name, ' '.join(sys.argv[1:]))
+                msg %= (ex, self.name, " ".join(sys.argv[1:]))
             else:
-                msg %= (ex, self.name, '')
+                msg %= (ex, self.name, "")
             rc = os.EX_SOFTWARE  # see: /usr/include/sysexits.h
         except cli.app.Abort as ex:
             msg = "%s: %s" % (ex.__class__.__name__, ex)
@@ -553,7 +532,7 @@ class _Script(cli.app.CommandLineApp):
             msg = "%s: %s" % (ex.__class__.__name__, ex)
             rc = os.EX_IOERR  # see: /usr/include/sysexits.h
         except Exception as ex:
-            if 'GC3PIE_NO_CATCH_ERRORS' in os.environ:
+            if "GC3PIE_NO_CATCH_ERRORS" in os.environ:
                 # propagate generic exceptions for debugging purposes
                 raise
             else:
@@ -562,17 +541,14 @@ class _Script(cli.app.CommandLineApp):
                 rc = 1
         # output error message and -maybe- backtrace...
         try:
-            self.log.critical(
-                msg,
-                exc_info=(self.params.verbose > self.verbose_logging_threshold + 2))
+            self.log.critical(msg, exc_info=(self.params.verbose > self.verbose_logging_threshold + 2))
         except:
             # no logging setup, output to stderr
             sys.stderr.write("%s: FATAL ERROR: %s\n" % (self.name, msg))
             # be careful here as `self.params` might not have been properly
             # constructed yet
-            if ('verbose' in self.params
-                and self.params.verbose > self.verbose_logging_threshold + 2):
-                sys.excepthook(* sys.exc_info())
+            if "verbose" in self.params and self.params.verbose > self.verbose_logging_threshold + 2:
+                sys.excepthook(*sys.exc_info())
         # ...and exit
         return rc
 
@@ -584,10 +560,7 @@ class _Script(cli.app.CommandLineApp):
     # should be no need to do so.
     ##
 
-    def _make_config(
-            self,
-            config_file_locations=gc3libs.Default.CONFIG_FILE_LOCATIONS,
-            **extra_args):
+    def _make_config(self, config_file_locations=gc3libs.Default.CONFIG_FILE_LOCATIONS, **extra_args):
         """
         Return a `gc3libs.config.Configuration`:class: instance configured
         by parsing the configuration file(s) located at
@@ -605,23 +578,21 @@ class _Script(cli.app.CommandLineApp):
         """
         # ensure a configuration file exists in the most specific location
         for location in reversed(config_file_locations):
-            if (os.access(os.path.dirname(location),
-                          os.W_OK | os.X_OK) and not
-                    deploy_configuration_file(
-                        location, "gc3pie.conf.example")):
+            if os.access(os.path.dirname(location), os.W_OK | os.X_OK) and not deploy_configuration_file(
+                location, "gc3pie.conf.example"
+            ):
                 # warn user
                 self.log.warning(
                     "No configuration file '%s' was found;"
                     " a sample one has been copied in that location;"
-                    " please edit it and define resources." % location)
+                    " please edit it and define resources." % location
+                )
         # set defaults
-        extra_args.setdefault('auto_enable_auth', True)
+        extra_args.setdefault("auto_enable_auth", True)
         try:
-            return gc3libs.config.Configuration(
-                *config_file_locations, **extra_args)
+            return gc3libs.config.Configuration(*config_file_locations, **extra_args)
         except:
-            self.log.error("Failed loading config file(s) from '%s'",
-                           "', '".join(config_file_locations))
+            self.log.error("Failed loading config file(s) from '%s'", "', '".join(config_file_locations))
             raise
 
     def _select_resources(self, *resource_names):
@@ -633,7 +604,7 @@ class _Script(cli.app.CommandLineApp):
         """
         patterns = []
         for item in resource_names:
-            patterns.extend(name for name in item.split(','))
+            patterns.extend(name for name in item.split(","))
 
         def keep_resource_if_matches(resource):
             """
@@ -644,17 +615,17 @@ class _Script(cli.app.CommandLineApp):
                 if fnmatch.fnmatch(resource.name, pattern):
                     return True
             return False
+
         kept = self._core.select_resource(keep_resource_if_matches)
         if kept == 0:
-            raise gc3libs.exceptions.NoResources(
-                "No resources match the names '%s'"
-                % ','.join(resource_names))
+            raise gc3libs.exceptions.NoResources("No resources match the names '%s'" % ",".join(resource_names))
 
 
 class _SessionBasedCommand(_Script):
     """
     Base class for Session Based scripts (interactive or daemons)
     """
+
     ##
     # CUSTOMIZATION METHODS
     ##
@@ -683,11 +654,12 @@ class _SessionBasedCommand(_Script):
           * ``TIME`` is replaced with the current time, in *HH:MM* format.
 
         """
-        return (pathspec
-                .replace('SESSION', self.params.session + '.out')
-                .replace('NAME', jobname)
-                .replace('DATE', time.strftime('%Y-%m-%d'))
-                .replace('TIME', time.strftime('%H:%M')))
+        return (
+            pathspec.replace("SESSION", self.params.session + ".out")
+            .replace("NAME", jobname)
+            .replace("DATE", time.strftime("%Y-%m-%d"))
+            .replace("TIME", time.strftime("%H:%M"))
+        )
 
     def make_task_controller(self):
         """
@@ -711,7 +683,8 @@ class _SessionBasedCommand(_Script):
             self.session,
             self.session.store,
             max_submitted=self.params.max_running,
-            max_in_flight=self.params.max_running)
+            max_in_flight=self.params.max_running,
+        )
 
     def add(self, task):
         """
@@ -776,7 +749,6 @@ class _SessionBasedCommand(_Script):
         """
         return []
 
-
     ##
     # pyCLI INTERFACE METHODS
     ##
@@ -817,11 +789,7 @@ class _SessionBasedCommand(_Script):
         self.stats_only_for = None
         self.extra = {}  # extra arguments passed to `parse_args`
         # init base classes
-        _Script.__init__(
-            self,
-            main=self._main,
-            **extra_args
-        )
+        _Script.__init__(self, main=self._main, **extra_args)
 
     def process_args(self):
         """
@@ -842,15 +810,12 @@ class _SessionBasedCommand(_Script):
         See also: `new_tasks`:meth:
         """
         # default creation arguments
-        self.extra.setdefault('requested_cores', self.params.ncores)
-        self.extra.setdefault('requested_memory',
-                              self.params.ncores * self.params.memory_per_core)
-        self.extra.setdefault('requested_walltime', self.params.walltime)
+        self.extra.setdefault("requested_cores", self.params.ncores)
+        self.extra.setdefault("requested_memory", self.params.ncores * self.params.memory_per_core)
+        self.extra.setdefault("requested_walltime", self.params.walltime)
         # XXX: assumes `make_directory_path` substitutes ``NAME`` with
         # `jobname`; keep in sync!
-        self.extra.setdefault(
-            'output_dir',
-            self.make_directory_path(self.params.output, 'NAME'))
+        self.extra.setdefault("output_dir", self.make_directory_path(self.params.output, "NAME"))
         # build job list
         new_jobs = list(self.new_tasks(self.extra.copy()))
         if new_jobs:
@@ -874,13 +839,12 @@ class _SessionBasedCommand(_Script):
                 # create a new `Task` object
                 try:
                     warn(
-                        "Using old-style tasks initializer;"
-                        " please update the code in function `new_tasks`!",
-                        DeprecationWarning)
+                        "Using old-style tasks initializer;" " please update the code in function `new_tasks`!",
+                        DeprecationWarning,
+                    )
                     task = self.__make_task_from_old_style_args(item)
                 except Exception as err:
-                    self.log.error("Could not create task '%s': %s.",
-                                   jobname, err, exc_info=__debug__)
+                    self.log.error("Could not create task '%s': %s.", jobname, err, exc_info=__debug__)
                     continue
                     # XXX: should we raise an exception here?
                     # raise AssertionError(
@@ -889,15 +853,14 @@ class _SessionBasedCommand(_Script):
 
             elif isinstance(item, gc3libs.Task):
                 task = item
-                if 'jobname' not in task:
-                    task.jobname = (
-                        "%s-N%d" % (task.__class__.__name__, n + 1))
+                if "jobname" not in task:
+                    task.jobname = "%s-N%d" % (task.__class__.__name__, n + 1)
 
             else:
                 raise gc3libs.exceptions.InternalError(
                     "SessionBasedScript.process_args got %r %s,"
-                    " but was expecting a gc3libs.Task instance"
-                    % (item, type(item)))
+                    " but was expecting a gc3libs.Task instance" % (item, type(item))
+                )
 
             # silently ignore duplicates
             if task.jobname in existing_job_names:
@@ -905,8 +868,7 @@ class _SessionBasedCommand(_Script):
 
             # patch output_dir if it's not changed from the default,
             # or if it's not defined (e.g., TaskCollection)
-            if ('output_dir' not in task
-                or task.output_dir == self.extra['output_dir']):
+            if "output_dir" not in task or task.output_dir == self.extra["output_dir"]:
                 # user did not change the `output_dir` default, expand it now
                 self.__fix_output_dir(task, task.jobname)
 
@@ -925,22 +887,17 @@ class _SessionBasedCommand(_Script):
           from the `new_tasks`:meth: instead.
         """
         jobname, cls, args, kwargs = item
-        kwargs.setdefault('jobname', jobname)
-        kwargs.setdefault(
-            'output_dir',
-            self.make_directory_path(self.params.output, jobname))
-        kwargs.setdefault(
-            'requested_cores', self.extra['requested_cores'])
-        kwargs.setdefault(
-            'requested_memory', self.extra['requested_memory'])
-        kwargs.setdefault(
-            'requested_walltime', self.extra['requested_walltime'])
+        kwargs.setdefault("jobname", jobname)
+        kwargs.setdefault("output_dir", self.make_directory_path(self.params.output, jobname))
+        kwargs.setdefault("requested_cores", self.extra["requested_cores"])
+        kwargs.setdefault("requested_memory", self.extra["requested_memory"])
+        kwargs.setdefault("requested_walltime", self.extra["requested_walltime"])
         return cls(*args, **kwargs)
 
     def __fix_output_dir(self, task, name):
         """Substitute the NAME string in output paths."""
         if task.would_output:
-            task.output_dir = task.output_dir.replace('NAME', name)
+            task.output_dir = task.output_dir.replace("NAME", name)
         try:
             for subtask in task.tasks:
                 self._fix_output_dir(subtask, name)
@@ -953,7 +910,6 @@ class _SessionBasedCommand(_Script):
         except AttributeError:
             # not a RetryableTask
             pass
-
 
     def setup(self):
         """
@@ -970,19 +926,26 @@ class _SessionBasedCommand(_Script):
         #
         # 1. job requirements
         self.add_param(
-            "-c", "--cpu-cores", dest="ncores",
-            type=positive_int, default=1,  # 1 core
+            "-c",
+            "--cpu-cores",
+            dest="ncores",
+            type=positive_int,
+            default=1,  # 1 core
             metavar="NUM",
             help="Set the number of CPU cores required for each job"
-            " (default: %(default)s). NUM must be a whole number."
+            " (default: %(default)s). NUM must be a whole number.",
         )
         self.add_param(
-            "-m", "--memory-per-core", dest="memory_per_core",
-            type=Memory, default=2 * GB,  # 2 GB
+            "-m",
+            "--memory-per-core",
+            dest="memory_per_core",
+            type=Memory,
+            default=2 * GB,  # 2 GB
             metavar="GIGABYTES",
             help="Set the amount of memory required per execution core;"
             " default: %(default)s. Specify this as an integral number"
-            " followed by a unit, e.g., '512MB' or '4GB'.")
+            " followed by a unit, e.g., '512MB' or '4GB'.",
+        )
         self.add_param(
             "-r",
             "--resource",
@@ -992,33 +955,33 @@ class _SessionBasedCommand(_Script):
             default=None,
             help="Submit jobs to a specific computational resources."
             " NAME is a resource name or comma-separated list of such names."
-            " Use the command `gservers` to list available resources.")
+            " Use the command `gservers` to list available resources.",
+        )
         self.add_param(
             "-w",
             "--wall-clock-time",
             dest="wctime",
-            default='8 hours',
+            default="8 hours",
             metavar="DURATION",
             help="Set the time limit for each job; default is %(default)s."
             " Jobs exceeding this limit will be stopped and considered as"
             " 'failed'. The duration can be expressed as a whole number"
             " followed by a time unit, e.g., '3600 s', '60 minutes',"
-            " '8 hours', or a combination thereof, e.g., '2hours 30minutes'.")
+            " '8 hours', or a combination thereof, e.g., '2hours 30minutes'.",
+        )
 
         # 2. session control
         self.add_param(
             "-s",
             "--session",
             dest="session",
-            default=os.path.join(
-                os.getcwd(),
-                self.name),
+            default=os.path.join(os.getcwd(), self.name),
             metavar="PATH",
-            help="Store the session information in the directory at PATH."
-            " (Default: '%(default)s'). ")
-        self.add_param("-u", "--store-url", metavar="URL",
-                       action="store", default=None,
-                       help="URL of the persistent store to use.")
+            help="Store the session information in the directory at PATH." " (Default: '%(default)s'). ",
+        )
+        self.add_param(
+            "-u", "--store-url", metavar="URL", action="store", default=None, help="URL of the persistent store to use."
+        )
         self.add_param(
             "-N",
             "--new-session",
@@ -1027,7 +990,8 @@ class _SessionBasedCommand(_Script):
             default=False,
             help="Discard any information saved in the session directory"
             " (see '--session' option) and start a new session afresh."
-            " Any information about previous tasks is lost.")
+            " Any information about previous tasks is lost.",
+        )
 
         # 3. script execution control
         self.add_param(
@@ -1040,21 +1004,24 @@ class _SessionBasedCommand(_Script):
             metavar="NUM",
             help="Keep running, monitoring jobs and possibly submitting"
             " new ones or fetching results every NUM seconds. Exit when"
-            " all tasks are finished.")
-        self.add_param("-J", "--max-running",
-                       type=positive_int, dest="max_running", default=50,
-                       metavar="NUM",
-                       help="Set the maximum NUMber of jobs"
-                         " in SUBMITTED or RUNNING state."
-                         " (Default: %(default)s)"
-                       )
+            " all tasks are finished.",
+        )
+        self.add_param(
+            "-J",
+            "--max-running",
+            type=positive_int,
+            dest="max_running",
+            default=50,
+            metavar="NUM",
+            help="Set the maximum NUMber of jobs" " in SUBMITTED or RUNNING state." " (Default: %(default)s)",
+        )
         self.add_param(
             "-o",
             "--output",
             dest="output",
             type=valid_directory,
-            default=os.path.join(os.getcwd(), 'NAME'),
-            metavar='DIRECTORY',
+            default=os.path.join(os.getcwd(), "NAME"),
+            metavar="DIRECTORY",
             help="Output files from all tasks will be collected in the"
             " specified DIRECTORY path; by default, output files are placed"
             " in the same directory where the corresponding input file"
@@ -1065,8 +1032,8 @@ class _SessionBasedCommand(_Script):
             " 'DATE' is replaced by the submission date in ISO format"
             " (YYYY-MM-DD); 'TIME' is replaced by the submission time"
             " formatted as HH:MM.  'SESSION' is replaced by the path to the"
-            " session directory, with a '.out' suffix appended.")
-
+            " session directory, with a '.out' suffix appended.",
+        )
 
     def pre_run(self):
         """
@@ -1084,32 +1051,25 @@ class _SessionBasedCommand(_Script):
             self.session_uri = gc3libs.url.Url(self.params.session)
         except Exception as err:
             raise gc3libs.exceptions.InvalidArgument(
-                "Cannot parse session URL `{0}`: {1}"
-                .format(self.params.session, err))
-        if self.params.store_url == 'sqlite':
-            self.params.store_url = (
-                "sqlite:///%s/jobs.db" % self.session_uri.path)
-        elif self.params.store_url == 'file':
-            self.params.store_url = ("file:///%s/jobs" % self.session_uri.path)
+                "Cannot parse session URL `{0}`: {1}".format(self.params.session, err)
+            )
+        if self.params.store_url == "sqlite":
+            self.params.store_url = "sqlite:///%s/jobs.db" % self.session_uri.path
+        elif self.params.store_url == "file":
+            self.params.store_url = "file:///%s/jobs" % self.session_uri.path
         try:
-            self.session = self._make_session(
-                self.session_uri, self.params.store_url)
+            self.session = self._make_session(self.session_uri, self.params.store_url)
         except gc3libs.exceptions.InvalidArgument as err:
-            raise RuntimeError(
-                "Cannot load session `{0}`: {1}"
-                .format(self.session_uri, err))
+            raise RuntimeError("Cannot load session `{0}`: {1}".format(self.session_uri, err))
 
         # keep a copy of the credentials in the session dir, if needed
-        self.config.auth_factory.add_params(
-            private_copy_directory=self.session.path)
+        self.config.auth_factory.add_params(private_copy_directory=self.session.path)
 
         # we need to make sure that each job downloads results in a new one.
         # The easiest way to do so is to append 'NAME' to the `output_dir`
         # (if it's not already there).
-        if (self.params.output and 'NAME' not in self.params.output
-                and 'ITER' not in self.params.output):
-            self.params.output = os.path.join(self.params.output, 'NAME')
-
+        if self.params.output and "NAME" not in self.params.output and "ITER" not in self.params.output:
+            self.params.output = os.path.join(self.params.output, "NAME")
 
     ##
     # INTERNAL METHODS
@@ -1131,13 +1091,12 @@ class _SessionBasedCommand(_Script):
         passed parameters or add new ones, as long as the returned
         object implements the `Session` interface.
         """
-        if session_uri.scheme == 'file':
+        if session_uri.scheme == "file":
             return Session(session_uri.path, create=True, store_or_url=store_url)
         else:
             if store_url is not None:
                 raise gc3libs.exceptions.InvalidValue(
-                    "When the session is not stored on a filesystem,"
-                    " using a separate task storage is not possible."
+                    "When the session is not stored on a filesystem," " using a separate task storage is not possible."
                 )
             return TemporarySession(session_uri)
 
@@ -1158,9 +1117,7 @@ class _SessionBasedCommand(_Script):
         if len(self.session) == 0:
             self.process_args()
         else:
-            self.log.warning(
-                "Session already exists,"
-                " some command-line arguments might be ignored.")
+            self.log.warning("Session already exists," " some command-line arguments might be ignored.")
 
         # save the session list immediately, so newly added jobs will
         # be in it if the script is stopped here
@@ -1170,13 +1127,10 @@ class _SessionBasedCommand(_Script):
         if self.params.resource_name:
             self._select_resources(self.params.resource_name)
             self.log.info(
-                "Retained only resources: %s"
-                " (restricted by command-line option '-r %s')",
-                ','.join([
-                    r['name'] for r in self._core.get_resources()
-                    if r.enabled
-                ]),
-                self.params.resource_name)
+                "Retained only resources: %s" " (restricted by command-line option '-r %s')",
+                ",".join([r["name"] for r in self._core.get_resources() if r.enabled]),
+                self.params.resource_name,
+            )
 
         # create an `Engine` instance to manage the job list
         self._controller = self.make_task_controller()
@@ -1197,8 +1151,7 @@ class _SessionBasedCommand(_Script):
                     # ...and now repeat the submit/update/retrieve
                     rc = self._main_loop()
         except KeyboardInterrupt:  # gracefully intercept Ctrl+C
-            sys.stderr.write(
-                "%s: Exiting upon user request (Ctrl+C)\n" % self.name)
+            sys.stderr.write("%s: Exiting upon user request (Ctrl+C)\n" % self.name)
             self.terminate()
             pass
         self.after_main_loop()
@@ -1216,7 +1169,6 @@ class _SessionBasedCommand(_Script):
         self._controller.close()
 
         return rc
-
 
     def _main_loop(self):
         """
@@ -1244,7 +1196,6 @@ class _SessionBasedCommand(_Script):
             stats = self._controller.stats()
         return self._main_loop_exitcode(stats)
 
-
     def _main_loop_exitcode(self, stats):
         """
         Compute the exit code for the `_main` function.
@@ -1266,16 +1217,17 @@ class _SessionBasedCommand(_Script):
         condition for a `SessionBasedScript`.
         """
         rc = 0
-        if stats['failed'] > 0:
+        if stats["failed"] > 0:
             rc |= 2
-        if stats[gc3libs.Run.State.RUNNING] > 0 \
-                or stats[gc3libs.Run.State.SUBMITTED] > 0 \
-                or stats[gc3libs.Run.State.UNKNOWN]:
+        if (
+            stats[gc3libs.Run.State.RUNNING] > 0
+            or stats[gc3libs.Run.State.SUBMITTED] > 0
+            or stats[gc3libs.Run.State.UNKNOWN]
+        ):
             rc |= 4
         if stats[gc3libs.Run.State.NEW] > 0:
             rc |= 8
         return rc
-
 
     def _main_loop_before_tasks_progress(self):
         """
@@ -1285,7 +1237,6 @@ class _SessionBasedCommand(_Script):
         implementation does nothing.
        """
         pass
-
 
     def _main_loop_after_tasks_progress(self):
         """
@@ -1301,7 +1252,6 @@ class _SessionBasedCommand(_Script):
         """
         pass
 
-
     def __abort_old_session(self):
         old_task_ids = self.session.list_ids()
         if old_task_ids:
@@ -1310,7 +1260,8 @@ class _SessionBasedCommand(_Script):
                 " will attempt to kill existing tasks."
                 " This may generate a few spurious error messages"
                 " if the tasks are too old and have already been"
-                " cleaned up by the system.")
+                " cleaned up by the system."
+            )
             for task_id in old_task_ids:
                 # `id` is by contruction already in session, so no
                 # need to additionally run `session.add()` here
@@ -1320,26 +1271,24 @@ class _SessionBasedCommand(_Script):
                     task.kill()
                 except Exception as err:
                     self.log.info(
-                        "Got this error while killing old task '%s',"
-                        " ignore it: %s: %s",
+                        "Got this error while killing old task '%s'," " ignore it: %s: %s",
                         task,
                         err.__class__.__name__,
-                        str(err))
+                        str(err),
+                    )
                 try:
                     task.free()
                 except Exception as err:
                     self.log.info(
-                        "Got this error while cleaning up old task '%s',"
-                        " ignore it: %s: %s",
+                        "Got this error while cleaning up old task '%s'," " ignore it: %s: %s",
                         task,
                         err.__class__.__name__,
-                        str(err))
+                        str(err),
+                    )
                 task.detach()
                 self.session.remove(task_id)
                 self.log.debug("Removed task '%s' from session.", task)
-            self.log.info(
-                "Done cleaning up old session tasks, starting with new one"
-                " afresh...")
+            self.log.info("Done cleaning up old session tasks, starting with new one" " afresh...")
 
     def _sleep(self, lapse):
         """
@@ -1359,12 +1308,12 @@ class _SessionBasedCommand(_Script):
             time.sleep(1)
 
 
-
 ##
 #
 # Foreground and interactive scripts
 #
 ##
+
 
 class SessionBasedScript(_SessionBasedCommand):
     """
@@ -1423,13 +1372,10 @@ class SessionBasedScript(_SessionBasedCommand):
         self.instances_per_job = 1
         # catch omission of mandatory `application` ctor params (see above)
         # use bogus values that should point ppl to the right place
-        self.input_filename_pattern = (
-            'PLEASE SET `input_filename_pattern`'
-            'IN `SessionBasedScript` CONSTRUCTOR')
+        self.input_filename_pattern = "PLEASE SET `input_filename_pattern`" "IN `SessionBasedScript` CONSTRUCTOR"
         self.application = self.__unset_application_cls
         # init base class(es)
         super(SessionBasedScript, self).__init__(**extra_args)
-
 
     # safeguard against programming errors: if the `application` ctor
     # parameter has not been given to the constructor, the following
@@ -1439,9 +1385,7 @@ class SessionBasedScript(_SessionBasedCommand):
         Raise an error if users did not set `application` in
         `SessionBasedScript` initialization.
         """
-        raise gc3libs.exceptions.InvalidArgument(
-            "PLEASE SET `application` in `SessionBasedScript` CONSTRUCTOR")
-
+        raise gc3libs.exceptions.InvalidArgument("PLEASE SET `application` in `SessionBasedScript` CONSTRUCTOR")
 
     ##
     # CUSTOMIZATION METHODS
@@ -1457,23 +1401,27 @@ class SessionBasedScript(_SessionBasedCommand):
         an (input) path name; processing of the given path names is
         done in `parse_args`:meth:
         """
-        self.add_param('args', nargs='*', metavar='INPUT',
-                       help="Path to input file or directory."
-                       " Directories are recursively scanned for input files"
-                       " matching the glob pattern '%s'"
-                       % self.input_filename_pattern)
+        self.add_param(
+            "args",
+            nargs="*",
+            metavar="INPUT",
+            help="Path to input file or directory."
+            " Directories are recursively scanned for input files"
+            " matching the glob pattern '%s'" % self.input_filename_pattern,
+        )
 
     def pre_run(self):
         super(SessionBasedScript, self).pre_run()
         # since it may take quite some time before jobs are created
         # and the first report is displayed, print a startup banner so
         # that users get some kind of feedback ...
-        print("Starting %s;"
-              " use the '-v' command-line option to get"
-              " a more verbose report of activity."
-              % (self.name,))
+        print(
+            "Starting %s;"
+            " use the '-v' command-line option to get"
+            " a more verbose report of activity." % (self.name,)
+        )
         # parse the `states` list
-        self.params.states = self.params.states.split(',')
+        self.params.states = self.params.states.split(",")
 
     def new_tasks(self, extra):
         """
@@ -1501,24 +1449,23 @@ class SessionBasedScript(_SessionBasedCommand):
 
         for path in inputs:
             if self.instances_per_file > 1:
-                for seqno in range(1,
-                                   1 + self.instances_per_file,
-                                   self.instances_per_job):
+                for seqno in range(1, 1 + self.instances_per_file, self.instances_per_job):
                     if self.instances_per_job > 1:
                         yield (
-                            "%s.%d--%s" % (
+                            "%s.%d--%s"
+                            % (
                                 basename_sans(path),
                                 seqno,
-                                min(seqno + self.instances_per_job - 1,
-                                    self.instances_per_file)),
-                            self.application, [path], extra.copy())
+                                min(seqno + self.instances_per_job - 1, self.instances_per_file),
+                            ),
+                            self.application,
+                            [path],
+                            extra.copy(),
+                        )
                     else:
-                        yield ("%s.%d" % (basename_sans(path),
-                                          seqno),
-                               self.application, [path], extra.copy())
+                        yield ("%s.%d" % (basename_sans(path), seqno), self.application, [path], extra.copy())
             else:
-                yield (basename_sans(path),
-                       self.application, [path], extra.copy())
+                yield (basename_sans(path), self.application, [path], extra.copy())
 
     def print_summary_table(self, output, stats):
         """
@@ -1537,29 +1484,24 @@ class SessionBasedScript(_SessionBasedCommand):
         tasks in that state; see `Engine.stats` for a detailed
         description.
         """
-        table = PrettyTable(['state', 'n', 'n%'])
-        table.align = 'r'
-        table.align['n%'] = 'c'
+        table = PrettyTable(["state", "n", "n%"])
+        table.align = "r"
+        table.align["n%"] = "c"
         table.border = False
         table.header = False
-        total = stats['total']
+        total = stats["total"]
         # ensure we display enough decimal digits in percentages when
         # running a large number of jobs; see Issue 308 for a more
         # detailed descrition of the problem
         if total > 0:
             precision = max(1, math.log10(total) - 1)
-            fmt = '(%%.%df%%%%)' % precision
+            fmt = "(%%.%df%%%%)" % precision
             for state in sorted(stats.keys()):
-                table.add_row([
-                    state,
-                    "%d/%d" % (stats[state], total),
-                    fmt % (100.00 * stats[state] / total)
-                ])
+                table.add_row([state, "%d/%d" % (stats[state], total), fmt % (100.00 * stats[state] / total)])
         output.write(str(table))
         output.write("\n")
 
-    def print_tasks_table(
-            self, output=sys.stdout, states=gc3libs.Run.State, only=object):
+    def print_tasks_table(self, output=sys.stdout, states=gc3libs.Run.State, only=object):
         """
         Output a text table to stream `output`, giving details about
         tasks in the given states.
@@ -1581,12 +1523,11 @@ class SessionBasedScript(_SessionBasedCommand):
         :param   only: Root class (or tuple of root classes) of tasks to
                        consider.
         """
-        table = PrettyTable(['JobID', 'Job name', 'State', 'Info'])
-        table.align = 'l'
+        table = PrettyTable(["JobID", "Job name", "State", "Info"])
+        table.align = "l"
         for task in self.session:
             if isinstance(task, only) and task.execution.in_state(*states):
-                table.add_row([task.persistent_id, task.jobname,
-                               task.execution.state, task.execution.info])
+                table.add_row([task.persistent_id, task.jobname, task.execution.state, task.execution.info])
 
         # XXX: uses prettytable's internal implementation detail
         if len(table._rows) > 0:
@@ -1616,15 +1557,16 @@ class SessionBasedScript(_SessionBasedCommand):
             "-l",
             "--state",
             action="store",
-            nargs='?',
+            nargs="?",
             dest="states",
-            default='',
-            const=','.join(gc3libs.Run.State),
+            default="",
+            const=",".join(gc3libs.Run.State),
             help="Print a table of jobs including their status."
             " Optionally, restrict output to jobs with a particular STATE or"
             " STATES (comma-separated list).  The pseudo-states `ok` and"
             " `failed` are also allowed for selecting jobs in TERMINATED"
-            " state with exitcode 0 or nonzero, resp.")
+            " state with exitcode 0 or nonzero, resp.",
+        )
         return
 
     ##
@@ -1644,14 +1586,11 @@ class SessionBasedScript(_SessionBasedCommand):
         """
         stats = self._controller.stats()
         # print results to user
-        print ("Status of jobs in the '%s' session: (at %s)"
-               % (self.session.name, time.strftime('%X, %x')))
-        total = stats['total']
+        print("Status of jobs in the '%s' session: (at %s)" % (self.session.name, time.strftime("%X, %x")))
+        total = stats["total"]
         if total > 0:
             if self.stats_only_for is not None:
-                self.print_summary_table(sys.stdout,
-                                         self._controller.stats(
-                                             self.stats_only_for))
+                self.print_summary_table(sys.stdout, self._controller.stats(self.stats_only_for))
             else:
                 self.print_summary_table(sys.stdout, stats)
             # details table, as per ``-l`` option
@@ -1659,12 +1598,10 @@ class SessionBasedScript(_SessionBasedCommand):
                 self.print_tasks_table(sys.stdout, self.params.states)
         else:
             if self.params.session is not None:
-                print ("  There are no tasks in session '%s'."
-                       % self.session.name)
+                print("  There are no tasks in session '%s'." % self.session.name)
             else:
-                print ("  No tasks in this session.")
+                print("  No tasks in this session.")
         return stats
-
 
     def _main_loop_done(self, rc):
         """
@@ -1675,7 +1612,6 @@ class SessionBasedScript(_SessionBasedCommand):
             return False
         else:
             return True
-
 
     def _search_for_input_files(self, paths, pattern=None):
         """
@@ -1693,15 +1629,15 @@ class SessionBasedScript(_SessionBasedCommand):
             pattern = self.input_filename_pattern
             # special case for '*.ext' patterns
             ext = None
-            if pattern.startswith('*.'):
+            if pattern.startswith("*."):
                 ext = pattern[1:]
                 # re-check for more wildcard characters
-                if '*' in ext or '?' in ext or '[' in ext:
+                if "*" in ext or "?" in ext or "[" in ext:
                     ext = None
 
         def matches(name):
-            return (fnmatch.fnmatch(os.path.basename(name), pattern)
-                    or fnmatch.fnmatch(name, pattern))
+            return fnmatch.fnmatch(os.path.basename(name), pattern) or fnmatch.fnmatch(name, pattern)
+
         for path in paths:
             self.log.debug("Now processing input path '%s' ..." % path)
             if os.path.isdir(path):
@@ -1710,28 +1646,20 @@ class SessionBasedScript(_SessionBasedCommand):
                     for filename in filenames:
                         if matches(filename):
                             pathname = os.path.join(dirpath, filename)
-                            self.log.debug("Path '%s' matches pattern '%s',"
-                                           " adding it to input list"
-                                           % (pathname, pattern))
+                            self.log.debug(
+                                "Path '%s' matches pattern '%s'," " adding it to input list" % (pathname, pattern)
+                            )
                             inputs.add(pathname)
             elif matches(path) and os.path.exists(path):
-                self.log.debug("Path '%s' matches pattern '%s',"
-                               " adding it to input list" % (path, pattern))
+                self.log.debug("Path '%s' matches pattern '%s'," " adding it to input list" % (path, pattern))
                 inputs.add(path)
-            elif ext is not None \
-                    and not path.endswith(ext) \
-                    and os.path.exists(path + ext):
-                self.log.debug("Path '%s' matched extension '%s',"
-                               " adding to input list"
-                               % (path + ext, ext))
+            elif ext is not None and not path.endswith(ext) and os.path.exists(path + ext):
+                self.log.debug("Path '%s' matched extension '%s'," " adding to input list" % (path + ext, ext))
                 inputs.add(os.path.realpath(path + ext))
             else:
-                self.log.error(
-                    "Cannot access input path '%s' - ignoring it.",
-                    path)
+                self.log.error("Cannot access input path '%s' - ignoring it.", path)
 
         return inputs
-
 
 
 ##
@@ -1741,6 +1669,7 @@ class SessionBasedScript(_SessionBasedCommand):
 ##
 
 ## client class
+
 
 class DaemonClient(_Script):
     """
@@ -1765,21 +1694,23 @@ class DaemonClient(_Script):
 
     # the generic client code is also useful as-is, without additional
     # customization, so give it the required `version` attribute
-    version='1.0'
+    version = "1.0"
 
     def setup_args(self):
         """
         Override this method to replace standard command-line arguments.
         """
-        self.add_param('server', metavar='SERVER',
-                       help=("Path to the file containing hostname and port of the"
-                             " XML-RPC enpdoint of the daemon"))
-        self.add_param('cmd', metavar='COMMAND',
-                       help=("XML-RPC command to run. When COMMAND is `help`"
-                             " a list of available commands is printed."))
-        self.add_param('args', nargs='*', metavar='ARGS',
-                       help=("Optional arguments of COMMAND."))
-
+        self.add_param(
+            "server",
+            metavar="SERVER",
+            help=("Path to the file containing hostname and port of the" " XML-RPC enpdoint of the daemon"),
+        )
+        self.add_param(
+            "cmd",
+            metavar="COMMAND",
+            help=("XML-RPC command to run. When COMMAND is `help`" " a list of available commands is printed."),
+        )
+        self.add_param("args", nargs="*", metavar="ARGS", help=("Optional arguments of COMMAND."))
 
     def setup_options(self):
         """
@@ -1787,19 +1718,16 @@ class DaemonClient(_Script):
         """
         pass
 
-
     def pre_run(self):
         # skip `_Script.pre_run()` in chain call to avoid adding
         # `--config-files` etc which are not relevant here
         cli.app.CommandLineApp.pre_run(self)
 
         # setup GC3Libs logging
-        self.log = make_logger(self.params.verbose, self.name,
-                               threshold=self.verbose_logging_threshold)
+        self.log = make_logger(self.params.verbose, self.name, threshold=self.verbose_logging_threshold)
 
         # call hook methods from derived classes
         self.parse_args()
-
 
     def main(self):
         server = self._connect_to_server(self.params.server)
@@ -1821,24 +1749,24 @@ class DaemonClient(_Script):
             return None
 
     def _parse_connect_string(self, arg):
-        if arg.count(':') == 1:
-            if '://' in arg:
+        if arg.count(":") == 1:
+            if "://" in arg:
                 # nothing to do
                 pass
-            elif arg.startswith(':'):
+            elif arg.startswith(":"):
                 # accept `:port` as alias for `localhost:port`
-                arg = ('http://localhost' + arg)
+                arg = "http://localhost" + arg
             else:
                 # accept `host:port` as abbrev for `http://host:port`
-                arg = ('http://' + arg)
+                arg = "http://" + arg
         url = Url(arg)
-        if url.scheme == 'file':
+        if url.scheme == "file":
             path = url.path
             info = os.stat(path)
             if not stat.S_ISSOCK(info.st_mode):
                 # not a socket, so read actual URL from file
                 if stat.S_ISDIR(info.st_mode):
-                    path = os.path.join(path, 'daemon.url')
+                    path = os.path.join(path, "daemon.url")
                 url = Url(read_contents(path))
         return url
 
@@ -1847,21 +1775,19 @@ class DaemonClient(_Script):
             func = getattr(server, cmd)
         except AttributeError:
             self.log.error(
-                "Server exports no command named `%s`."
-                " Use the `help` command to list all available methods.",
-                cmd)
+                "Server exports no command named `%s`." " Use the `help` command to list all available methods.", cmd
+            )
             return os.EX_UNAVAILABLE
         try:
             print(func(*args))
             return os.EX_OK
         except xmlrpc.client.Fault as err:
-            self.log.error(
-                "Error running command `%s`: %s",
-                cmd, err.faultString)
+            self.log.error("Error running command `%s`: %s", cmd, err.faultString)
             return os.EX_SOFTWARE
 
 
 ## daemon/server class
+
 
 class SessionBasedDaemon(_SessionBasedCommand):
     """
@@ -1876,7 +1802,7 @@ class SessionBasedDaemon(_SessionBasedCommand):
       PROG [server options] INBOX [INBOX ...]
     """
 
-    DEFAULT_HOST = 'localhost'
+    DEFAULT_HOST = "localhost"
     DEFAULT_PORT = 0
 
     class Server(SimpleXMLRPCServer):
@@ -1884,11 +1810,10 @@ class SessionBasedDaemon(_SessionBasedCommand):
 
         """
 
-        PORTFILE_NAME = 'daemon.url'
+        PORTFILE_NAME = "daemon.url"
 
         # FIXME: pick an unassigned port nr from https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv ?
-        def __init__(self, parent, commands=None,
-                     addr='localhost', port=0, portfile=None):
+        def __init__(self, parent, commands=None, addr="localhost", port=0, portfile=None):
             self.parent = parent
             self.log = self.parent.log
 
@@ -1898,15 +1823,10 @@ class SessionBasedDaemon(_SessionBasedCommand):
             self.log.info("XML-RPC daemon running on %s:%s", self.addr, self.port)
 
             # save listening URL
-            self.portfile = (
-                portfile
-                or os.path.join(self.parent.session.path,
-                                self.PORTFILE_NAME))
+            self.portfile = portfile or os.path.join(self.parent.session.path, self.PORTFILE_NAME)
             # assume we are doing this after PID file check,
             # so if a "port file" already exists, it is stale
-            write_contents(
-                self.portfile, ('http://{addr}:{port}/'
-                                .format(addr=self.addr, port=self.port)))
+            write_contents(self.portfile, ("http://{addr}:{port}/".format(addr=self.addr, port=self.port)))
             # ensure portfile is removed upon exit
             atexit.register(rm_f, self.portfile)
 
@@ -1915,8 +1835,7 @@ class SessionBasedDaemon(_SessionBasedCommand):
             self.register_function(self.parent.help, "help")
             self.register_introspection_functions()  # needed by `help`
             self.register_function(self.parent.shutdown, "quit")
-            self.register_instance(commands or self.parent.commands,
-                                   allow_dotted_names=False)
+            self.register_instance(commands or self.parent.commands, allow_dotted_names=False)
 
         def start(self):
             """
@@ -1936,14 +1855,12 @@ class SessionBasedDaemon(_SessionBasedCommand):
             except Exception as err:
                 # self.stop() could be called twice, let's assume it's not
                 # an issue but log the event anyway
-                self.log.warning(
-                    "Ignoring exception caught while shutting down: %s", err)
+                self.log.warning("Ignoring exception caught while shutting down: %s", err)
             try:
                 if os.path.exists(self.portfile):
                     os.remove(self.portfile)
             except Exception as err:
-                self.log.warning(
-                    "Cannot remove file `%s`: %s", self.portfile, err)
+                self.log.warning("Cannot remove file `%s`: %s", self.portfile, err)
 
         def hello(self):
             """
@@ -1952,9 +1869,7 @@ class SessionBasedDaemon(_SessionBasedCommand):
             Probably only useful for checking if the server is up and
             responsive.
             """
-            return ("HELLO from http://{addr}:{port}/"
-                    .format(addr=self.addr, port=self.port))
-
+            return "HELLO from http://{addr}:{port}/".format(addr=self.addr, port=self.port)
 
     class Commands(object):
         """
@@ -1968,9 +1883,9 @@ class SessionBasedDaemon(_SessionBasedCommand):
           server; make sure that anithing which is not a public method
           is prefixed with ``_``.
         """
+
         def __init__(self, parent):
             self._parent = parent
-
 
         def kill(self, jobid=None):
             """
@@ -1988,18 +1903,15 @@ class SessionBasedDaemon(_SessionBasedCommand):
                 try:
                     task = self._parent.session.load(jobid, add=False)
                 except Exception as err:
-                    return (
-                        "ERROR: Could not load task `%s` from session: %s"
-                        % (jobid, err))
+                    return "ERROR: Could not load task `%s` from session: %s" % (jobid, err)
             try:
                 task.attach(self._parent._controller)
                 task.kill()
                 task.detach()
                 self._parent.session.save(task)
-                return ("Task `%s` successfully killed" % jobid)
+                return "Task `%s` successfully killed" % jobid
             except Exception as err:
-                return ("ERROR: could not kill task `%s`: %s" % (jobid, err))
-
+                return "ERROR: could not kill task `%s`: %s" % (jobid, err)
 
         def list(self, *opts):
             """
@@ -2016,7 +1928,7 @@ class SessionBasedDaemon(_SessionBasedCommand):
             choose the output format, with ``text`` being the default.
             """
 
-            if 'session' in opts:
+            if "session" in opts:
                 tasks = iter(self._parent.session.tasks)
             else:
                 # default is `daemon`
@@ -2024,13 +1936,12 @@ class SessionBasedDaemon(_SessionBasedCommand):
 
             task_ids = [str(task.persistent_id) for task in tasks]
 
-            if 'json' in opts:
+            if "json" in opts:
                 return json.dumps(task_ids)
-            elif 'yaml' in opts:
+            elif "yaml" in opts:
                 return yaml.dump(task_ids)
             else:
-                return '\n'.join(task_ids)
-
+                return "\n".join(task_ids)
 
         def list_details(self, *opts):
             """
@@ -2053,7 +1964,7 @@ class SessionBasedDaemon(_SessionBasedCommand):
             (human-readable plain text table) can be used to choose
             the output format, with ``text`` being the default.
             """
-            if 'session' in opts:
+            if "session" in opts:
                 tasks = iter(self._parent.session.tasks)
             else:
                 # default is `daemon`
@@ -2063,33 +1974,21 @@ class SessionBasedDaemon(_SessionBasedCommand):
             for task in tasks:
                 rows.extend(self._make_rows(task))
 
-            if 'json' in opts:
+            if "json" in opts:
                 return json.dumps(rows)
-            elif 'yaml' in opts:
+            elif "yaml" in opts:
                 return yaml.dump(rows)
             else:
                 # default is plain text table
                 table = PrettyTable()
                 table.border = True
-                table.align = 'l'
-                table.field_names = [
-                    "Job ID",
-                    "Name",
-                    "State",
-                    "Exit code",
-                    "Last logged event"
-                ]
+                table.align = "l"
+                table.field_names = ["Job ID", "Name", "State", "Exit code", "Last logged event"]
                 for row in rows:
-                    table.add_row([
-                        row['id'],
-                        row['jobname'],
-                        row['state'],
-                        row['rc'],
-                        row['log']
-                    ])
+                    table.add_row([row["id"], row["jobname"], row["state"], row["rc"], row["log"]])
                 return table.get_string()
 
-        def _make_rows(self, task, indent='  ', recursive=True):
+        def _make_rows(self, task, indent="  ", recursive=True):
             """
             Helper method for ``list_details``.
 
@@ -2103,24 +2002,23 @@ class SessionBasedDaemon(_SessionBasedCommand):
             * ``log``: Last logged line in Task history.
             """
             row = {
-                'id':    indent + str(task.persistent_id),
-                'state': task.execution.state,
-                'rc':    task.execution.returncode,
-                'log':   task.execution.info,
+                "id": indent + str(task.persistent_id),
+                "state": task.execution.state,
+                "rc": task.execution.returncode,
+                "log": task.execution.info,
             }
             try:
-                row['jobname'] = task.jobname
+                row["jobname"] = task.jobname
             except AttributeError:
-                row['jobname'] = ''
+                row["jobname"] = ""
 
             rows = [row]
-            if recursive and 'tasks' in task:
-                indent = indent + '  '
+            if recursive and "tasks" in task:
+                indent = indent + "  "
                 for task in task.tasks:
                     rows.extend(self._make_rows(task, indent, recursive))
 
             return rows
-
 
         def manage(self, jobid=None):
             """
@@ -2136,21 +2034,20 @@ class SessionBasedDaemon(_SessionBasedCommand):
             # so check first that the task is not already there
             try:
                 self._parent._controller.find_task_by_id(jobid)
-                return ("Task `%s` is already managed by the daemon.")
+                return "Task `%s` is already managed by the daemon."
             except KeyError:
                 pass
 
             try:
                 task = self._parent.session.load(jobid, add=True)
             except Exception as err:
-                return ("ERROR: Could not load task `%s`: %s" % (jobid, err))
+                return "ERROR: Could not load task `%s`: %s" % (jobid, err)
 
             try:
                 self._parent._controller.add(task)
-                return ("Task `%s` successfully add to daemon's Engine." % jobid)
+                return "Task `%s` successfully add to daemon's Engine." % jobid
             except Exception as ex:
-                return ("ERROR: Could not add task `%s` to daemon: %s" % (jobid, ex))
-
+                return "ERROR: Could not add task `%s` to daemon: %s" % (jobid, ex)
 
         def remove(self, jobid=None):
             """
@@ -2173,15 +2070,12 @@ class SessionBasedDaemon(_SessionBasedCommand):
                     task = self._parent.session.load(jobid, add=False)
                     managed = False
                 except Exception as err:
-                    return (
-                        "ERROR: Could not load task `%s` from session: %s"
-                        % (jobid, err))
+                    return "ERROR: Could not load task `%s` from session: %s" % (jobid, err)
 
             if task.execution.state != gc3libs.Run.State.TERMINATED:
                 return (
-                    "ERROR: can only remove tasks in TERMINATED state;"
-                    " current state is: %s"
-                    % task.execution.state)
+                    "ERROR: can only remove tasks in TERMINATED state;" " current state is: %s" % task.execution.state
+                )
 
             try:
                 if managed:
@@ -2189,8 +2083,7 @@ class SessionBasedDaemon(_SessionBasedCommand):
                 self._parent.session.remove(jobid)
                 return "Job %s successfully removed" % jobid
             except Exception as ex:
-                return ("ERROR: could not remove task `%s`: %s" % (jobid, ex))
-
+                return "ERROR: could not remove task `%s`: %s" % (jobid, ex)
 
         def redo(self, jobid=None, from_stage=None):
             """
@@ -2214,18 +2107,15 @@ class SessionBasedDaemon(_SessionBasedCommand):
                 try:
                     args = [int(from_stage)]
                 except (TypeError, ValueError) as err:
-                    return (
-                        "ERROR: STAGE argument must be a non-negative integer,"
-                        " got {0!r} instead.".format(from_stage))
-                gc3libs.log.info(
-                    "Daemon requested to redo job %s from stage %s",
-                    jobid, from_stage)
+                    return "ERROR: STAGE argument must be a non-negative integer," " got {0!r} instead.".format(
+                        from_stage
+                    )
+                gc3libs.log.info("Daemon requested to redo job %s from stage %s", jobid, from_stage)
 
             # ensure we re-read task from the DB to pick up updates
             try:
                 task = self._parent._controller.find_task_by_id(jobid)
-                gc3libs.log.debug(
-                    "Daemon unloading job %s (will re-load soon)", jobid)
+                gc3libs.log.debug("Daemon unloading job %s (will re-load soon)", jobid)
                 self._parent._controller.remove(task)
             except KeyError:
                 pass
@@ -2233,17 +2123,14 @@ class SessionBasedDaemon(_SessionBasedCommand):
             try:
                 task = self._parent.session.load(jobid, add=True)
             except Exception as err:
-                return (
-                    "ERROR: Could not load task `%s` from session: %s"
-                    % (jobid, err))
+                return "ERROR: Could not load task `%s` from session: %s" % (jobid, err)
 
             try:
                 self._parent._controller.redo(task, *args)
                 self._parent.session.save(task)
-                return ("Task `%s` successfully resubmitted" % jobid)
+                return "Task `%s` successfully resubmitted" % jobid
             except Exception as err:
-                return ("ERROR: could not resubmit task `%s`: %s" % (jobid, err))
-
+                return "ERROR: could not resubmit task `%s`: %s" % (jobid, err)
 
         def show(self, jobid=None, *attrs):
             """
@@ -2260,16 +2147,13 @@ class SessionBasedDaemon(_SessionBasedCommand):
                 try:
                     task = self._parent.session.load(jobid, add=False)
                 except Exception as err:
-                    return (
-                        "ERROR: Could not load task `%s` from session: %s"
-                        % (jobid, err))
+                    return "ERROR: Could not load task `%s` from session: %s" % (jobid, err)
 
             out = StringIO()
             if not attrs:
                 attrs = None
             prettyprint(task, indent=2, output=out, only_keys=attrs)
             return out.getvalue()
-
 
         def stats(self, *opts):
             """
@@ -2284,20 +2168,19 @@ class SessionBasedDaemon(_SessionBasedCommand):
 
             stats = dict(self._parent._controller.stats())
 
-            if 'json' in opts:
+            if "json" in opts:
                 return json.dumps(stats)
-            elif 'yaml' in opts:
+            elif "yaml" in opts:
                 return yaml.dump(stats)
             else:
                 # default is plain text table
                 table = PrettyTable()
                 table.border = True
-                table.align = 'l'
+                table.align = "l"
                 table.field_names = ["State", "Count"]
                 for state, count in sorted(stats.items()):
                     table.add_row([state, count])
                 return table.get_string()
-
 
         def unmanage(self, jobid=None):
             """
@@ -2317,14 +2200,13 @@ class SessionBasedDaemon(_SessionBasedCommand):
             try:
                 task = self._parent._controller.find_task_by_id(jobid)
             except KeyError:
-                return ("ERROR: Task `%s` not currently managed by daemon" % jobid)
+                return "ERROR: Task `%s` not currently managed by daemon" % jobid
 
             try:
                 self._parent._controller.remove(task)
                 return "Task `%s` successfully forgotten" % jobid
             except Exception as ex:
-                return ("ERROR: could not forget task `%s`: %s" % (jobid, ex))
-
+                return "ERROR: could not forget task `%s`: %s" % (jobid, ex)
 
     #
     # Basic commands exposed via XML-RPC
@@ -2338,19 +2220,22 @@ class SessionBasedDaemon(_SessionBasedCommand):
         if cmd:
             return self.server.system_methodHelp(cmd)
         else:
-            return ("""
+            return """
 The following daemon commands are available:
 
   {cmds}
 
 Run `help CMD` to get help on command CMD.
-            """.format(cmds=("\n  ".join(sorted(self.server.system_listMethods())))))
+            """.format(
+                cmds=("\n  ".join(sorted(self.server.system_listMethods())))
+            )
 
     def shutdown(self):
         """Terminate daemon."""
 
         # run this in a separate thread so the server can reply to the requestor
         pid = os.getpid()
+
         def killme():
             self.log.info("Shutting down as requested by `quit` command ...")
 
@@ -2365,9 +2250,7 @@ Run `help CMD` to get help on command CMD.
             # Send kill signal to current process if not terminated
             # within 10s
             self._sleep(9)
-            self.log.warning(
-                "Daemon still alive after 10s;"
-                " sending SIGTERM to process %s ...", pid)
+            self.log.warning("Daemon still alive after 10s;" " sending SIGTERM to process %s ...", pid)
             os.kill(pid, signal.SIGTERM)
 
             # If this is not working, try a more aggressive approach:
@@ -2375,9 +2258,7 @@ Run `help CMD` to get help on command CMD.
             # `KeyboardInterrupt`. It will also call
             # `self.parent.cleanup()`, again.
             self._sleep(10)
-            self.log.warning(
-                "Daemon still alive after 10s;"
-                " sending SIGINT to process %s ...", pid)
+            self.log.warning("Daemon still alive after 10s;" " sending SIGINT to process %s ...", pid)
             os.kill(pid, signal.SIGINT)
 
             # We whould never reach this point, but Murphy's law...
@@ -2391,14 +2272,15 @@ Run `help CMD` to get help on command CMD.
                 "Unable to kill process %d; giving up."
                 " Perhaps termination signals cannot be delivered"
                 " due to the process being in 'uninterruptible sleep'"
-                " (D) state?", pid)
+                " (D) state?",
+                pid,
+            )
             return os.EX_OSERR
+
         thread = mp.Process(target=killme)
         thread.daemon = True
         thread.start()
-        return ("Terminating process %d in 10s" % pid)
-
-
+        return "Terminating process %d in 10s" % pid
 
     #
     # Internal mechanisms
@@ -2421,50 +2303,70 @@ Run `help CMD` to get help on command CMD.
         super(SessionBasedDaemon, self).setup()
 
         # change default for the `-C`, `--session` and `--output` options
-        self.actions['wait'].default = 30
-        self.actions['wait'].help = (
-            'Check the status of tasks every NUM'
-            ' seconds. Default: %(default)s')
+        self.actions["wait"].default = 30
+        self.actions["wait"].help = "Check the status of tasks every NUM" " seconds. Default: %(default)s"
 
         # Default session dir and output dir are computed from
         # --working-directory.  Set None here so that we can update it
         # in pre_run()
-        self.actions['session'].default = None
-        self.actions['output'].default = None
+        self.actions["session"].default = None
+        self.actions["output"].default = None
 
     def setup_options(self):
-        self.add_param('-F', '--foreground',
-                       action='store_true', default=False,
-                       help=("Do not daemonize "
-                             "and keep running as a foreground process"
-                             " in the starting shell."
-                             " Mostly useful for debugging."
-                             " Off by default."))
+        self.add_param(
+            "-F",
+            "--foreground",
+            action="store_true",
+            default=False,
+            help=(
+                "Do not daemonize "
+                "and keep running as a foreground process"
+                " in the starting shell."
+                " Mostly useful for debugging."
+                " Off by default."
+            ),
+        )
 
-        self.add_param('--working-dir',
-                       metavar='PATH', default=os.getcwd(),
-                       help=("Store session information and output files"
-                             " in the directory pointed to by PATH."
-                             " Ignored when runing in foreground."
-                             " Default: %(default)s"))
+        self.add_param(
+            "--working-dir",
+            metavar="PATH",
+            default=os.getcwd(),
+            help=(
+                "Store session information and output files"
+                " in the directory pointed to by PATH."
+                " Ignored when runing in foreground."
+                " Default: %(default)s"
+            ),
+        )
 
-        self.add_param('--listen', default="localhost:0", metavar="IP_ADDR",
-                       help=("IP address or hostname"
-                             " where the XML-RPC server should listen to."
-                             " Optionally a port number can be specified"
-                             " by separating it with a colon ':' character;"
-                             " a port number of '0' means the actual port"
-                             " will be dynamically allocated and only"
-                             " known once the daemon is started."
-                             " (It is written to the `daemon.url` file.)"
-                             " Default: %(default)s"))
+        self.add_param(
+            "--listen",
+            default="localhost:0",
+            metavar="IP_ADDR",
+            help=(
+                "IP address or hostname"
+                " where the XML-RPC server should listen to."
+                " Optionally a port number can be specified"
+                " by separating it with a colon ':' character;"
+                " a port number of '0' means the actual port"
+                " will be dynamically allocated and only"
+                " known once the daemon is started."
+                " (It is written to the `daemon.url` file.)"
+                " Default: %(default)s"
+            ),
+        )
 
     def setup_args(self):
-        self.add_param('inbox', nargs='+',
-                       help=("'Inbox' directories:"
-                             " whenever a new file is created"
-                             " in one of these directories,"
-                             " a callback is triggered to add new jobs"))
+        self.add_param(
+            "inbox",
+            nargs="+",
+            help=(
+                "'Inbox' directories:"
+                " whenever a new file is created"
+                " in one of these directories,"
+                " a callback is triggered to add new jobs"
+            ),
+        )
 
     def parse_args(self):
         super(SessionBasedDaemon, self).parse_args()
@@ -2473,8 +2375,7 @@ Run `help CMD` to get help on command CMD.
 
         # Default session dir is inside the working directory
         if not self.params.session:
-            self.params.session = os.path.join(
-                self.params.working_dir, 'session')
+            self.params.session = os.path.join(self.params.working_dir, "session")
 
         # Convert inbox to Url objects
         self.params.inbox = [Url(inbox) for inbox in self.params.inbox]
@@ -2484,12 +2385,12 @@ Run `help CMD` to get help on command CMD.
             self.params.output = self.params.working_dir
 
         # parse the host:port listen string
-        if ':' in self.params.listen:
+        if ":" in self.params.listen:
             # use `.rsplit()` to be IPv6-safe
-            addr, port = self.params.listen.rsplit(':', 1)
+            addr, port = self.params.listen.rsplit(":", 1)
             # handle case `:port`
             if not addr:
-                addr = 'localhost'
+                addr = "localhost"
             # be forgiving of `host:` ...
             if not port:
                 port = self.DEFAULT_PORT
@@ -2497,8 +2398,8 @@ Run `help CMD` to get help on command CMD.
                 port = int(port)
             except ValueError as err:
                 raise InvalidUsage(
-                    "Port number must be an integer between 0 and 65535."
-                    " Got `{port}` instead.".format(port=port))
+                    "Port number must be an integer between 0 and 65535." " Got `{port}` instead.".format(port=port)
+                )
         else:
             # only host given, no port
             addr = self.params.listen
@@ -2506,35 +2407,31 @@ Run `help CMD` to get help on command CMD.
         self.listen_addr = addr
         self.listen_port = port
 
-
     def _main(self):
         # make PID file (in the session dir, so no two
         # instances of this daemon can be concurrently
         # running)
-        lockfile_path = os.path.join(
-            self.session.path, self.name + '.pid')
+        lockfile_path = os.path.join(self.session.path, self.name + ".pid")
         lockfile = PIDLockFile(lockfile_path)
         if lockfile.is_locked():
             raise gc3libs.exceptions.FatalError(
                 "PID file `{0}` is already present."
                 " Ensure no other daemon is running,"
-                " then delete file and re-run this command."
-                .format(lockfile_path))
+                " then delete file and re-run this command.".format(lockfile_path)
+            )
 
         if self.params.foreground:
             context = lockfile
-            self.log.warning(
-                "Keep running in foreground"
-                " as requested with `-F`/`--foreground` option ...")
+            self.log.warning("Keep running in foreground" " as requested with `-F`/`--foreground` option ...")
         else:
             self.session.store.pre_fork()
             # redirect all output
-            logfile = open(os.path.join(self.params.working_dir, 'daemon.log'), 'w')
+            logfile = open(os.path.join(self.params.working_dir, "daemon.log"), "w")
             os.dup2(logfile.fileno(), 1)
             os.dup2(logfile.fileno(), 2)
             # use PEP 3134 context manager for daemonizing
             context = daemon.DaemonContext(
-                files_preserve=list(set([1,2]).union(self.__get_logging_fds())),
+                files_preserve=list(set([1, 2]).union(self.__get_logging_fds())),
                 pidfile=lockfile,  # DaemonContext wraps the PID file ctx
                 signal_map={signal.SIGTERM: self.terminate},
                 stderr=logfile,
@@ -2561,35 +2458,29 @@ Run `help CMD` to get help on command CMD.
         """
         Populate `self.pollers` based on `self.params.inbox`.
         """
-        self.pollers = [
-            make_poller(inbox, recurse=True)
-            for inbox in self.params.inbox
-        ]
+        self.pollers = [make_poller(inbox, recurse=True) for inbox in self.params.inbox]
 
     def _start_server(self):
         """
         Start command server in a separate thread.
         """
-        self.log.info(
-            "Starting XML-RPC server on %s:%s ...",
-            self.listen_addr, self.listen_port)
+        self.log.info("Starting XML-RPC server on %s:%s ...", self.listen_addr, self.listen_port)
         try:
-            self.server = self.Server(
-                self, self.Commands(self),
-                self.listen_addr, self.listen_port)
-            self.server_process = mp.Process(
-                target=self.server.start, name='server')
+            self.server = self.Server(self, self.Commands(self), self.listen_addr, self.listen_port)
+            self.server_process = mp.Process(target=self.server.start, name="server")
             self.server_process.daemon = True
             # catch SIGTERM and turn it into a `quit` command;
             # signal handlers can only be set from the main thread
             orig_sigterm_handler = signal.getsignal(signal.SIGTERM)
             if orig_sigterm_handler is None:
                 orig_sigterm_handler = signal.SIG_DFL
+
             def sigterm(signo, frame):
                 self.shutdown()
                 # restore old SIGTERM handler in case
                 # `self.shortdown()` needs to force kill this process
                 signal.signal(signal.SIGTERM, orig_sigterm_handler)
+
             signal.signal(signal.SIGTERM, sigterm)
             # actually start the serving thread
             self.server_process.start()
@@ -2607,13 +2498,16 @@ Run `help CMD` to get help on command CMD.
                 pass
             self.log.debug("Inspecting logging handler %r", handler)
             # ignore handlers without underlying file or socket
-            if isinstance(handler, (
+            if isinstance(
+                handler,
+                (
                     logging.NullHandler,
                     logging.handlers.BufferingHandler,
                     logging.handlers.HTTPHandler,
                     logging.handlers.MemoryHandler,
-                    logging.handlers.SMTPHandler
-            )):
+                    logging.handlers.SMTPHandler,
+                ),
+            ):
                 continue
             # code below works for StreamHandler and FileHandler
             try:
@@ -2630,10 +2524,11 @@ Run `help CMD` to get help on command CMD.
             self.log.debug(
                 "Cannot extract file descriptor number from %r;"
                 " logging to this handler might be dropped"
-                " after daemonizing.", handler)
+                " after daemonizing.",
+                handler,
+            )
         self.log.debug("File descriptors used in logging: %r", fds)
         return fds
-
 
     def _main_loop_before_tasks_progress(self):
         """
@@ -2643,23 +2538,19 @@ Run `help CMD` to get help on command CMD.
         for inbox in self.pollers:
             events = inbox.get_new_events()
             for subject, what in events:
-                self.log.debug(
-                    "Got event %s on %s from Inbox %s",
-                    what, subject, inbox)
-                if what == 'created':
+                self.log.debug("Got event %s on %s from Inbox %s", what, subject, inbox)
+                if what == "created":
                     self.created(inbox, subject)
-                elif what == 'modified':
+                elif what == "modified":
                     self.modified(inbox, subject)
-                elif what == 'deleted':
+                elif what == "deleted":
                     self.deleted(inbox, subject)
-
 
     def _main_loop_done(self, rc):
         """
         Tell the main loop to run until interrupted.
         """
         return not self.running
-
 
     #
     # react on Inbox events

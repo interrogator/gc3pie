@@ -13,29 +13,28 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import object
-__docformat__ = 'reStructuredText'
 
 import os
 import shutil
 import tempfile
+
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import object
 from time import sleep
 
-import pytest
-
 import gc3libs.poller as plr
+import pytest
 from gc3libs.utils import write_contents
 
 
 # for readability
 def _check_events(poller, path, expected):
-    events = [event for event in poller.get_new_events()
-              if event[0].path == path]
+    events = [event for event in poller.get_new_events() if event[0].path == path]
     assert len(events) == len(expected)
     for n, expected_event in enumerate(expected):
         url, actual_event = events[n]
@@ -44,22 +43,20 @@ def _check_events(poller, path, expected):
 
 
 class TestPollers(object):
-
     @pytest.fixture(autouse=True)
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
         yield
         shutil.rmtree(self.tmpdir)
 
-
     def test_filepoller(self):
         poller = plr.FilePoller(self.tmpdir)
         assert self.tmpdir in poller._watched
 
         # test create file
-        fpath = os.path.join(self.tmpdir, 'foo')
-        write_contents(fpath, 'test')
-        _check_events(poller, fpath, ['created'])
+        fpath = os.path.join(self.tmpdir, "foo")
+        write_contents(fpath, "test")
+        _check_events(poller, fpath, ["created"])
         assert fpath in poller._watched
 
         # since the `mtime` field only has 1-second resolution, we
@@ -71,33 +68,32 @@ class TestPollers(object):
         _check_events(poller, fpath, [])
 
         # test modify file
-        write_contents(fpath, 'test2')
-        _check_events(poller, fpath, ['modified'])
+        write_contents(fpath, "test2")
+        _check_events(poller, fpath, ["modified"])
 
         # test remove file
         os.remove(fpath)
-        _check_events(poller, fpath, ['deleted'])
+        _check_events(poller, fpath, ["deleted"])
         assert fpath not in poller._watched
-
 
     def test_inotifypoller(self):
         poller = plr.INotifyPoller(self.tmpdir)
 
         # test create file
-        fpath = os.path.join(self.tmpdir, 'foo')
-        write_contents(fpath, 'test')
-        _check_events(poller, fpath, ['created'])
+        fpath = os.path.join(self.tmpdir, "foo")
+        write_contents(fpath, "test")
+        _check_events(poller, fpath, ["created"])
 
         # no new events here
         _check_events(poller, fpath, [])
 
         # test modify file
-        write_contents(fpath, 'test2')
-        _check_events(poller, fpath, ['modified'])
+        write_contents(fpath, "test2")
+        _check_events(poller, fpath, ["modified"])
 
         # test remove file
         os.remove(fpath)
-        _check_events(poller, fpath, ['deleted'])
+        _check_events(poller, fpath, ["deleted"])
 
 
 ## main: run tests

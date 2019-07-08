@@ -1,6 +1,5 @@
 #! /usr/bin/env python
 
-from __future__ import absolute_import
 import os
 from os.path import abspath, basename
 import sys
@@ -9,8 +8,9 @@ from gc3libs import Application
 from gc3libs.cmdline import SessionBasedScript
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from ex2b import GrayscalingScript
+
     GrayscalingScript().run()
 
 
@@ -23,9 +23,11 @@ class GrayscalingScript(SessionBasedScript):
     """
     Convert an image to grayscale.
     """
+
     def __init__(self):
-        super(GrayscalingScript, self).__init__(version='1.0')
+        super(GrayscalingScript, self).__init__(version="1.0")
+
     def new_tasks(self, extra):
         input_file = abspath(self.params.args[0])
-        apps_to_run = [ GrayscaleApp(input_file) ]
+        apps_to_run = [GrayscaleApp(input_file)]
         return apps_to_run

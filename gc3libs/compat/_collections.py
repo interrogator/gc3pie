@@ -6,10 +6,12 @@ This package actually imports your Python `collections`, and adds
 its own version of `OrderedDict` only if missing.
 """
 
-from __future__ import absolute_import, print_function, unicode_literals
-from future import standard_library
-standard_library.install_aliases()
+
 from collections import *  # noqa
+
+from future import standard_library
+
+standard_library.install_aliases()
 
 try:
     OrderedDict
@@ -32,7 +34,7 @@ except:
 
     class OrderedDict(dict):
 
-        'Dictionary that remembers insertion order'
+        "Dictionary that remembers insertion order"
         # An inherited dict maps keys to values.  The inherited dict
         # provides __getitem__, __len__, __contains__, and get.  The
         # remaining methods are order-aware.  Big-O running times for
@@ -45,25 +47,23 @@ except:
         # link is stored as a list of length three: [PREV, NEXT, KEY].
 
         def __init__(self, *args, **kwds):
-            '''Initialize an ordered dictionary.  Signature is the same as for
+            """Initialize an ordered dictionary.  Signature is the same as for
             regular dictionaries, but keyword arguments are not recommended
             because their insertion order is arbitrary.
 
-            '''
+            """
             if len(args) > 1:
-                raise TypeError(
-                    'expected at most 1 arguments, got %d' %
-                    len(args))
+                raise TypeError("expected at most 1 arguments, got %d" % len(args))
             try:
                 self.__root
             except AttributeError:
-                self.__root = root = []                     # sentinel node
+                self.__root = root = []  # sentinel node
                 root[:] = [root, root, None]
                 self.__map = {}
             self.__update(*args, **kwds)
 
         def __setitem__(self, key, value, dict_setitem=dict.__setitem__):
-            'od.__setitem__(i, y) <==> od[i]=y'
+            "od.__setitem__(i, y) <==> od[i]=y"
             # Setting a new item creates a new link which goes at the
             # end of the linked list, and the inherited dictionary is
             # updated with the new key/value pair.
@@ -74,7 +74,7 @@ except:
             dict_setitem(self, key, value)
 
         def __delitem__(self, key, dict_delitem=dict.__delitem__):
-            'od.__delitem__(y) <==> del od[y]'
+            "od.__delitem__(y) <==> del od[y]"
             # Deleting an existing item uses self.__map to find the
             # link which is then removed by updating the links in the
             # predecessor and successor nodes.
@@ -84,7 +84,7 @@ except:
             link_next[0] = link_prev
 
         def __iter__(self):
-            'od.__iter__() <==> iter(od)'
+            "od.__iter__() <==> iter(od)"
             root = self.__root
             curr = root[1]
             while curr is not root:
@@ -92,7 +92,7 @@ except:
                 curr = curr[1]
 
         def __reversed__(self):
-            'od.__reversed__() <==> reversed(od)'
+            "od.__reversed__() <==> reversed(od)"
             root = self.__root
             curr = root[0]
             while curr is not root:
@@ -100,7 +100,7 @@ except:
                 curr = curr[0]
 
         def clear(self):
-            'od.clear() -> None.  Remove all items from od.'
+            "od.clear() -> None.  Remove all items from od."
             try:
                 for node in self.__map.values():
                     del node[:]
@@ -112,13 +112,13 @@ except:
             dict.clear(self)
 
         def popitem(self, last=True):
-            '''od.popitem() -> (k, v), return and remove a (key, value) pair.
+            """od.popitem() -> (k, v), return and remove a (key, value) pair.
             Pairs are returned in LIFO order if last is true or FIFO
             order if false.
 
-            '''
+            """
             if not self:
-                raise KeyError('dictionary is empty')
+                raise KeyError("dictionary is empty")
             root = self.__root
             if last:
                 link = root[0]
@@ -138,33 +138,33 @@ except:
         # -- the following methods do not depend on the internal structure --
 
         def keys(self):
-            'od.keys() -> list of keys in od'
+            "od.keys() -> list of keys in od"
             return list(self)
 
         def values(self):
-            'od.values() -> list of values in od'
+            "od.values() -> list of values in od"
             return [self[key] for key in self]
 
         def items(self):
-            'od.items() -> list of (key, value) pairs in od'
+            "od.items() -> list of (key, value) pairs in od"
             return [(key, self[key]) for key in self]
 
         def iterkeys(self):
-            'od.iterkeys() -> an iterator over the keys in od'
+            "od.iterkeys() -> an iterator over the keys in od"
             return iter(self)
 
         def itervalues(self):
-            'od.itervalues -> an iterator over the values in od'
+            "od.itervalues -> an iterator over the values in od"
             for k in self:
                 yield self[k]
 
         def iteritems(self):
-            'od.iteritems -> an iterator over the (key, value) items in od'
+            "od.iteritems -> an iterator over the (key, value) items in od"
             for k in self:
                 yield (k, self[k])
 
         def update(*args, **kwds):
-            '''od.update(E, **F) -> None.
+            """od.update(E, **F) -> None.
             Update od from dict/iterable E and F.
 
             If E is a dict instance, does:
@@ -183,12 +183,11 @@ except:
 
                 for k, v in F.items(): od[k] = v
 
-            '''
+            """
             if len(args) > 2:
-                raise TypeError('update() takes at most 2 positional '
-                                'arguments (%d given)' % (len(args),))
+                raise TypeError("update() takes at most 2 positional " "arguments (%d given)" % (len(args),))
             elif not args:
-                raise TypeError('update() takes at least 1 argument (0 given)')
+                raise TypeError("update() takes at least 1 argument (0 given)")
             self = args[0]
             # Make progressively weaker assumptions about "other"
             other = ()
@@ -197,7 +196,7 @@ except:
             if isinstance(other, dict):
                 for key in other:
                     self[key] = other[key]
-            elif hasattr(other, 'keys'):
+            elif hasattr(other, "keys"):
                 for key in list(other.keys()):
                     self[key] = other[key]
             else:
@@ -212,11 +211,11 @@ except:
         __marker = object()
 
         def pop(self, key, default=__marker):
-            '''od.pop(k[,d]) -> v, remove specified key and return the
+            """od.pop(k[,d]) -> v, remove specified key and return the
             corresponding value.  If key is not found, d is returned
             if given, otherwise KeyError is raised.
 
-            '''
+            """
             if key in self:
                 result = self[key]
                 del self[key]
@@ -237,20 +236,20 @@ except:
             return default
 
         def __repr__(self, _repr_running={}):
-            'od.__repr__() <==> repr(od)'
+            "od.__repr__() <==> repr(od)"
             call_key = id(self), _get_ident()
             if call_key in _repr_running:
-                return '...'
+                return "..."
             _repr_running[call_key] = 1
             try:
                 if not self:
-                    return '%s()' % (self.__class__.__name__,)
-                return '%s(%r)' % (self.__class__.__name__, list(self.items()))
+                    return "%s()" % (self.__class__.__name__,)
+                return "%s(%r)" % (self.__class__.__name__, list(self.items()))
             finally:
                 del _repr_running[call_key]
 
         def __reduce__(self):
-            'Return state information for pickling'
+            "Return state information for pickling"
             items = [[k, self[k]] for k in self]
             inst_dict = vars(self).copy()
             for k in vars(OrderedDict()):
@@ -260,30 +259,29 @@ except:
             return self.__class__, (items,)
 
         def copy(self):
-            'od.copy() -> a shallow copy of od'
+            "od.copy() -> a shallow copy of od"
             return self.__class__(self)
 
         @classmethod
         def fromkeys(cls, iterable, value=None):
-            '''
+            """
             OD.fromkeys(S[, v]) -> New ordered dictionary with keys from S and
             values equal to v (which defaults to None).
 
-            '''
+            """
             d = cls()
             for key in iterable:
                 d[key] = value
             return d
 
         def __eq__(self, other):
-            '''od.__eq__(y) <==> od==y.  Comparison to another OD is
+            """od.__eq__(y) <==> od==y.  Comparison to another OD is
             order-sensitive while comparison to a regular mapping is
             order-insensitive.
 
-            '''
+            """
             if isinstance(other, OrderedDict):
-                return len(self) == len(
-                    other) and list(self.items()) == list(other.items())
+                return len(self) == len(other) and list(self.items()) == list(other.items())
             return dict.__eq__(self, other)
 
         def __ne__(self, other):

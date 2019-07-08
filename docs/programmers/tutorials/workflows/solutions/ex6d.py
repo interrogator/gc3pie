@@ -14,7 +14,6 @@ Write a ``sim_asset.py`` program that:
   P price paths.
 """
 
-from __future__ import absolute_import
 import csv
 import os
 import sys
@@ -23,8 +22,9 @@ from gc3libs import Application
 from gc3libs.cmdline import SessionBasedScript
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from ex6d import SimAssetScript
+
     SimAssetScript().run()
 
 
@@ -34,22 +34,29 @@ class SimAssetScript(SessionBasedScript):
     """
 
     def __init__(self):
-      super(SimAssetScript, self).__init__(version='1.0')
+        super(SimAssetScript, self).__init__(version="1.0")
 
     def setup_args(self):
-        self.add_param('S0',    type=float, help="stock price today (e.g., 50)")
-        self.add_param('mu',    type=float, help="expected return (e.g., 0.04)")
-        self.add_param('sigma', type=float, help="volatility (e.g., 0.1)")
-        self.add_param('dt',    type=float, help="size of time steps (e.g., 0.273)")
-        self.add_param('etime', type=int,   help="days to expiry (e.g., 1000)")
-        self.add_param('nsims', type=int,   help="number of simulation paths per task")
-        self.add_param('P',     type=int,   help="number of task to run")
+        self.add_param("S0", type=float, help="stock price today (e.g., 50)")
+        self.add_param("mu", type=float, help="expected return (e.g., 0.04)")
+        self.add_param("sigma", type=float, help="volatility (e.g., 0.1)")
+        self.add_param("dt", type=float, help="size of time steps (e.g., 0.273)")
+        self.add_param("etime", type=int, help="days to expiry (e.g., 1000)")
+        self.add_param("nsims", type=int, help="number of simulation paths per task")
+        self.add_param("P", type=int, help="number of task to run")
 
     def new_tasks(self, extra):
         apps_to_run = []
         for seqnr in range(self.params.P):
-            app = SimAssetApp(self.params.S0, self.params.mu, self.params.sigma,
-                              self.params.dt, self.params.etime, self.params.nsims, seqnr)
+            app = SimAssetApp(
+                self.params.S0,
+                self.params.mu,
+                self.params.sigma,
+                self.params.dt,
+                self.params.etime,
+                self.params.nsims,
+                seqnr,
+            )
             apps_to_run.append(app)
         return apps_to_run
 
@@ -57,14 +64,14 @@ class SimAssetScript(SessionBasedScript):
         # check that all tasks are terminated
         can_postprocess = True
         for task in self.session.tasks.values():
-            if task.execution.state != 'TERMINATED':
+            if task.execution.state != "TERMINATED":
                 can_postprocess = False
                 break
         if can_postprocess:
             final_prices = []
             for task in self.session.tasks.values():
-                result_path = os.path.join(task.output_dir, 'results.csv')
-                with open(result_path, 'r') as result_file:
+                result_path = os.path.join(task.output_dir, "results.csv")
+                with open(result_path, "r") as result_file:
                     result_csv = csv.reader(result_file)
                     for row in result_csv:
                         final_prices.append(float(row[-1]))
@@ -80,10 +87,10 @@ class SimAssetApp(Application):
     def __init__(self, S0, mu, sigma, delta, etime, nsims, seqnr):
         Application.__init__(
             self,
-            ['/usr/bin/Rscript', 'simAsset.R', S0, mu, sigma, delta, etime, nsims],
-            inputs=['downloads/simAsset.R'],
-            outputs=['results.csv'],
-            output_dir=('simAsset-%d.d' % seqnr),
+            ["/usr/bin/Rscript", "simAsset.R", S0, mu, sigma, delta, etime, nsims],
+            inputs=["downloads/simAsset.R"],
+            outputs=["results.csv"],
+            output_dir=("simAsset-%d.d" % seqnr),
             stdout="simAsset.log",
-            stderr="simAsset.log"
+            stderr="simAsset.log",
         )

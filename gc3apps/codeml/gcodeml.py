@@ -24,9 +24,27 @@ It uses the generic `gc3libs.cmdline.SessionBasedScript` framework.
 See the output of ``gcodeml --help`` for program usage instructions.
 """
 
-from __future__ import absolute_import, print_function
 
-__version__ = '2.0.5'
+# std module imports
+import os
+import os.path
+import re
+import sys
+
+# gc3 library imports
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.persistence.sql
+import gc3libs.session
+import gc3libs.utils
+import sqlalchemy as sqla
+from gc3libs.application.codeml import CodemlApplication
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.persistence.accessors import GET, GetValue
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
+
+__version__ = "2.0.5"
 # summary of user-visible changes
 __changelog__ = """
   2013-02-18:
@@ -57,44 +75,22 @@ __changelog__ = """
   2011-02-08:
     * Initial release, forked off the ``ggamess`` sources.
 """
-__author__ = 'Riccardo Murri <riccardo.murri@uzh.ch>'
-__docformat__ = 'reStructuredText'
-
+__author__ = "Riccardo Murri <riccardo.murri@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
-if __name__ == '__main__':
+if __name__ == "__main__":
     import gcodeml
+
     gcodeml.GCodemlScript().run()
-
-
-# std module imports
-import os
-import os.path
-import re
-import sys
-
-import sqlalchemy as sqla
-
-# gc3 library imports
-import gc3libs
-import gc3libs.exceptions
-import gc3libs.persistence.sql
-import gc3libs.session
-import gc3libs.utils
-
-from gc3libs.application.codeml import CodemlApplication
-from gc3libs.cmdline import SessionBasedScript, executable_file
-from gc3libs.persistence.accessors import GET, GetValue
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 
 ## retry policy
 
-class CodemlRetryPolicy(RetryableTask):
 
+class CodemlRetryPolicy(RetryableTask):
     def retry(self):
         # return True or False depending whether the application
         # should be re-submitted or not.
@@ -109,6 +105,7 @@ class CodemlRetryPolicy(RetryableTask):
 
 
 ## the script itself
+
 
 class GCodemlScript(SessionBasedScript):
     """
@@ -133,35 +130,49 @@ of newly-created jobs so that this limit is never exceeded.
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
+            version=__version__,  # module version == script version
             # `CodemlRetryPolicy` is the top-level object here,
             # so only print information about it.
-#            stats_only_for = CodemlRetryPolicy,
-             stats_only_for = gc3libs.application.codeml.CodemlApplication,
-            )
-
+            #            stats_only_for = CodemlRetryPolicy,
+            stats_only_for=gc3libs.application.codeml.CodemlApplication,
+        )
 
     def setup_options(self):
         # add some options to the std ones
-        self.add_param("-O", "--output-url", action="store",
-                       dest="output_base_url", default="",
-                       help="Upload output files to this URL,"
-                       "which must be a protocol that ARC supports."
-                       "(e.g., 'gsiftp://...')")
-        self.add_param("-R", "--verno", metavar="VERNO",
-                       dest="verno", default=CodemlApplication.DEFAULT_CODEML_VERSION,
-                       help="Request the specified version of CODEML/PAML"
-                       " (default: %(default)s).")
-        self.add_param("-x", "--codeml-executable", metavar="PATH",
-                       action="store", dest="codeml",
-                       type=executable_file, default=None,
-                       help=("Local path to the CODEML executable."
-                             " By default, request the CODEML-%s run time tag"
-                             " and use the remotely-provided application."
-                           % CodemlApplication.DEFAULT_CODEML_VERSION))
+        self.add_param(
+            "-O",
+            "--output-url",
+            action="store",
+            dest="output_base_url",
+            default="",
+            help="Upload output files to this URL,"
+            "which must be a protocol that ARC supports."
+            "(e.g., 'gsiftp://...')",
+        )
+        self.add_param(
+            "-R",
+            "--verno",
+            metavar="VERNO",
+            dest="verno",
+            default=CodemlApplication.DEFAULT_CODEML_VERSION,
+            help="Request the specified version of CODEML/PAML" " (default: %(default)s).",
+        )
+        self.add_param(
+            "-x",
+            "--codeml-executable",
+            metavar="PATH",
+            action="store",
+            dest="codeml",
+            type=executable_file,
+            default=None,
+            help=(
+                "Local path to the CODEML executable."
+                " By default, request the CODEML-%s run time tag"
+                " and use the remotely-provided application." % CodemlApplication.DEFAULT_CODEML_VERSION
+            ),
+        )
         # change default for the "-o"/"--output" option
-        self.actions['output'].default = 'NAME'
-
+        self.actions["output"].default = "NAME"
 
     def new_tasks(self, extra):
         """Implement the argument -> jobs mapping."""
@@ -169,12 +180,12 @@ of newly-created jobs so that this limit is never exceeded.
         if self.params.codeml is not None:
             if not os.path.isabs(self.params.codeml):
                 self.params.codeml = os.path.abspath(self.params.codeml)
-            gc3libs.utils.test_file(self.params.codeml, os.R_OK|os.X_OK)
+            gc3libs.utils.test_file(self.params.codeml, os.R_OK | os.X_OK)
 
         ## collect input directories/files
         def contain_ctl_files(paths):
             for path in paths:
-                if path.endswith('.ctl'):
+                if path.endswith(".ctl"):
                     return True
             return False
 
@@ -184,29 +195,28 @@ of newly-created jobs so that this limit is never exceeded.
         for path in self.params.args:
             self.log.debug("Now processing input argument '%s' ..." % path)
             if not os.path.isdir(path):
-                raise gc3libs.exceptions.InvalidUsage(
-                    "Argument '%s' is not a directory path." % path)
+                raise gc3libs.exceptions.InvalidUsage("Argument '%s' is not a directory path." % path)
 
             # recursively scan for input files
             for dirpath, dirnames, filenames in os.walk(path):
                 if contain_ctl_files(filenames):
                     input_dirs.add(os.path.realpath(dirpath))
 
-        self.log.debug("Gathered input directories: '%s'"
-                       % str.join("', '", input_dirs))
+        self.log.debug("Gathered input directories: '%s'" % str.join("', '", input_dirs))
 
         for dirpath in input_dirs:
             # gather control files; other input files are automatically
             # pulled in by CodemlApplication by parsing the '.ctl'
-            ctl_files = [ os.path.join(dirpath, filename)
-                          for filename in os.listdir(dirpath)
-                          if filename.endswith('.ctl') ]
+            ctl_files = [
+                os.path.join(dirpath, filename) for filename in os.listdir(dirpath) if filename.endswith(".ctl")
+            ]
 
-            total_n_ctl_files += len(ctl_files) # AK: DEBUG
+            total_n_ctl_files += len(ctl_files)  # AK: DEBUG
             # check if the dir contains exactly two control files (*.H0.ctl and *.H1.ctl)
             if len(ctl_files) != 2:
                 raise gc3libs.exceptions.InvalidUsage(
-                    "The input directory '%s' must contain exactly two control files." % dirpath)
+                    "The input directory '%s' must contain exactly two control files." % dirpath
+                )
 
             self.log.debug("Gathered control files: '%s':" % str.join("', '", ctl_files))
 
@@ -218,85 +228,135 @@ of newly-created jobs so that this limit is never exceeded.
             # variable-length positional argument list (*args), so we
             # need to pass the named arguments as part of the `extra_args`
             # dictionary.
-            kwargs['codeml'] = self.params.codeml
-            kwargs['version'] = self.params.verno
-            kwargs['requested_memory'] = self.params.memory_per_core
-            kwargs['requested_cores'] = self.params.ncores
-            kwargs['requested_walltime'] = self.params.walltime
+            kwargs["codeml"] = self.params.codeml
+            kwargs["version"] = self.params.verno
+            kwargs["requested_memory"] = self.params.memory_per_core
+            kwargs["requested_cores"] = self.params.ncores
+            kwargs["requested_walltime"] = self.params.walltime
 
-            jobname = (os.path.basename(dirpath) or dirpath) + '.out'
+            jobname = (os.path.basename(dirpath) or dirpath) + ".out"
 
-            if self.params.output == 'NAME':
+            if self.params.output == "NAME":
                 # This is the 'default' setting
                 # gcodeml overrides it
                 # Results in same folder as inputs
-                kwargs['output_dir'] = os.path.join(dirpath,'.compute')
-                kwargs['result_dir'] = dirpath
+                kwargs["output_dir"] = os.path.join(dirpath, ".compute")
+                kwargs["result_dir"] = dirpath
             else:
                 # command line option takes precendence
                 # in this case, just set output_dir to what has been specified
                 # as '--output' option
-                kwargs['output_dir'] = self.make_directory_path(self.params.output, jobname)
+                kwargs["output_dir"] = self.make_directory_path(self.params.output, jobname)
 
             # FIXME: should this reflect the same policy as 'output_dir' ?
             # set optional arguments (path to 'codeml' binary, output URL, etc.)
             if self.params.output_base_url != "":
-               kwargs['output_base_url'] = self.params.output_base_url
+                kwargs["output_base_url"] = self.params.output_base_url
 
             app = CodemlApplication(*ctl_files, **kwargs)
 
             # yield new job
             yield (
-                jobname, # unique string tagging this job; duplicate jobs are discarded
-                CodemlRetryPolicy, # the task constructor
-                [ # the following parameters are passed to the
+                jobname,  # unique string tagging this job; duplicate jobs are discarded
+                CodemlRetryPolicy,  # the task constructor
+                [  # the following parameters are passed to the
                     # `CodemlRetryPolicy` constructor:
-                    app,     # = task; the codeml application object defined above
-                    3        # = max_retries; max no. of retries of the task
+                    app,  # = task; the codeml application object defined above
+                    3,  # = max_retries; max no. of retries of the task
                 ],
                 # extra keyword parameters to `CodemlRetryPolicy`
-                dict()
-                )
+                dict(),
+            )
 
-        self.log.debug("Total number of control files: %d", total_n_ctl_files) # AK: DEBUG
+        self.log.debug("Total number of control files: %d", total_n_ctl_files)  # AK: DEBUG
 
     def _make_session(self, session_uri, store_url):
         return gc3libs.session.Session(
             session_uri,
             store_url,
-            extra_fields = {
+            extra_fields={
                 # NB: enlarge window to at least 150 columns to read this table properly!
-                sqla.Column('class',              sqla.TEXT())    : (lambda obj: obj.__class__.__name__)                                              , # task class
-                sqla.Column('name',               sqla.TEXT())    : GetValue()             .jobname                                                   , # job name
-                sqla.Column('executable',         sqla.TEXT())    : GetValue(default=None) .arguments[0]                        ,#.ONLY(CodemlApplication), # program executable
-                sqla.Column('output_path',        sqla.TEXT())    : GetValue(default=None) .output_dir                        ,#.ONLY(CodemlApplication), # fullpath to codeml output directory
-                sqla.Column('input_path',         sqla.TEXT())    : _get_input_path                                                                   , # fullpath to codeml input directory
-                sqla.Column('mlc_exists_h0',      sqla.TEXT())    : GetValue(default=None) .exists[0]                         ,#.ONLY(CodemlApplication), # exists codeml *.H0.mlc output file
-                sqla.Column('mlc_exists_h1',      sqla.TEXT())    : GetValue(default=None) .exists[1]                         ,#.ONLY(CodemlApplication), # exists codeml *.H1.mlc output file
-                sqla.Column('mlc_valid_h0',       sqla.TEXT())    : GetValue(default=None) .valid[0]                          ,#.ONLY(CodemlApplication), #.attrid codeml *.H0.mlc output file
-                sqla.Column('mlc_valid_h1',       sqla.TEXT())    : GetValue(default=None) .valid[1]                          ,#.ONLY(CodemlApplication), #.attrid codeml *.H1.mlc output file
-                sqla.Column('cluster',            sqla.TEXT())    : GetValue(default=None) .execution.resource_name           ,#.ONLY(CodemlApplication), # cluster/compute element
-                sqla.Column('worker',             sqla.TEXT())    : GetValue(default=None) .hostname                          ,#.ONLY(CodemlApplication), # hostname of the worker node
-                sqla.Column('cpu',                sqla.TEXT())    : GetValue(default=None) .cpuinfo                           ,#.ONLY(CodemlApplication), # CPU model of the worker node
-                sqla.Column('codeml_walltime_h0', sqla.INTEGER()) : GetValue()             .time_used[0]                      ,#.ONLY(CodemlApplication), # time used by the codeml H0 run (sec)
-                sqla.Column('codeml_walltime_h1', sqla.INTEGER()) : GetValue()             .time_used[1]                      ,#.ONLY(CodemlApplication), # time used by the codeml H1 run (sec)
-                sqla.Column('aln_len',            sqla.TEXT())    : GetValue()             .aln_info['aln_len']                                    , # alignement length
-                sqla.Column('seq',                sqla.TEXT())    : GetValue()             .aln_info['n_seq']                                      , # num of sequences
-                sqla.Column('requested_walltime', sqla.INTEGER()) : _get_requested_walltime_or_none                           , # requested walltime, in hours
-                sqla.Column('requested_cores',    sqla.INTEGER()) : GetValue(default=None) .requested_cores                   ,#.ONLY(CodemlApplication), # num of cores requested
-                sqla.Column('tags',               sqla.TEXT())    : GetValue()             .tags[0]                           ,#.ONLY(CodemlApplication), # run-time env.s (RTE) requested; e.g. 'APPS/BIO/CODEML-4.4.3'
-                sqla.Column('used_walltime',      sqla.INTEGER()) : GetValue(default=None) .execution.used_walltime           ,#.ONLY(CodemlApplication), # used walltime
-                sqla.Column('lrms_jobid',         sqla.TEXT())    : GetValue(default=None) .execution.lrms_jobid              ,#.ONLY(CodemlApplication), # arc job ID
-                sqla.Column('original_exitcode',  sqla.INTEGER()) : GetValue(default=None) .execution.original_exitcode       ,#.ONLY(CodemlApplication), # original exitcode
-                sqla.Column('used_cputime',       sqla.INTEGER()) : GetValue(default=None) .execution.used_cputime            ,#.ONLY(CodemlApplication), # used cputime in sec
+                sqla.Column("class", sqla.TEXT()): (lambda obj: obj.__class__.__name__),  # task class
+                sqla.Column("name", sqla.TEXT()): GetValue().jobname,  # job name
+                sqla.Column("executable", sqla.TEXT()): GetValue(default=None).arguments[
+                    0
+                ],  # .ONLY(CodemlApplication), # program executable
+                sqla.Column("output_path", sqla.TEXT()): GetValue(
+                    default=None
+                ).output_dir,  # .ONLY(CodemlApplication), # fullpath to codeml output directory
+                sqla.Column("input_path", sqla.TEXT()): _get_input_path,  # fullpath to codeml input directory
+                sqla.Column("mlc_exists_h0", sqla.TEXT()): GetValue(default=None).exists[
+                    0
+                ],  # .ONLY(CodemlApplication), # exists codeml *.H0.mlc output file
+                sqla.Column("mlc_exists_h1", sqla.TEXT()): GetValue(default=None).exists[
+                    1
+                ],  # .ONLY(CodemlApplication), # exists codeml *.H1.mlc output file
+                sqla.Column("mlc_valid_h0", sqla.TEXT()): GetValue(default=None).valid[
+                    0
+                ],  # .ONLY(CodemlApplication), #.attrid codeml *.H0.mlc output file
+                sqla.Column("mlc_valid_h1", sqla.TEXT()): GetValue(default=None).valid[
+                    1
+                ],  # .ONLY(CodemlApplication), #.attrid codeml *.H1.mlc output file
+                sqla.Column("cluster", sqla.TEXT()): GetValue(
+                    default=None
+                ).execution.resource_name,  # .ONLY(CodemlApplication), # cluster/compute element
+                sqla.Column("worker", sqla.TEXT()): GetValue(
+                    default=None
+                ).hostname,  # .ONLY(CodemlApplication), # hostname of the worker node
+                sqla.Column("cpu", sqla.TEXT()): GetValue(
+                    default=None
+                ).cpuinfo,  # .ONLY(CodemlApplication), # CPU model of the worker node
+                sqla.Column("codeml_walltime_h0", sqla.INTEGER()): GetValue().time_used[
+                    0
+                ],  # .ONLY(CodemlApplication), # time used by the codeml H0 run (sec)
+                sqla.Column("codeml_walltime_h1", sqla.INTEGER()): GetValue().time_used[
+                    1
+                ],  # .ONLY(CodemlApplication), # time used by the codeml H1 run (sec)
+                sqla.Column("aln_len", sqla.TEXT()): GetValue().aln_info["aln_len"],  # alignement length
+                sqla.Column("seq", sqla.TEXT()): GetValue().aln_info["n_seq"],  # num of sequences
+                sqla.Column(
+                    "requested_walltime", sqla.INTEGER()
+                ): _get_requested_walltime_or_none,  # requested walltime, in hours
+                sqla.Column("requested_cores", sqla.INTEGER()): GetValue(
+                    default=None
+                ).requested_cores,  # .ONLY(CodemlApplication), # num of cores requested
+                sqla.Column("tags", sqla.TEXT()): GetValue().tags[
+                    0
+                ],  # .ONLY(CodemlApplication), # run-time env.s (RTE) requested; e.g. 'APPS/BIO/CODEML-4.4.3'
+                sqla.Column("used_walltime", sqla.INTEGER()): GetValue(
+                    default=None
+                ).execution.used_walltime,  # .ONLY(CodemlApplication), # used walltime
+                sqla.Column("lrms_jobid", sqla.TEXT()): GetValue(
+                    default=None
+                ).execution.lrms_jobid,  # .ONLY(CodemlApplication), # arc job ID
+                sqla.Column("original_exitcode", sqla.INTEGER()): GetValue(
+                    default=None
+                ).execution.original_exitcode,  # .ONLY(CodemlApplication), # original exitcode
+                sqla.Column("used_cputime", sqla.INTEGER()): GetValue(
+                    default=None
+                ).execution.used_cputime,  # .ONLY(CodemlApplication), # used cputime in sec
                 # returncode = exitcode*256 + signal
-                sqla.Column('returncode',         sqla.INTEGER()) : GetValue(default=None) .execution.returncode              ,#.ONLY(CodemlApplication), # returncode attr
-                sqla.Column('queue',              sqla.TEXT())    : GetValue(default=None) .execution.queue                   ,#.ONLY(CodemlApplication), # exec queue _name_
-                sqla.Column('time_submitted',     sqla.FLOAT())   : GetValue(default=None) .execution.timestamp['SUBMITTED']  ,#.ONLY(CodemlApplication), # client-side submission (float) time
-                sqla.Column('time_terminated',    sqla.FLOAT())   : GetValue(default=None) .execution.timestamp['TERMINATED'] ,#.ONLY(CodemlApplication), # client-side termination (float) time
-                sqla.Column('time_stopped',       sqla.FLOAT())   : GetValue(default=None) .execution.timestamp['STOPPED']    ,#.ONLY(CodemlApplication), # client-side stop (float) time
-                sqla.Column('retried',            sqla.INTEGER()) : GetValue(default=None) .retried                           .ONLY(CodemlRetryPolicy), # num of times job has been retried
-                })
+                sqla.Column("returncode", sqla.INTEGER()): GetValue(
+                    default=None
+                ).execution.returncode,  # .ONLY(CodemlApplication), # returncode attr
+                sqla.Column("queue", sqla.TEXT()): GetValue(
+                    default=None
+                ).execution.queue,  # .ONLY(CodemlApplication), # exec queue _name_
+                sqla.Column("time_submitted", sqla.FLOAT()): GetValue(default=None).execution.timestamp[
+                    "SUBMITTED"
+                ],  # .ONLY(CodemlApplication), # client-side submission (float) time
+                sqla.Column("time_terminated", sqla.FLOAT()): GetValue(default=None).execution.timestamp[
+                    "TERMINATED"
+                ],  # .ONLY(CodemlApplication), # client-side termination (float) time
+                sqla.Column("time_stopped", sqla.FLOAT()): GetValue(default=None).execution.timestamp[
+                    "STOPPED"
+                ],  # .ONLY(CodemlApplication), # client-side stop (float) time
+                sqla.Column("retried", sqla.INTEGER()): GetValue(default=None).retried.ONLY(
+                    CodemlRetryPolicy
+                ),  # num of times job has been retried
+            },
+        )
+
 
 # auxiliary getter functions, used in `GCodemlScript_make_session` above
 def _get_input_path_CodemlApplication(job):
@@ -304,8 +364,9 @@ def _get_input_path_CodemlApplication(job):
     # files as input, and they belong in the same directory,
     # so just pick the first one
     for src_url in job.inputs:
-        if src_url.path.endswith('.ctl'):
+        if src_url.path.endswith(".ctl"):
             return os.path.dirname(src_url.path)
+
 
 def _get_input_path(job):
     if isinstance(job, gc3libs.application.codeml.CodemlApplication):
@@ -314,6 +375,7 @@ def _get_input_path(job):
         return _get_input_path_CodemlApplication(job.task)
     else:
         return None
+
 
 def _get_requested_walltime_or_none(job):
     if isinstance(job, gc3libs.application.codeml.CodemlApplication):

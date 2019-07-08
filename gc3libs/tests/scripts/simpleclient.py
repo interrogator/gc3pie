@@ -17,15 +17,19 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-__docformat__ = 'reStructuredText'
 
 from gc3libs.cmdline import DaemonClient
 
+__docformat__ = "reStructuredText"
+
+
 class SimpleClient(DaemonClient):
     """Simple daemon client"""
-    version = '1.0'
+
+    version = "1.0"
+
 
 if "__main__" == __name__:
     from simpleclient import SimpleClient
+
     SimpleClient().run()

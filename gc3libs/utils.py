@@ -19,58 +19,62 @@ sources of a different project and it would not stop working.
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+standard_library.install_aliases()
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from future import standard_library
-standard_library.install_aliases()
-from builtins import next
-from builtins import range
-from builtins import object
-__docformat__ = 'reStructuredText'
 
-
-from collections import defaultdict, deque
 import contextlib
 import functools
+import io as StringIO
 import os
 import os.path
-if bytes == str:
-    # Python2's `os.sysconf()` cannot handle sysconf variable names as
-    # Unicode strings, so we need to cast them to byte-strings
-    def os_sysconf(name):
-        return os.sysconf(str(name))
-else:
-    # Python3
-    from os import sysconf as os_sysconf
 import random
 import re
 import shutil
 import sys
 import tempfile
 import time
-import io as StringIO
 import UserDict
-
-
-from gc3libs.compat._collections import OrderedDict
-import lockfile
+from builtins import next, object, range
+from collections import defaultdict, deque
 
 import gc3libs
-import gc3libs.exceptions
 import gc3libs.debug
+import gc3libs.exceptions
+import lockfile
+
+#
+# You should have received a copy of the GNU Lesser General Public License
+from future import standard_library
+from gc3libs.compat._collections import OrderedDict
 from gc3libs.quantity import Duration, Memory
+
+__docformat__ = "reStructuredText"
+
+
+if bytes == str:
+    # Python2's `os.sysconf()` cannot handle sysconf variable names as
+    # Unicode strings, so we need to cast them to byte-strings
+    def os_sysconf(name):
+        return os.sysconf(str(name))
+
+
+else:
+    # Python3
+    from os import sysconf as os_sysconf
+
 
 # This fixes an issue with Python 2.4, which does not have
 # `shutl.WindowsError`
 try:
     WindowsError = shutil.WindowsError
 except AttributeError:
+
     class NeverUsedException(Exception):
 
         """this exception should never be raised"""
+
     WindowsError = NeverUsedException
 
 
@@ -106,12 +110,11 @@ def backup(path):
       >>> os.remove(path+'.~2~')
 
     """
-    parent_dir = (os.path.dirname(path) or os.getcwd())
-    prefix = os.path.basename(path) + '.~'
+    parent_dir = os.path.dirname(path) or os.getcwd()
+    prefix = os.path.basename(path) + ".~"
     p = len(prefix)
     suffix = 1
-    for name in [entry for entry in os.listdir(parent_dir)
-                 if (entry.startswith(prefix) and entry.endswith('~'))]:
+    for name in [entry for entry in os.listdir(parent_dir) if (entry.startswith(prefix) and entry.endswith("~"))]:
         try:
             n = int(name[p:-1])
             suffix = max(suffix, n + 1)
@@ -202,13 +205,14 @@ def cache_for(lapse):
         2
 
     """
+
     def decorator(fn):
         @functools.wraps(fn)
         def wrapper(obj, *args):
             now = time.time()
             key = (fn, tuple(id(arg) for arg in args))
             try:
-                update = ((now - obj._cache_last_updated[key]) > lapse)
+                update = (now - obj._cache_last_updated[key]) > lapse
             except AttributeError:
                 obj._cache_last_updated = defaultdict(lambda: 0)
                 obj._cache_value = dict()
@@ -219,7 +223,9 @@ def cache_for(lapse):
             # gc3libs.log.debug("%s(%s, ...): Using cached value '%s'",
             #                  fn.__name__, obj, obj._cache_value[key])
             return obj._cache_value[key]
+
         return wrapper
+
     return decorator
 
 
@@ -232,19 +238,19 @@ def cat(*args, **extra_args):
     If `append` is `True`, then `output` is opened in append-only
     mode; otherwise it is overwritten.
     """
-    output = extra_args.get('output', sys.stdout)
-    append = extra_args.get('append', True)
+    output = extra_args.get("output", sys.stdout)
+    append = extra_args.get("append", True)
     # ensure `output` is a file-like object, opened in write-mode
     try:
-        output.write('')
+        output.write("")
     except:
-        output = open(output, ('a' if append else 'w'))
+        output = open(output, ("a" if append else "w"))
     for arg in args:
         # ensure `arg` is a file-like object, opened in read-mode
         try:
             arg.read(0)
         except:
-            arg = open(arg, 'r')
+            arg = open(arg, "r")
         for line in arg:
             output.write(line)
 
@@ -293,8 +299,7 @@ def copyfile(src, dst, overwrite=False, changed_only=True, link=False):
             if changed_only:
                 sstat = os.stat(src)
                 dstat = os.stat(dst)
-                if (sstat.st_size ==
-                        dstat.st_size and sstat.st_mtime <= dstat.st_mtime):
+                if sstat.st_size == dstat.st_size and sstat.st_mtime <= dstat.st_mtime:
                     # same size and destination more recent, do not copy
                     return False
         if link:
@@ -331,8 +336,7 @@ def copytree(src, dst, overwrite=False, changed_only=True):
 
     See also: `shutil.copytree`.
     """
-    assert os.path.isdir(src), \
-        ("Source path `%s` does not name an existing directory" % src)
+    assert os.path.isdir(src), "Source path `%s` does not name an existing directory" % src
     errors = []
     if not os.path.exists(dst):
         os.makedirs(dst)
@@ -341,8 +345,7 @@ def copytree(src, dst, overwrite=False, changed_only=True):
         dstname = os.path.join(dst, name)
         try:
             if os.path.isdir(srcname):
-                errors.extend(
-                    copytree(srcname, dstname, overwrite, changed_only))
+                errors.extend(copytree(srcname, dstname, overwrite, changed_only))
             else:
                 copyfile(srcname, dstname)
         except (IOError, os.error) as why:
@@ -381,7 +384,7 @@ def defproperty(fn):
     Decorator to define properties with a simplified syntax in Python 2.4.
     See http://goo.gl/IoOZ8m for details and examples.
     """
-    p = {'doc': fn.__doc__}
+    p = {"doc": fn.__doc__}
     p.update(fn())
     return property(**p)
 
@@ -409,35 +412,28 @@ def deploy_configuration_file(filename, template_filename=None):
         return True
     else:
         try:
-            from pkg_resources import (Requirement, resource_filename,
-                                       DistributionNotFound)
+            from pkg_resources import Requirement, resource_filename, DistributionNotFound
             import shutil
         except ImportError as err:
             raise gc3libs.exceptions.FatalError(
                 "Cannot import required Python modules: %s."
                 " Please check GC3Pie installation instructions at"
-                " http://gc3pie.googlecode.com/svn/trunk/gc3pie/docs/html/install.html" %  # noqa
-                str(err))
+                " http://gc3pie.googlecode.com/svn/trunk/gc3pie/docs/html/install.html" % str(err)  # noqa
+            )
         try:
             # copy sample config file
             if not os.path.exists(dirname(filename)):
                 os.makedirs(dirname(filename))
-            sample_config = resource_filename(
-                Requirement.parse("gc3pie"),
-                "gc3libs/etc/" +
-                template_filename)
+            sample_config = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/" + template_filename)
             shutil.copyfile(sample_config, filename)
             return False
         except IOError as err:
             gc3libs.log.critical("Failed copying configuration file: %s", err)
             raise gc3libs.exceptions.NoConfigurationFile(
-                "No configuration file '%s' was found, and an attempt to"
-                " create it failed. Aborting." % filename)
+                "No configuration file '%s' was found, and an attempt to" " create it failed. Aborting." % filename
+            )
         except DistributionNotFound as ex:
-            raise AssertionError(
-                "Cannot access resources for Python package: %s."
-                " Installation error?" %
-                str(ex))
+            raise AssertionError("Cannot access resources for Python package: %s." " Installation error?" % str(ex))
 
 
 def dirname(pathname):
@@ -450,7 +446,7 @@ def dirname(pathname):
     # current dir is, or keep the "./".  I suppose this could make a
     # difference to some of the behavior of the scripts, such as
     # copying files around and such.
-    return os.path.dirname(pathname) or '.'
+    return os.path.dirname(pathname) or "."
 
 
 class Enum(frozenset):
@@ -484,6 +480,7 @@ class Enum(frozenset):
       CAT
       DOG
     """
+
     def __new__(cls, *args):
         return frozenset.__new__(cls, args)
 
@@ -491,8 +488,7 @@ class Enum(frozenset):
         if name in self:
             return name
         else:
-            raise AttributeError("No '%s' in enumeration '%s'"
-                                 % (name, self.__class__.__name__))
+            raise AttributeError("No '%s' in enumeration '%s'" % (name, self.__class__.__name__))
 
     def __setattr__(self, name, value):
         raise SyntaxError("Cannot assign enumeration values.")
@@ -567,15 +563,14 @@ def first(seq):
         return seq[0]
     except IndexError:
         pass
-    raise TypeError(
-        "Argument to `first()` method needs to be iterator or sequence.")
+    raise TypeError("Argument to `first()` method needs to be iterator or sequence.")
 
 
 def fgrep(literal, filename):
     """
     Iterate over all lines in a file that contain the `literal` string.
     """
-    with open(filename, 'r') as stream:
+    with open(filename, "r") as stream:
         for line in stream:
             if literal in line:
                 yield line
@@ -593,17 +588,17 @@ def from_template(template, **extra_args):
     otherwise, `template` is treated like a string providing the
     template contents itself.
     """
-    if hasattr(template, 'read') and callable(template.read):
+    if hasattr(template, "read") and callable(template.read):
         template_contents = template.read()
     elif os.path.exists(template):
-        template_file = file(template, 'r')
+        template_file = file(template, "r")
         template_contents = template_file.read()
         template_file.close()
     else:
         # treat `template` as a string
         template_contents = template
     # substitute `extra_args` into `t` and return it
-    return (template_contents % extra_args)
+    return template_contents % extra_args
 
 
 def get_available_physical_memory():
@@ -620,12 +615,11 @@ def get_available_physical_memory():
       are not implemented on this system.
     """
     try:
-        pagesize = os_sysconf('SC_PAGE_SIZE')
-        avail_pages = os_sysconf('SC_AVPHYS_PAGES')
+        pagesize = os_sysconf("SC_PAGE_SIZE")
+        avail_pages = os_sysconf("SC_AVPHYS_PAGES")
         return Memory(avail_pages * pagesize, unit=Memory.B)
     except ValueError:
-        raise NotImplementedError(
-            "Cannot determine amount of available physical memory.")
+        raise NotImplementedError("Cannot determine amount of available physical memory.")
 
 
 def get_linux_memcg_limit():
@@ -644,8 +638,8 @@ def get_linux_memcg_limit():
     """
     memcg_path = None
     try:
-        for line in fgrep(':memory:', '/proc/self/cgroup'):
-            _, _, memcg_path = line.rstrip().split(':')
+        for line in fgrep(":memory:", "/proc/self/cgroup"):
+            _, _, memcg_path = line.rstrip().split(":")
             break
     except EnvironmentError:
         # older kernel, no file `/proc/self/cgroup`
@@ -654,18 +648,14 @@ def get_linux_memcg_limit():
         # no memory cgroup?
         return None
     # XXX: hard-coded cgroupfs mountpoint path
-    memcg_dir = os.path.join('/sys/fs/cgroup/memory', memcg_path.lstrip('/'))
+    memcg_dir = os.path.join("/sys/fs/cgroup/memory", memcg_path.lstrip("/"))
     limit = None
     # read possible limits in ascending order ("soft" limits *should*
     # be lower than "hard" limits) and return first one that exists
-    for limit_file in [
-            'memory.soft_limit_in_bytes',
-            'memory.limit_in_bytes',
-            'memory.memsw.limit_in_bytes',
-    ]:
+    for limit_file in ["memory.soft_limit_in_bytes", "memory.limit_in_bytes", "memory.memsw.limit_in_bytes"]:
         path = os.path.join(memcg_dir, limit_file)
         try:
-            with open(path, 'r') as limit_file:
+            with open(path, "r") as limit_file:
                 limit = int(limit_file.read())
                 break
         except (EnvironmentError, ValueError):
@@ -695,10 +685,10 @@ def get_max_real_memory():
     # if available
     try:
         ulimit, _ = parse_linux_proc_limits()
-        rlimit_as = ulimit['max_address_space']
+        rlimit_as = ulimit["max_address_space"]
         if rlimit_as:
             limits.append(rlimit_as)
-        rlimit_data = ulimit['max_data_size']
+        rlimit_data = ulimit["max_data_size"]
         if rlimit_data:
             limits.append(rlimit_data)
     except (IOError, ValueError):
@@ -731,6 +721,7 @@ def get_num_processors():
         pass
     try:
         import multiprocessing
+
         return multiprocessing.cpu_count()
     except ImportError:  # no multiprocessing?
         pass
@@ -768,22 +759,22 @@ def get_scheduler_and_lock_factory(lib):
 
     .. _APScheduler: https://apscheduler.readthedocs.org/en/latest/userguide.html
     """
-    if lib == 'threading':
+    if lib == "threading":
         from apscheduler.schedulers.background import BackgroundScheduler
         from threading import Lock
+
         return (BackgroundScheduler, Lock)
-    elif lib == 'gevent':
+    elif lib == "gevent":
         from apscheduler.schedulers.gevent import GeventScheduler
         from gevent.lock import Semaphore
+
         return (GeventScheduler, Semaphore)
-    elif lib in ['asyncio', 'tornado', 'twisted', 'qt']:
-        raise NotImplemented(
-            "Support for {lib} is not yet available!"
-            .format(lib=lib))
+    elif lib in ["asyncio", "tornado", "twisted", "qt"]:
+        raise NotImplemented("Support for {lib} is not yet available!".format(lib=lib))
     else:
         raise ValueError(
-            "Library '{lib}' is unknown to `{mod}._get_scheduler_and_lock_factory()`"
-            .format(lib=lib, mod=__name__))
+            "Library '{lib}' is unknown to `{mod}._get_scheduler_and_lock_factory()`".format(lib=lib, mod=__name__)
+        )
 
 
 def getattr_nested(obj, name):
@@ -791,11 +782,11 @@ def getattr_nested(obj, name):
     Like Python's `getattr`, but perform a recursive lookup if `name` contains
     any dots.
     """
-    dots = name.count('.')
+    dots = name.count(".")
     if dots == 0:
         return getattr(obj, name)
     else:
-        first, rest = name.split('.', 1)
+        first, rest = name.split(".", 1)
         return getattr_nested(getattr(obj, first), rest)
 
 
@@ -805,7 +796,7 @@ def grep(pattern, filename):
     expression.
     """
     rx = re.compile(pattern)
-    with open(filename, 'r') as file:
+    with open(filename, "r") as file:
         for line in file:
             if rx.search(line):
                 yield line
@@ -833,9 +824,8 @@ def ifelse(test, if_true, if_false):
 
 
 # original source: https://gist.github.com/jtriley/7270594
-def insert_char_every_n_chars(string, char='\n', every=64):
-    return char.join(
-        string[i:i + every] for i in range(0, len(string), every))
+def insert_char_every_n_chars(string, char="\n", every=64):
+    return char.join(string[i : i + every] for i in range(0, len(string), every))
 
 
 def irange(start, stop, step=1):
@@ -971,7 +961,7 @@ class History(object):
         If log is empty, return empty string.
         """
         if len(self._messages) == 0:
-            return ''
+            return ""
         else:
             return self.format_message(self._messages[-1])
 
@@ -980,8 +970,7 @@ class History(object):
         in human readable format.
 
         """
-        return "%s at %s" % (
-            message[0], time.asctime(time.localtime(message[1])))
+        return "%s at %s" % (message[0], time.asctime(time.localtime(message[1])))
 
     # shortcut for append
     def __call__(self, message, *tags):
@@ -995,8 +984,7 @@ class History(object):
     def __str__(self):
         """Return all messages texts in a single string, separated by newline
         characters."""
-        return '- ' + '\n- '.join([self.format_message(record)
-                               for record in self._messages]) + '\n'
+        return "- " + "\n- ".join([self.format_message(record) for record in self._messages]) + "\n"
 
 
 def lookup(obj, name):
@@ -1040,9 +1028,7 @@ def lookup(obj, name):
         return obj[name]
     except (KeyError, TypeError):
         pass
-    raise LookupError(
-        'Object {0} has no attribute nor key named `{1}`'
-        .format(obj, name))
+    raise LookupError("Object {0} has no attribute nor key named `{1}`".format(obj, name))
 
 
 def mkdir(path, mode=0o777):
@@ -1107,8 +1093,7 @@ def movefile(src, dst, overwrite=False, changed_only=True, link=False):
         if changed_only:
             sstat = os.stat(src)
             dstat = os.stat(dst)
-            if (sstat.st_size ==
-                    dstat.st_size and sstat.st_mtime <= dstat.st_mtime):
+            if sstat.st_size == dstat.st_size and sstat.st_mtime <= dstat.st_mtime:
                 # same size and destination more recent, do not move
                 return False
     try:
@@ -1127,8 +1112,7 @@ def movetree(src, dst, overwrite=False, changed_only=True):
 
     See also: `copytree`:func:.
     """
-    assert os.path.isdir(src), \
-        ("Source path `%s` does not name an existing directory" % src)
+    assert os.path.isdir(src), "Source path `%s` does not name an existing directory" % src
     errors = []
     if not os.path.exists(dst):
         os.makedirs(dst)
@@ -1137,8 +1121,7 @@ def movetree(src, dst, overwrite=False, changed_only=True):
         dstname = os.path.join(dst, name)
         try:
             if os.path.isdir(srcname):
-                errors.extend(
-                    movetree(srcname, dstname, overwrite, changed_only))
+                errors.extend(movetree(srcname, dstname, overwrite, changed_only))
             else:
                 movefile(srcname, dstname)
         except (IOError, os.error) as why:
@@ -1194,9 +1177,9 @@ def parse_linux_proc_limits(data=None):
     In case the actual limit is 'unlimited', value is set to ``None``.
     """
     if data is None:
-        with open('/proc/self/limits', 'r') as src:
+        with open("/proc/self/limits", "r") as src:
             data = src.read()
-    lines = data.split('\n')
+    lines = data.split("\n")
     assert lines
     # Linux' `/proc/self/limits` shows data in 4 columns, but: (1)
     # value in the first column may contain spaces, and (2) the value
@@ -1205,15 +1188,15 @@ def parse_linux_proc_limits(data=None):
     # position (for human reading) so we need only note the starting
     # position for each data column.
     header = lines[0]
-    name_col = header.index('Limit')
-    soft_limit_col = header.index('Soft Limit')
-    hard_limit_col = header.index('Hard Limit')
-    unit_col = header.index('Units')
+    name_col = header.index("Limit")
+    soft_limit_col = header.index("Soft Limit")
+    hard_limit_col = header.index("Hard Limit")
+    unit_col = header.index("Units")
     # parse data line-by-line
     soft_limits = {}
     hard_limits = {}
     for line in lines[1:]:
-        if line == '':
+        if line == "":
             continue
         name = line[name_col:soft_limit_col].rstrip()
         soft_limit = line[soft_limit_col:hard_limit_col].rstrip()
@@ -1224,7 +1207,7 @@ def parse_linux_proc_limits(data=None):
             # no value for `Unit`
             hard_limit = line[hard_limit_col:].rstrip()
             unit = None
-        name = name.lower().replace(' ', '_')
+        name = name.lower().replace(" ", "_")
         soft_limits[name] = _parse_ulimit(soft_limit, unit)
         hard_limits[name] = _parse_ulimit(hard_limit, unit)
     return soft_limits, hard_limits
@@ -1234,23 +1217,23 @@ def _parse_ulimit(limit, unit):
     """
     Helper function for `parse_linux_proc_limits`.
     """
-    if limit == 'unlimited':
+    if limit == "unlimited":
         return None
     else:
         limit = int(limit)
     # translate to `gc3libs.quantity` unit
-    if unit == 'bytes':
+    if unit == "bytes":
         cls = Memory
         unit = Memory.B
-    elif unit == 'seconds':
+    elif unit == "seconds":
         cls = Duration
         unit = Duration.s
-    elif unit == 'us':
+    elif unit == "us":
         cls = Duration
         unit = Duration.us
     else:
         # "files", "signals", "processes", etc.
-        cls = (lambda v, u: v)
+        cls = lambda v, u: v
         unit = None
     return cls(limit, unit)
 
@@ -1307,26 +1290,27 @@ def parse_range(spec):
       >>> parse_range('42')
       (42, 43, 1)
     """
-    colons = spec.count(':')
+    colons = spec.count(":")
     if colons == 2:
-        low, high, step = spec.split(':')
+        low, high, step = spec.split(":")
     elif colons == 1:
-        low, high = spec.split(':')
-        step = '1'  # parsed to int or float later on
+        low, high = spec.split(":")
+        step = "1"  # parsed to int or float later on
     elif colons == 0:
         low = spec
-        if '.' in low:
+        if "." in low:
             high = str(float(low) + 1)
         else:
             high = str(int(low) + 1)
-        step = '1'  # parsed to int or float later on
+        step = "1"  # parsed to int or float later on
     else:
         raise ValueError(
             "Argument `spec` must have the form 'LOW:HIGH:STEP',"
             " where LOW, HIGH and STEP are (integer or"
-            " floating-point) numbers.")
+            " floating-point) numbers."
+        )
     # are low, high, step to floats or ints?
-    if ('.' in low) or ('.' in high) or ('.' in step):
+    if ("." in low) or ("." in high) or ("." in step):
         low = float(low)
         high = float(high)
         step = float(step)
@@ -1338,15 +1322,8 @@ def parse_range(spec):
 
 
 def prettyprint(
-        D,
-        indent=0,
-        width=0,
-        maxdepth=None,
-        step=4,
-        only_keys=None,
-        output=sys.stdout,
-        _key_prefix='',
-        _exclude=None):
+    D, indent=0, width=0, maxdepth=None, step=4, only_keys=None, output=sys.stdout, _key_prefix="", _exclude=None
+):
     """
     Print dictionary instance `D` in a YAML-like format.
     Each output line consists of:
@@ -1373,7 +1350,7 @@ def prettyprint(
         _exclude = set()
     _exclude.add(id(D))
     for k, v in sorted(D.items()):
-        leading_spaces = indent * ' '
+        leading_spaces = indent * " "
         full_name = "%s%s" % (_key_prefix, k)
         if only_keys is not None:
             try:
@@ -1383,12 +1360,12 @@ def prettyprint(
             except TypeError:
                 # no, then it must be a list of key names, check for
                 # keys having the same number of dots as in the prefix
-                level = _key_prefix.count('.')
+                level = _key_prefix.count(".")
                 found = False
                 for name in only_keys:
                     # take only the initial segment, up to a "level" dots
-                    dots = min(name.count('.'), level) + 1
-                    prefix = '.'.join(name.split('.')[:dots])
+                    dots = min(name.count("."), level) + 1
+                    prefix = ".".join(name.split(".")[:dots])
                     if str(full_name) == prefix:
                         found = True
                         break
@@ -1399,32 +1376,29 @@ def prettyprint(
             continue
         # To make a 'key' valid in YAML it must not start with one of the following chars
         sk = str(k)
-        sk = sk if sk[0] not in  u'\0 \t\r\n\x85\u2028\u2029-?:,[]{}#&*!|>\'\"%@`' else  "'%s'" % sk
-        first = ''.join([leading_spaces, sk, ': '])
-        if isinstance(
-                v, (dict, UserDict.DictMixin, UserDict.UserDict, OrderedDict)):
+        sk = sk if sk[0] not in "\0 \t\r\n\x85\u2028\u2029-?:,[]{}#&*!|>'\"%@`" else "'%s'" % sk
+        first = "".join([leading_spaces, sk, ": "])
+        if isinstance(v, (dict, UserDict.DictMixin, UserDict.UserDict, OrderedDict)):
             if maxdepth is None or maxdepth > 0:
                 if maxdepth is None:
                     depth = None
                 else:
                     depth = maxdepth - 1
                 sstream = StringIO.StringIO()
-                prettyprint(v, indent + step, width, depth, step,
-                            only_keys, sstream, full_name + '.', _exclude)
+                prettyprint(v, indent + step, width, depth, step, only_keys, sstream, full_name + ".", _exclude)
                 second = sstream.getvalue()
                 sstream.close()
             elif maxdepth == 0:
                 second = "..."
         elif isinstance(v, (list, tuple)):
-            second = ', '.join([str(item) for item in v])
+            second = ", ".join([str(item) for item in v])
         else:
             second = str(v)
         # wrap overlong lines, and always wrap if the second part is multi-line
-        if (width > 0 and len(first) + len(second)
-                > width) or ('\n' in second):
-            first += '\n'
+        if (width > 0 and len(first) + len(second) > width) or ("\n" in second):
+            first += "\n"
         # indent a multi-line block by indent+step spaces
-        if '\n' in second:
+        if "\n" in second:
             lines = second.splitlines()
             # keep indentation relative to first line
             dedent = 0
@@ -1432,20 +1406,15 @@ def prettyprint(
             while line0[dedent].isspace():
                 dedent += 1
             # rebuild `second`, indenting each line by (indent+step) spaces
-            second = ''
+            second = ""
             for line in lines:
-                second = ''.join([
-                    second,
-                    ' ' * (indent + step),
-                    line.rstrip().expandtabs(step)[dedent:],
-                    '\n'
-                ])
+                second = "".join([second, " " * (indent + step), line.rstrip().expandtabs(step)[dedent:], "\n"])
         # there can be multiple trailing '\n's, which we remove here
         second = second.rstrip()
         # finally print line(s)
         output.write(first)
         output.write(second)
-        output.write('\n')
+        output.write("\n")
 
 
 def progressive_number(qty=None, id_filename=None):
@@ -1506,11 +1475,9 @@ def progressive_number(qty=None, id_filename=None):
             every call.  A list of such numbers if argument `qty` is a
             positive integer.
     """
-    assert qty is None or qty > 0, \
-        "Argument `qty` must be a positive integer"
+    assert qty is None or qty > 0, "Argument `qty` must be a positive integer"
     if id_filename is None:
-        id_filename = os.environ.get('GC3PIE_ID_FILE',
-                                     os.path.expanduser('~/.gc3/next_id.txt'))
+        id_filename = os.environ.get("GC3PIE_ID_FILE", os.path.expanduser("~/.gc3/next_id.txt"))
     # ensure directory exists, otherwise the error message is obscure;
     # see Issue 486 for details
     id_dirname = dirname(id_filename)
@@ -1518,17 +1485,15 @@ def progressive_number(qty=None, id_filename=None):
         os.makedirs(id_dirname)
     # XXX: can raise 'LockTimeout'
     lck = lock(id_filename, timeout=30, create=True)
-    id_file = open(id_filename, 'r+')
+    id_file = open(id_filename, "r+")
     id = int(id_file.read(8) or "0", 16)
     id_file.seek(0)
     if qty is None:
-        id_file.write(
-            "%08x -- DO NOT REMOVE OR ALTER THIS FILE: it is used internally"
-            " by the gc3libs\n" % (id + 1))
+        id_file.write("%08x -- DO NOT REMOVE OR ALTER THIS FILE: it is used internally" " by the gc3libs\n" % (id + 1))
     else:
         id_file.write(
-            "%08x -- DO NOT REMOVE OR ALTER THIS FILE: it is used internally"
-            " by the gc3libs\n" % (id + qty))
+            "%08x -- DO NOT REMOVE OR ALTER THIS FILE: it is used internally" " by the gc3libs\n" % (id + qty)
+        )
     id_file.close()
     unlock(lck)
     if qty is None:
@@ -1560,7 +1525,7 @@ def read_contents(path):
       >>> os.remove(tmpfile)
 
     """
-    with open(path, 'r') as stream:
+    with open(path, "r") as stream:
         return stream.read()
 
 
@@ -1582,7 +1547,7 @@ def safe_repr(obj):
     Avoids calling any Python magic methods, so should be safe to use
     as a 'last resort' in implementation of `__str__` and `__repr__`.
     """
-    return ("%s@%x" % (obj.__class__.__name__, id(obj)))
+    return "%s@%x" % (obj.__class__.__name__, id(obj))
 
 
 def same_docstring_as(referenced_fn):
@@ -1594,9 +1559,11 @@ def same_docstring_as(referenced_fn):
     derived classes, so that they inherit the docstring from the
     corresponding abstract method in the base class.
     """
+
     def decorate(f):
         f.__doc__ = referenced_fn.__doc__
         return f
+
     return decorate
 
 
@@ -1629,7 +1596,7 @@ def sh_quote_safe(arg):
       ''\\''arg'\\'''
 
     """
-    return ("'" + str(arg).replace("'", r"'\''") + "'")
+    return "'" + str(arg).replace("'", r"'\''") + "'"
 
 
 def sh_quote_safe_cmdline(args):
@@ -1643,7 +1610,7 @@ def sh_quote_safe_cmdline(args):
       >>> print(sh_quote_safe_cmdline(['sh', '-c', 'echo c(1,2,3)']))
       'sh' '-c' 'echo c(1,2,3)'
     """
-    return ' '.join((sh_quote_safe(arg) for arg in args))
+    return " ".join((sh_quote_safe(arg) for arg in args))
 
 
 _DQUOTE_RE = re.compile(r'(\\*)"')
@@ -1667,7 +1634,7 @@ def sh_quote_unsafe(arg):
       "\\"\\\\\\"arg\\\\\\"\\""
 
     """
-    return ('"' + _DQUOTE_RE.sub(r'\1\1\"', str(arg)) + '"' )
+    return '"' + _DQUOTE_RE.sub(r"\1\1\"", str(arg)) + '"'
 
 
 def sh_quote_unsafe_cmdline(args):
@@ -1681,7 +1648,7 @@ def sh_quote_unsafe_cmdline(args):
       >>> print(sh_quote_unsafe_cmdline(['sh', '-c', 'echo $HOME']))
       "sh" "-c" "echo $HOME"
     """
-    return ' '.join((sh_quote_unsafe(arg) for arg in args))
+    return " ".join((sh_quote_unsafe(arg) for arg in args))
 
 
 # see
@@ -1698,10 +1665,10 @@ class Singleton(object):
        True
 
     """
+
     def __new__(cls, *args, **extra_args):
-        if not hasattr(cls, '_instance'):
-            cls._instance = super(Singleton, cls).__new__(
-                cls, *args, **extra_args)
+        if not hasattr(cls, "_instance"):
+            cls._instance = super(Singleton, cls).__new__(cls, *args, **extra_args)
         return cls._instance
 
 
@@ -1880,8 +1847,7 @@ class PlusInfinity(Singleton):
 
     def __sub__(self, other):
         if other == self:
-            raise RuntimeError(
-                "Undefined result subtracting +infinity from +infinity.")
+            raise RuntimeError("Undefined result subtracting +infinity from +infinity.")
         return self
 
 
@@ -1990,7 +1956,7 @@ def string_to_boolean(word):
       False
 
     """
-    if word.strip().lower() in ['true', 'yes', 'on', '1']:
+    if word.strip().lower() in ["true", "yes", "on", "1"]:
         return True
     else:
         return False
@@ -2064,20 +2030,18 @@ def test_file(path, mode, exception=RuntimeError, isdir=False):
         ...
       RuntimeError: Expected '/bin/cat' to be a directory, but it's not.
     """
-    what = ("directory" if isdir else "file")
+    what = "directory" if isdir else "file"
     if not os.access(path, os.F_OK):
         raise exception("Cannot access %s '%s'." % (what, path))
     if isdir and not os.path.isdir(path):
-        raise exception(
-            "Expected '%s' to be a directory, but it's not." % path)
+        raise exception("Expected '%s' to be a directory, but it's not." % path)
     if (mode & os.R_OK) and not os.access(path, os.R_OK):
         raise exception("Cannot read %s '%s'." % (what, path))
     if (mode & os.W_OK) and not os.access(path, os.W_OK):
         raise exception("Cannot write to %s '%s'." % (what, path))
     if (mode & os.X_OK) and not os.access(path, os.X_OK):
         if isdir:
-            raise exception("Cannot traverse directory '%s':"
-                            " lacks 'x' permission." % path)
+            raise exception("Cannot traverse directory '%s':" " lacks 'x' permission." % path)
         else:
             raise exception("File '%s' lacks execute ('x') permission." % path)
     return True
@@ -2114,11 +2078,11 @@ def to_bytes(s):
     if unit.isdigit():
         # `s` is a integral number
         return int(s)
-    if unit == 'b':
+    if unit == "b":
         # ignore the the 'b' or 'B' suffix
         last -= 1
         unit = s[last].lower()
-    if unit == 'i':
+    if unit == "i":
         k = 1024
         last -= 1
         unit = s[last].lower()
@@ -2126,22 +2090,22 @@ def to_bytes(s):
         k = 1000
     # convert the substring of `s` that does not include the suffix
     if unit.isdigit():
-        return int(s[0:(last + 1)])
-    if unit == 'k':
+        return int(s[0 : (last + 1)])
+    if unit == "k":
         return int(float(s[0:last]) * k)
-    if unit == 'm':
+    if unit == "m":
         return int(float(s[0:last]) * k * k)
-    if unit == 'g':
+    if unit == "g":
         return int(float(s[0:last]) * k * k * k)
-    if unit == 't':
+    if unit == "t":
         return int(float(s[0:last]) * k * k * k * k)
-    if unit == 'p':
+    if unit == "p":
         return int(float(s[0:last]) * k * k * k * k * k)
-    if unit == 'e':
+    if unit == "e":
         return int(float(s[0:last]) * k * k * k * k * k * k)
-    if unit == 'z':
+    if unit == "z":
         return int(float(s[0:last]) * k * k * k * k * k * k * k)
-    if unit == 'y':
+    if unit == "y":
         return int(float(s[0:last]) * k * k * k * k * k * k * k * k)
 
 
@@ -2155,19 +2119,18 @@ def send_mail(send_from, send_to, subject, text, files=[], server="localhost"):
     from email import Encoders
 
     msg = MIMEMultipart()
-    msg['From'] = send_from
-    msg['To'] = COMMASPACE.join(send_to)
-    msg['Date'] = formatdate(localtime=True)
-    msg['Subject'] = subject
+    msg["From"] = send_from
+    msg["To"] = COMMASPACE.join(send_to)
+    msg["Date"] = formatdate(localtime=True)
+    msg["Subject"] = subject
 
     msg.attach(MIMEText(text))
 
     for f in files:
-        part = MIMEBase('application', "octet-stream")
+        part = MIMEBase("application", "octet-stream")
         part.set_payload(open(f, "rb").read())
         Encoders.encode_base64(part)
-        part.add_header('Content-Disposition',
-                        'attachment; filename="%s"' % os.path.basename(f))
+        part.add_header("Content-Disposition", 'attachment; filename="%s"' % os.path.basename(f))
         msg.attach(part)
 
     smtp = SMTP(server)
@@ -2185,7 +2148,7 @@ def touch(path):
     (This is a very limited and stripped down version of the ``touch``
     POSIX utility.)
     """
-    fd = open(path, 'a')
+    fd = open(path, "a")
     fd.close()
 
 
@@ -2232,7 +2195,7 @@ def unlock(lock):
 
 
 def update_parameter_in_file(path, var_in, new_val, regex_in):
-    '''
+    """
     Updates a parameter value in a parameter file using predefined regular
     expressions in `_loop_regexps`.
 
@@ -2241,44 +2204,41 @@ def update_parameter_in_file(path, var_in, new_val, regex_in):
     :param new_val: The updated parameter value.
     :param regex:   Name of the regular expression that describes the format
                     of the parameter file.
-    '''
+    """
     _loop_regexps = {
-        'bar-separated': (r'([a-z]+[\s\|]+)'
-                          r'(\w+)'  # variable name
-                          r'(\s*[\|]+\s*)'  # bars and spaces
-                          r'([\w\s\.,;\[\]\-]+)'  # value
-                          r'(\s*)'),
-        'space-separated': (r'(\s*)'
-                            r'(\w+)'  # variable name
-                            r'(\s+)'  # spaces (filler)
-                            r'([\w\s\.,;\[\]\-]+)'  # values
-                            r'(\s*)'),  # spaces (filler)
+        "bar-separated": (
+            r"([a-z]+[\s\|]+)"
+            r"(\w+)"  # variable name
+            r"(\s*[\|]+\s*)"  # bars and spaces
+            r"([\w\s\.,;\[\]\-]+)"  # value
+            r"(\s*)"
+        ),
+        "space-separated": (
+            r"(\s*)" r"(\w+)" r"(\s+)" r"([\w\s\.,;\[\]\-]+)" r"(\s*)"  # variable name  # spaces (filler)  # values
+        ),  # spaces (filler)
     }
     isfound = False
     if regex_in in list(_loop_regexps.keys()):
         regex_in = _loop_regexps[regex_in]
-    para_file_in = open(path, 'r')
-    para_file_out = open(path + '.tmp', 'w')
+    para_file_in = open(path, "r")
+    para_file_out = open(path + ".tmp", "w")
     for line in para_file_in:
         if not line.rstrip():
             continue
         (a, var, b, old_val, c) = re.match(regex_in, line.rstrip()).groups()
-        gc3libs.log.debug(
-            "Read variable '%s' with value '%s' ...", var, old_val)
+        gc3libs.log.debug("Read variable '%s' with value '%s' ...", var, old_val)
         if var == var_in:
             isfound = True
             upd_val = new_val
         else:
             upd_val = old_val
-        para_file_out.write(a + var + b + upd_val + c + '\n')
+        para_file_out.write(a + var + b + upd_val + c + "\n")
     para_file_out.close()
     para_file_in.close()
     # move new modified content over the old
-    os.rename(path + '.tmp', path)
+    os.rename(path + ".tmp", path)
     if not isfound:
-        gc3libs.log.critical(
-            'update_parameter_in_file could not find parameter'
-            ' in sepcified file')
+        gc3libs.log.critical("update_parameter_in_file could not find parameter" " in sepcified file")
 
 
 def write_contents(path, data):
@@ -2300,7 +2260,7 @@ def write_contents(path, data):
       >>> os.remove(tmpfile)
 
     """
-    with open(path, 'wb') as stream:
+    with open(path, "wb") as stream:
         return stream.write(data)
 
 
@@ -2315,7 +2275,7 @@ class YieldAtNext(object):
     subsequent call to the `next` method.
     """
 
-    __slots__ = ['_generator', '_saved', '_stop_iteration']
+    __slots__ = ["_generator", "_saved", "_stop_iteration"]
 
     def __init__(self, generator):
         self._generator = generator
@@ -2350,7 +2310,7 @@ class YieldAtNext(object):
 # Main
 ##
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
-    doctest.testmod(name='utils',
-                    optionflags=doctest.NORMALIZE_WHITESPACE|doctest.ELLIPSIS)
+
+    doctest.testmod(name="utils", optionflags=doctest.NORMALIZE_WHITESPACE | doctest.ELLIPSIS)

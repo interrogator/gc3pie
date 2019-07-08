@@ -32,88 +32,86 @@ __changelog__ = """
   2016-07-05:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
-if __name__ == "__main__":
-    import gtraclong
-    gtraclong.GtraclongScript().run()
-
-import os
-import sys
-import time
-import tempfile
-import re
-
-import shutil
-# import csv
 
 from pkg_resources import Requirement, resource_filename
 
+import os
 import gc3libs
 import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
 import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
+from gc3libs import Application
+from gc3libs.cmdline import SessionBasedScript
+from gc3libs.quantity import GB, MB, Memory
+
+# import csv
+if __name__ == "__main__":
+    import gtraclong
+
+    gtraclong.GtraclongScript().run()
 
 DEFAULT_CORES = 1
-DEFAULT_MEMORY = Memory(3000,MB)
+DEFAULT_MEMORY = Memory(3000, MB)
 
-DEFAULT_REMOTE_INPUT_FOLDER="./"
-DEFAULT_REMOTE_OUTPUT_FOLDER="./output"
+DEFAULT_REMOTE_INPUT_FOLDER = "./"
+DEFAULT_REMOTE_OUTPUT_FOLDER = "./output"
 DMRIC_PATTERN = "dmrirc"
-DEFAULT_TRAC_COMMAND="trac-all -prep -c {dmrirc} -debug"
+DEFAULT_TRAC_COMMAND = "trac-all -prep -c {dmrirc} -debug"
+
 
 def _correlate(subjects, freesurfers):
     """
     correlate every subject in 'subjects' with subfolders in 'freesurfers'
-    """    
+    """
     for subject in subjects:
         freesurfer_list = list()
         for freesurfer in os.listdir(freesurfers):
-            if freesurfer.split('.')[0] == subject:
-                freesurfer_list.append(os.path.join(freesurfers,freesurfer))
-        yield (subject,freesurfer_list)
+            if freesurfer.split(".")[0] == subject:
+                freesurfer_list.append(os.path.join(freesurfers, freesurfer))
+        yield (subject, freesurfer_list)
 
-## custom application class
+
+# custom application class
 class GtraclongApplication(Application):
     """
     """
-    application_name = 'gtraclong'
-    
+
+    application_name = "gtraclong"
+
     def __init__(self, subject, subject_folder, **extra_args):
 
-        self.output_dir = extra_args['output_dir']
+        self.output_dir = extra_args["output_dir"]
 
         inputs = dict()
-        outputs = dict()
 
         inputs[subject_folder] = DEFAULT_REMOTE_INPUT_FOLDER
 
-        wrapper = resource_filename(Requirement.parse("gc3pie"),
-                                    "gc3libs/etc/gtraclong_wrapper.py")
+        wrapper = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gtraclong_wrapper.py")
         inputs[wrapper] = os.path.basename(wrapper)
 
         arguments = "./%s" % (inputs[wrapper])
 
-        if extra_args['requested_memory'] < DEFAULT_MEMORY:
-            gc3libs.log.warning("GtraclongApplication for subject %s running with memory allocation " \
-                                "'%d GB' lower than suggested one: '%d GB'," % (subject,
-                                                                                extra_args['requested_memory'].amount(unit=GB),
-                                                                                DEFAULT_MEMORY.amount(unit=GB)))
+        if extra_args["requested_memory"] < DEFAULT_MEMORY:
+            gc3libs.log.warning(
+                "GtraclongApplication for subject %s running with memory allocation "
+                "'%d GB' lower than suggested one: '%d GB',"
+                % (subject, extra_args["requested_memory"].amount(unit=GB), DEFAULT_MEMORY.amount(unit=GB))
+            )
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = [DEFAULT_REMOTE_OUTPUT_FOLDER],
-            stdout = 'gtraclong.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=[DEFAULT_REMOTE_OUTPUT_FOLDER],
+            stdout="gtraclong.log",
             join=True,
-            **extra_args)        
+            **extra_args
+        )
+
 
 class GtraclongScript(SessionBasedScript):
     """
@@ -132,68 +130,64 @@ class GtraclongScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GtraclongApplication, 
+            # todo: what __version__?
+            version=__version__,  # module version == script version
+            application=GtraclongApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GtraclongApplication,
-            )
- 
+            stats_only_for=GtraclongApplication,
+        )
+
     # def setup_args(self):
 
     #     self.add_param('input_data', type=str,
     #                    help="Root location of input data. "
     #                    "Note: expected folder structure: "
     #                    " 1 subfodler for each subject. "
-    #                    " In each subject folder, " 
+    #                    " In each subject folder, "
     #                    " 1 subfolder for each TimePoint. "
     #                    " Each TimePoint folder should contain 2 input "
     #                    "NFTI files.")
 
     def setup_options(self):
-        self.add_param("-F", "--fs", metavar="[PATH]", 
-                       dest="freesurfer", default=None,
-                       help="Location of Freesurfer data folders.")
-    
+        self.add_param(
+            "-F", "--fs", metavar="[PATH]", dest="freesurfer", default=None, help="Location of Freesurfer data folders."
+        )
+
     def parse_args(self):
         self.params.subjects.append = list()
         try:
             for input_folder in self.params.args:
-                assert os.path.isdir(input_folder), \
-                    "Input subject forler %s not found" % input_folder
+                assert os.path.isdir(input_folder), "Input subject forler %s not found" % input_folder
                 self.params.subjects.append(input_folder)
         except ValueError as vx:
             gc3libs.log.warning(vx)
-    
+
     def new_tasks(self, extra):
         """
         For each input folder, create an instance of GtraclongApplication
         """
         tasks = []
-        for (subject_name,freesurfers) in _correlate(self.params.subjects, self.params.freesurfer)
-        
+        for (subject_name, freesurfers) in _correlate(self.params.subjects, self.params.freesurfer):
+
             # extract root folder name to be used as jobname
             extra_args = extra.copy()
-            extra_args['jobname'] = subject_name
+            extra_args["jobname"] = subject_name
 
-            extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', 
-                                                                        'run_%s' % subject_name)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', 
-                                                                        'run_%s' % subject_name)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', 
-                                                                        'run_%s' % subject_name)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', 
-                                                                        'run_%s' % subject_name)
-            
-            tasks.append(GtraclongApplication(
-                subject_name,
-                os.path.join(self.params.subjects,subject_name),
-                freesurfers,
-                **extra_args))
-            
+            extra_args["output_dir"] = self.params.output
+            extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", "run_%s" % subject_name)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", "run_%s" % subject_name)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", "run_%s" % subject_name)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", "run_%s" % subject_name)
+
+            tasks.append(
+                GtraclongApplication(
+                    subject_name, os.path.join(self.params.subjects, subject_name), freesurfers, **extra_args
+                )
+            )
+
         return tasks
 
     def get_input_subject_folder(self, input_folder):
@@ -201,8 +195,7 @@ class GtraclongScript(SessionBasedScript):
         Check and validate input subfolders
         """
 
-        for r,d,f in os.walk(input_folder):
+        for r, d, f in os.walk(input_folder):
             for infile in f:
                 if infile.startswith(DMRIC_PATTERN):
-                    yield (os.path.abspath(r),os.path.basename(r),infile)
-
+                    yield (os.path.abspath(r), os.path.basename(r), infile)

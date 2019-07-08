@@ -13,16 +13,16 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
-from builtins import object
-__docformat__ = 'reStructuredText'
 
 import operator
+
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import object, str
 
 import gc3libs
 from gc3libs.utils import progressive_number
@@ -37,18 +37,20 @@ def _Id_make_comparison_function(op):
     passed relational operator. Discards the function being
     decorated.
     """
+
     def decorate(fn):
         def cmp_fn(self, other):
             try:
-                return op((str(self._prefix), self._seqno),
-                          (str(other._prefix), other._seqno))
+                return op((str(self._prefix), self._seqno), (str(other._prefix), other._seqno))
             except AttributeError:
                 # fall back to safe comparison as `str`
                 gc3libs.log.debug(
-                    "Wrong job ID: comparing '%s' (%s) with '%s' (%s)"
-                    % (self, type(self), other, type(other)))
+                    "Wrong job ID: comparing '%s' (%s) with '%s' (%s)" % (self, type(self), other, type(other))
+                )
                 return op(str(self), str(other))
+
         return cmp_fn
+
     return decorate
 
 
@@ -136,6 +138,7 @@ class IdFactory(object):
         """
         assert n > 0, "Argument `n` must be a positive integer"
         IdFactory._seqno_pool.extend(self._next_id_fn(n))
+
     _seqno_pool = []
 
     def new(self, obj):
@@ -158,12 +161,12 @@ class JobIdFactory(IdFactory):
     """
 
     def __init__(self, next_id_fn=None):
-        IdFactory.__init__(self, 'job', next_id_fn)
+        IdFactory.__init__(self, "job", next_id_fn)
 
 
 # main: run tests
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="id",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="id", optionflags=doctest.NORMALIZE_WHITESPACE)

@@ -1,20 +1,14 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
-import sys
+
 import os
 import subprocess
-
+import sys
+from builtins import str
 from xml.etree import cElementTree as ET
-from xml.etree.ElementTree import Element, SubElement, Comment, tostring
+from xml.etree.ElementTree import Comment, Element, SubElement, tostring
 
-SENTIMENTS = [
-    'neutral',
-    'negative',
-    'very negative',
-    'positive',
-    'very positive']
+SENTIMENTS = ["neutral", "negative", "very negative", "positive", "very positive"]
 FIELD = "pdid"
 CONTENT = "content"
 
@@ -34,12 +28,12 @@ def RunParser(input, output):
     root = tree.getroot()
 
     try:
-        fd = open('input_contents.xml', 'w+')
+        fd = open("input_contents.xml", "w+")
 
         # Generate simplified version of the input XML file
         for row in list(root):
             field = row.find(FIELD).text
-            content = (row.find(CONTENT).text).encode('utf8')
+            content = (row.find(CONTENT).text).encode("utf8")
             fd.write("%s\n%s\n" % (field, content))
 
         fd.close()
@@ -49,11 +43,7 @@ def RunParser(input, output):
         return 1
 
     command = '/usr/bin/java -cp "$CORENLP/*" edu.stanford.nlp.sentiment.SentimentPipeline -file input_contents.xml'
-    nlp = subprocess.Popen(
-        [command],
-        shell=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE)
+    nlp = subprocess.Popen([command], shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
     print("Running command %s" % command)
     (stdout, stderr) = nlp.communicate()
@@ -61,7 +51,7 @@ def RunParser(input, output):
     if nlp.returncode != 0:
         print("Execution failed with exit code: %d" % nlp.returncode)
         try:
-            res = open(output, 'w+')
+            res = open(output, "w+")
             res.write(stderr)
             res.close()
         except Exception as ex:
@@ -75,7 +65,7 @@ def RunParser(input, output):
     row = None
     sentiment = ""
 
-    for line in [l.strip() for l in stdout.split('\n')]:
+    for line in [l.strip() for l in stdout.split("\n")]:
         if line.isdigit():
             if row:
                 child = SubElement(row, "Sentiment")
@@ -98,7 +88,8 @@ def RunParser(input, output):
     print("Done")
     return 0
 
-if __name__ == '__main__':
-    if (len(sys.argv) != 3):
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
         sys.exit(Usage())
     sys.exit(RunParser(sys.argv[1], sys.argv[2]))

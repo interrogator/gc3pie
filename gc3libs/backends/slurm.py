@@ -14,29 +14,26 @@ Job control on SLURM clusters (possibly connecting to the front-end via SSH).
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
-__docformat__ = 'reStructuredText'
-
 
 import datetime
 import os
 import re
 import time
 
-from gc3libs import log, Run
-from gc3libs.backends import LRMS
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import str
+
 import gc3libs.backends.batch as batch
 import gc3libs.exceptions
-from gc3libs.quantity import Memory, bytes, kB, MB, GB
-from gc3libs.quantity import Duration, seconds, minutes, hours, days
-from gc3libs.utils import (same_docstring_as, sh_quote_safe_cmdline,
-                           sh_quote_unsafe_cmdline)
-
+from gc3libs import Run, log
+from gc3libs.backends import LRMS
+from gc3libs.quantity import GB, MB, Duration, Memory, bytes, days, hours, kB, minutes, seconds
+from gc3libs.utils import same_docstring_as, sh_quote_safe_cmdline, sh_quote_unsafe_cmdline
 
 ## data for parsing SLURM commands output
 
@@ -51,12 +48,11 @@ from gc3libs.utils import (same_docstring_as, sh_quote_safe_cmdline,
 # > EOF
 # sbatch: Submitted batch job 65541
 #
-_sbatch_jobid_re = re.compile(
-    r'(sbatch:\s*)?(Granted job allocation|Submitted batch job)'
-    ' (?P<jobid>\d+)')
+_sbatch_jobid_re = re.compile(r"(sbatch:\s*)?(Granted job allocation|Submitted batch job)" " (?P<jobid>\d+)")
 
 
 ## code
+
 
 def count_jobs(squeue_output, whoami):
     """
@@ -75,12 +71,12 @@ def count_jobs(squeue_output, whoami):
     total_queued = 0
     own_running = 0
     own_queued = 0
-    for line in squeue_output.split('\n'):
-        if line == '':
+    for line in squeue_output.split("\n"):
+        if line == "":
             continue
         # the choice of format string makes it easy to parse squeue output
-        jobid, state, username, uid, reason, nodelist = line.split('^')
-        if state in ['RUNNING', 'COMPLETING']:
+        jobid, state, username, uid, reason, nodelist = line.split("^")
+        if state in ["RUNNING", "COMPLETING"]:
             total_running += 1
             if username == whoami:
                 own_running += 1
@@ -88,7 +84,7 @@ def count_jobs(squeue_output, whoami):
         # page as "Job has been allocated resources, but are waiting
         # for them to become ready for use (e.g. booting).".  Should
         # it be classified as "running" instead?
-        elif state in ['PENDING', 'CONFIGURING']:
+        elif state in ["PENDING", "CONFIGURING"]:
             total_queued += 1
             if username == whoami:
                 own_queued += 1
@@ -102,38 +98,52 @@ class SlurmLrms(batch.BatchSystem):
     submit node).
     """
 
-    _batchsys_name = 'SLURM'
+    _batchsys_name = "SLURM"
 
-    def __init__(self, name,
-                 # this are inherited from the base LRMS class
-                 architecture, max_cores, max_cores_per_job,
-                 max_memory_per_core, max_walltime,
-                 auth,  # ignored if `transport` is 'local'
-                 # these are inherited from `BatchSystem`
-                 frontend, transport,
-                 # these are specific to this backend (Note that
-                 # optional arguments to the `BatchSystem` class,
-                 # e.g.: keyfile=None, accounting_delay=15, are
-                 # collected into `extra_args` and should not be
-                 # explicitly spelled out in this signature.)
-                 **extra_args):
+    def __init__(
+        self,
+        name,
+        # this are inherited from the base LRMS class
+        architecture,
+        max_cores,
+        max_cores_per_job,
+        max_memory_per_core,
+        max_walltime,
+        auth,  # ignored if `transport` is 'local'
+        # these are inherited from `BatchSystem`
+        frontend,
+        transport,
+        # these are specific to this backend (Note that
+        # optional arguments to the `BatchSystem` class,
+        # e.g.: keyfile=None, accounting_delay=15, are
+        # collected into `extra_args` and should not be
+        # explicitly spelled out in this signature.)
+        **extra_args
+    ):
 
         # init base class
         batch.BatchSystem.__init__(
-            self, name,
-            architecture, max_cores, max_cores_per_job,
-            max_memory_per_core, max_walltime, auth,
-            frontend, transport,
-            **extra_args)
+            self,
+            name,
+            architecture,
+            max_cores,
+            max_cores_per_job,
+            max_memory_per_core,
+            max_walltime,
+            auth,
+            frontend,
+            transport,
+            **extra_args
+        )
 
         # backend-specific setup
-        self.sbatch = self._get_command_argv('sbatch')
-        self.srun = self._get_command_argv('srun')
+        self.sbatch = self._get_command_argv("sbatch")
+        self.srun = self._get_command_argv("srun")
 
         # SLURM commands
-        self._scancel = self._get_command('scancel')
-        self._squeue = self._get_command('squeue')
-        self._sacct = self._get_command('sacct')
+        self._scancel = self._get_command("scancel")
+        self._squeue = self._get_command("squeue")
+        self._sacct = self._get_command("sacct")
 
     def _parse_submit_output(self, output):
         return self.get_jobid_from_submit_output(output, _sbatch_jobid_re)
@@ -164,8 +174,7 @@ class SlurmLrms(batch.BatchSystem):
     #
     def _submit_command(self, app):
         sbatch_argv, app_argv = app.sbatch(self)
-        return (sh_quote_safe_cmdline(sbatch_argv),
-                sh_quote_unsafe_cmdline(app_argv))
+        return (sh_quote_safe_cmdline(sbatch_argv), sh_quote_unsafe_cmdline(app_argv))
 
     # stat cmd: squeue --noheader --format='%i^%T^%u^%U^%r^%R'  -j jobid1,jobid2,...  # noqa
     #   %i: job id
@@ -182,15 +191,14 @@ class SlurmLrms(batch.BatchSystem):
     #   %U: numeric UID of the submitting user
     #
     def _stat_command(self, job):
-        return "%s --noheader -o %%i^%%T^%%r -j %s" % \
-            (self._squeue, job.lrms_jobid)
+        return "%s --noheader -o %%i^%%T^%%r -j %s" % (self._squeue, job.lrms_jobid)
 
     def _parse_stat_output(self, stdout, stderr):
         """
         Receive the output of ``squeue --noheader -o %i:%T:%r and parse it.
         """
         state = Run.State.UNKNOWN
-        if stdout.strip() == '':
+        if stdout.strip() == "":
             # If stdout is empty and `squeue -j` exitcode is 0, then
             # the job has recently completed (but we still need to
             # call `sacct` to reap the termination status).
@@ -200,10 +208,9 @@ class SlurmLrms(batch.BatchSystem):
             state = Run.State.TERMINATING
         else:
             # parse stdout
-            job_id, job_state_code, reason = stdout.split('^')
-            log.debug("translating SLURM's state '%s' to gc3libs.Run.State",
-                      job_state_code)
-            if job_state_code in ['PENDING', 'CONFIGURING']:
+            job_id, job_state_code, reason = stdout.split("^")
+            log.debug("translating SLURM's state '%s' to gc3libs.Run.State", job_state_code)
+            if job_state_code in ["PENDING", "CONFIGURING"]:
                 # XXX: see comments in `count_jobs` for a discussion
                 # of whether 'CONFIGURING' should be grouped with
                 # 'RUNNING' or not; here it's likely the correct
@@ -211,12 +218,11 @@ class SlurmLrms(batch.BatchSystem):
                 # "configuring" phase may last a few minutes during
                 # which the job is not yet really running.
                 state = Run.State.SUBMITTED
-            elif job_state_code in ['RUNNING', 'COMPLETING']:
+            elif job_state_code in ["RUNNING", "COMPLETING"]:
                 state = Run.State.RUNNING
-            elif job_state_code in ['SUSPENDED']:
+            elif job_state_code in ["SUSPENDED"]:
                 state = Run.State.STOPPED
-            elif job_state_code in ['COMPLETED', 'CANCELLED', 'FAILED',
-                                    'NODE_FAIL', 'PREEMPTED', 'TIMEOUT']:
+            elif job_state_code in ["COMPLETED", "CANCELLED", "FAILED", "NODE_FAIL", "PREEMPTED", "TIMEOUT"]:
                 state = Run.State.TERMINATING
             else:
                 state = Run.State.UNKNOWN
@@ -281,27 +287,27 @@ class SlurmLrms(batch.BatchSystem):
     #    SLURM accounting storage is disabled
     #
     def _acct_command(self, job):
-        return ('env SLURM_TIME_FORMAT=standard %s --noheader --parsable'
-                ' --format jobid,exitcode,state,ncpus,elapsed,totalcpu,'
-                'submit,start,end,maxrss,maxvmsize -j %s' %
-                (self._sacct, job.lrms_jobid))
+        return (
+            "env SLURM_TIME_FORMAT=standard %s --noheader --parsable"
+            " --format jobid,exitcode,state,ncpus,elapsed,totalcpu,"
+            "submit,start,end,maxrss,maxvmsize -j %s" % (self._sacct, job.lrms_jobid)
+        )
 
     def _parse_acct_output(self, stdout, stderr):
         acct = {
-            'cores':            0,
-            'duration':         Duration(0, unit=seconds),
-            'used_cpu_time':    Duration(0, unit=seconds),
-            'max_used_memory':  Memory(0, unit=bytes)
+            "cores": 0,
+            "duration": Duration(0, unit=seconds),
+            "used_cpu_time": Duration(0, unit=seconds),
+            "max_used_memory": Memory(0, unit=bytes),
         }
         exitcode = None
         signal = None
-        for line in stdout.split('\n'):
+        for line in stdout.split("\n"):
             line = line.strip()
-            if line == '':
+            if line == "":
                 continue
             # because of the trailing `|` we have an extra empty field
-            jobid, exit, state, ncpus, elapsed, totalcpu, submit,\
-                start, end, maxrss, maxvmsize, _ = line.split('|')
+            jobid, exit, state, ncpus, elapsed, totalcpu, submit, start, end, maxrss, maxvmsize, _ = line.split("|")
 
             # In some case the state can contain a specification,
             # e.g. "CANCELLED by 1000"
@@ -311,37 +317,28 @@ class SlurmLrms(batch.BatchSystem):
             # lines with the `step` part carry resource usage records,
             # whereas the total `jobID` line carries the exit codes
             # and overall duration/timing information.
-            if '.' not in jobid:
-                if state not in [
-                        'BOOT_FAIL',
-                        'CANCELLED',
-                        'COMPLETED',
-                        'FAILED',
-                        'NODE_FAIL',
-                        'PREEMPTED',
-                        'TIMEOUT',
-                ]:
+            if "." not in jobid:
+                if state not in ["BOOT_FAIL", "CANCELLED", "COMPLETED", "FAILED", "NODE_FAIL", "PREEMPTED", "TIMEOUT"]:
                     raise gc3libs.exceptions.UnexpectedJobState(
                         "Unexpected SLURM job state '{state}'"
-                        " encountered in parsing `sacct` output"
-                        .format(state=state)
+                        " encountered in parsing `sacct` output".format(state=state)
                     )
                 # master job record
-                acct['duration'] = SlurmLrms._parse_duration(elapsed)
-                acct['used_cpu_time'] = SlurmLrms._parse_duration(totalcpu)
-                if state in ['CANCELLED', 'TIMEOUT']:
+                acct["duration"] = SlurmLrms._parse_duration(elapsed)
+                acct["used_cpu_time"] = SlurmLrms._parse_duration(totalcpu)
+                if state in ["CANCELLED", "TIMEOUT"]:
                     # In this case, the exit code of the master job is
                     # `0:0` or `0:1`, but we want to keep track of the
                     # fact that the job was killed by the system (or
                     # the user).
                     exitcode = os.EX_TEMPFAIL
                     signal = int(Run.Signals.RemoteKill)
-                elif state == 'NODE_FAIL':
+                elif state == "NODE_FAIL":
                     exitcode = os.EX_TEMPFAIL
                     signal = int(Run.Signals.RemoteError)
                 else:
                     # compute POSIX exit status
-                    exitcode_, signal_ = exit.split(':')
+                    exitcode_, signal_ = exit.split(":")
                     exitcode = int(exitcode_)
                     signal = int(signal_)
                 # XXX: the master job record seems to report the
@@ -352,10 +349,10 @@ class SlurmLrms(batch.BatchSystem):
                 # CPU usage is a mess, as we would have to check which
                 # steps were executed simultaneously and which ones
                 # were executed one after the other...
-                acct['cores'] = int(ncpus)
+                acct["cores"] = int(ncpus)
                 # provide starting point for resource usage records
-                acct['max_used_memory'] = Memory(0, unit=MB)
-                acct['slurm_max_used_ram'] = Memory(0, unit=MB)
+                acct["max_used_memory"] = Memory(0, unit=MB)
+                acct["slurm_max_used_ram"] = Memory(0, unit=MB)
                 # XXX: apparently, Ubuntu's SLURM 2.3 has a bug
                 # wherein `submit` == `end` in the master job record,
                 # and the actual start time must be gathered from the
@@ -363,27 +360,26 @@ class SlurmLrms(batch.BatchSystem):
                 submit = SlurmLrms._parse_timestamp(submit)
                 start = SlurmLrms._parse_timestamp(start)
                 end = SlurmLrms._parse_timestamp(end)
-                acct['slurm_submission_time'] = min(submit, start)
-                acct['slurm_start_time'] = end  # actually computed below
-                acct['slurm_completion_time'] = max(submit, start, end)
+                acct["slurm_submission_time"] = min(submit, start)
+                acct["slurm_start_time"] = end  # actually computed below
+                acct["slurm_completion_time"] = max(submit, start, end)
             else:
                 # common resource usage records (see Issue 78)
                 vmem = SlurmLrms._parse_memspec(maxvmsize)
                 if vmem is not None:
-                    acct['max_used_memory'] = max(vmem, acct['max_used_memory'])
+                    acct["max_used_memory"] = max(vmem, acct["max_used_memory"])
                 # SLURM-specific resource usage records
                 mem = SlurmLrms._parse_memspec(maxrss)
                 if mem is not None:
-                    acct['slurm_max_used_ram'] = max(mem, acct['slurm_max_used_ram'])
+                    acct["slurm_max_used_ram"] = max(mem, acct["slurm_max_used_ram"])
                 # XXX: see above for timestamps
                 submit = SlurmLrms._parse_timestamp(submit)
                 start = SlurmLrms._parse_timestamp(start)
-                acct['slurm_submission_time'] = min(
-                    submit, acct['slurm_submission_time'])
-                acct['slurm_start_time'] = min(start, acct['slurm_start_time'])
+                acct["slurm_submission_time"] = min(submit, acct["slurm_submission_time"])
+                acct["slurm_start_time"] = min(start, acct["slurm_start_time"])
         # must compute termination status since it's not provided by `squeue`
         if signal is not None and exitcode is not None:
-            acct['termstatus'] = (signal & 0x7f) + ((exitcode & 0xff) << 8)
+            acct["termstatus"] = (signal & 0x7F) + ((exitcode & 0xFF) << 8)
         return acct
 
     @staticmethod
@@ -394,14 +390,14 @@ class SlurmLrms(batch.BatchSystem):
         The ``DD``, ``HH`` and ``.UUU`` parts are optional.
         """
         total = Duration(0, unit=seconds)
-        if '-' in d:
+        if "-" in d:
             # DD-HH:MM:SS
-            ndays, d = d.split('-')
+            ndays, d = d.split("-")
             total = Duration(int(ndays), unit=days)
-        parts = list(reversed(d.split(':')))
+        parts = list(reversed(d.split(":")))
         assert len(parts) > 0
         secs = parts[0]
-        if '.' in secs:
+        if "." in secs:
             # SS.UUU
             total += Duration(float(secs), unit=seconds)
         else:
@@ -419,11 +415,11 @@ class SlurmLrms(batch.BatchSystem):
         if not m:
             return None
         unit = m[-1]
-        if unit == 'G':
+        if unit == "G":
             return Memory(int(round(float(m[:-1]))), unit=GB)
-        elif unit == 'M':
+        elif unit == "M":
             return Memory(int(round(float(m[:-1]))), unit=MB)
-        elif unit == 'K':  # XXX: not sure which one is used
+        elif unit == "K":  # XXX: not sure which one is used
             return Memory(int(round(float(m[:-1]))), unit=kB)
         else:
             # XXX: what does SLURM use as a default?
@@ -444,11 +440,15 @@ class SlurmLrms(batch.BatchSystem):
                 "Could not parse '%s' as an SLURM 'standard' (ISO8601)"
                 " timestamp: %s: %s Please set the environment variable"
                 " 'SLURM_TIME_FORMAT' to 'standard' on the SLURM frontend"
-                " computer.", ts, err.__class__.__name__, err)
+                " computer.",
+                ts,
+                err.__class__.__name__,
+                err,
+            )
             # XXX: this results in an invalid timestamp...
             return None
 
-    _TIMEFMT_ISO8601 = '%Y-%m-%dT%H:%M:%S'
+    _TIMEFMT_ISO8601 = "%Y-%m-%dT%H:%M:%S"
     """
     A strptime() format string for parsing ISO8601 timestamps.
     """
@@ -467,7 +467,7 @@ class SlurmLrms(batch.BatchSystem):
     #    scancel: error: Kill job error on job id 15: Invalid job id specified
     #
     def _cancel_command(self, jobid):
-        return ("%s %s" % (self._scancel, jobid))
+        return "%s %s" % (self._scancel, jobid)
 
     @same_docstring_as(LRMS.get_resource_status)
     @LRMS.authenticated
@@ -476,44 +476,42 @@ class SlurmLrms(batch.BatchSystem):
         try:
             self.transport.connect()
 
-            _command = ("%s --noheader -o '%%i^%%T^%%u^%%U^%%r^%%R'" %
-                        self._squeue)
+            _command = "%s --noheader -o '%%i^%%T^%%u^%%U^%%r^%%R'" % self._squeue
             log.debug("Running `%s`...", _command)
             exitcode, stdout, stderr = self.transport.execute_command(_command)
             if exitcode != 0:
                 # cannot continue
                 raise gc3libs.exceptions.LRMSError(
                     "SLURM backend failed executing '%s':"
-                    " exit code: %d; stdout: '%s', stderr: '%s'"
-                    % (_command, exitcode, stdout, stderr))
+                    " exit code: %d; stdout: '%s', stderr: '%s'" % (_command, exitcode, stdout, stderr)
+                )
 
             log.debug("Computing updated values for total/available slots ...")
-            (total_running, self.queued, self.user_run, self.user_queued) \
-                = count_jobs(stdout, self._username)
+            (total_running, self.queued, self.user_run, self.user_queued) = count_jobs(stdout, self._username)
             self.total_run = total_running
             self.free_slots = -1
             self.used_quota = -1
 
-            log.info("Updated resource '%s' status:"
-                     " free slots: %d,"
-                     " total running: %d,"
-                     " own running jobs: %d,"
-                     " own queued jobs: %d,"
-                     " total queued jobs: %d",
-                     self.name,
-                     self.free_slots,
-                     self.total_run,
-                     self.user_run,
-                     self.user_queued,
-                     self.queued,
-                     )
+            log.info(
+                "Updated resource '%s' status:"
+                " free slots: %d,"
+                " total running: %d,"
+                " own running jobs: %d,"
+                " own queued jobs: %d,"
+                " total queued jobs: %d",
+                self.name,
+                self.free_slots,
+                self.total_run,
+                self.user_run,
+                self.user_queued,
+                self.queued,
+            )
             return self
 
         except Exception as ex:
             # self.transport.close()
             log.error("Error querying remote LRMS, see debug log for details.")
-            log.debug("Error querying LRMS: %s: %s",
-                      ex.__class__.__name__, str(ex), exc_info=True)
+            log.debug("Error querying LRMS: %s: %s", ex.__class__.__name__, str(ex), exc_info=True)
             raise
 
 
@@ -521,5 +519,5 @@ class SlurmLrms(batch.BatchSystem):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="slurm",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="slurm", optionflags=doctest.NORMALIZE_WHITESPACE)

@@ -18,33 +18,35 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>"
 # summary of user-visible changes
 __changelog__ = """
   2011-05-06:
     * Workaround for Issue 95: now we have complete interoperability
       with GC3Utils.
 """
-__docformat__ = 'reStructuredText'
+__docformat__ = "reStructuredText"
 
 
 # Workaround for Issue 95: import this module and run it first
 # for details, see: https://github.com/uzh/gc3pie/issues/95
-if __name__ == '__main__':
-from __future__ import absolute_import
+if __name__ == "__main__":
     import gdemo_session
+
     gdemo_session.Gdemo().run()
 
 
-#import gdemo
-#import ConfigParser
-#import csv
-#import math
+# import gdemo
+# import ConfigParser
+# import csv
+# import math
 import os
 import os.path
-#import shutil
+
+# import shutil
 import sys
-#import types
+
+# import types
 
 ## interface to Gc3libs
 
@@ -54,21 +56,19 @@ from gc3libs.cmdline import SessionBasedScript
 from gc3libs.workflow import SequentialTaskCollection, ParallelTaskCollection
 import gc3libs.utils
 
-class GdemoApplication(Application):
 
+class GdemoApplication(Application):
     def __init__(self, value_a, value_b, iteration, **extra_args):
-        gc3libs.log.info(
-            "Calling GdemoApplication.__init__(%d,%d,%d) ... ",
-            value_a, value_b, iteration)
+        gc3libs.log.info("Calling GdemoApplication.__init__(%d,%d,%d) ... ", value_a, value_b, iteration)
         self.iteration = iteration
         gc3libs.Application.__init__(
             self,
-            arguments = ["/usr/bin/expr", value_a, "+", value_b],
-            inputs = [],
-            outputs = [],
-            output_dir = os.path.join(os.getcwd(),"Gdemo_result",str(iteration)),
-            stdout = "stdout.txt",
-            stderr = "stderr.txt",
+            arguments=["/usr/bin/expr", value_a, "+", value_b],
+            inputs=[],
+            outputs=[],
+            output_dir=os.path.join(os.getcwd(), "Gdemo_result", str(iteration)),
+            stdout="stdout.txt",
+            stderr="stderr.txt",
             **extra_args
         )
 
@@ -81,15 +81,12 @@ class Gdemo(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = '0.3',
+            version="0.3",
             # input_filename_pattern = '*.ini',
-            )
-
+        )
 
     def setup_options(self):
-        self.add_param("-n", "--iterations",
-                       default=10, type=int,
-                       help="Number of iterations")
+        self.add_param("-n", "--iterations", default=10, type=int, help="Number of iterations")
 
     def parse_args(self):
         self.init_value = 1
@@ -101,14 +98,7 @@ class Gdemo(SessionBasedScript):
         name = "GC3Pie_demo"
 
         gc3libs.log.info("Calling Gdemo.new_task() ... ")
-        return [
-            DemoIteration(
-                self.init_value,
-                self.add_value,
-                self.params.iterations,
-                **extra_args),
-        ]
-
+        return [DemoIteration(self.init_value, self.add_value, self.params.iterations, **extra_args)]
 
 
 ## support classes
@@ -118,6 +108,7 @@ class Gdemo(SessionBasedScript):
 # an application of the `self.params.executable` function.
 #
 # This is the crucial point:
+
 
 class DemoIteration(SequentialTaskCollection):
     """
@@ -159,10 +150,8 @@ class DemoIteration(SequentialTaskCollection):
         initial_task = GdemoApplication(self.init, self.increment, 0)
         SequentialTaskCollection.__init__(self, [initial_task], **extra_args)
 
-
     def __str__(self):
         return self.jobname
-
 
     def next(self, iteration):
         """
@@ -176,7 +165,7 @@ class DemoIteration(SequentialTaskCollection):
 
         last_application = self.tasks[iteration]
 
-        f = open(os.path.join(last_application.output_dir,last_application.stdout))
+        f = open(os.path.join(last_application.output_dir, last_application.stdout))
         computed_value = int(f.read())
         f.close()
 
@@ -184,7 +173,7 @@ class DemoIteration(SequentialTaskCollection):
             self.execution.returncode = 0
             return Run.State.TERMINATED
         else:
-            self.add(GdemoApplication(computed_value, self.increment, iteration+1))
+            self.add(GdemoApplication(computed_value, self.increment, iteration + 1))
             return Run.State.RUNNING
 
     def terminated(self):

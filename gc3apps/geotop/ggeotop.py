@@ -36,7 +36,28 @@ Contents of a typical input folder::
     maps/
 """
 
-from __future__ import absolute_import, print_function
+
+# std module imports
+import csv
+import glob
+import math
+import os
+import posix
+import re
+import shutil
+import sys
+import tarfile
+import time
+
+from pkg_resources import Requirement, resource_filename
+
+# gc3 library imports
+import gc3libs
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
@@ -51,39 +72,16 @@ __changelog__ = """
   2011-11-07:
   * Initial release, forked off the ``gmhc_coev`` sources.
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import ggeotop
+
     ggeotop.GGeotopScript().run()
-
-
-# std module imports
-import csv
-import glob
-import math
-import os
-import posix
-import re
-import shutil
-import sys
-import time
-
-import tarfile
-
-from pkg_resources import Requirement, resource_filename
-
-# gc3 library imports
-import gc3libs
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 
 GEOTOP_INPUT_ARCHIVE = "input.tgz"
@@ -91,12 +89,14 @@ GEOTOP_OUTPUT_ARCHIVE = "output.tgz"
 
 ## custom application class
 
+
 class GeotopApplication(Application):
     """
     Custom class to wrap the execution of the ``GEOtop` program.
 
     For more information about GEOtop, see <http://www.geotop.org/>
     """
+
     # From GEOtop's "read me" file:
     #
     # RUNNING
@@ -117,7 +117,7 @@ class GeotopApplication(Application):
     # above (RUNNING), then it continues from the last saving point. If
     # GEOtop finds a file indicating a successful/failed run, it terminates.
 
-    application_name = 'geotop'
+    application_name = "geotop"
 
     def _scan_and_tar(self, simulation_dir):
         try:
@@ -129,15 +129,14 @@ class GeotopApplication(Application):
             if os.path.isfile(GEOTOP_INPUT_ARCHIVE):
                 try:
                     os.remove(GEOTOP_INPUT_ARCHIVE)
-                except OSError, x:
-                    gc3libs.log.error("Failed removing '%s': %s: %s",
-                                      GEOTOP_INPUT_ARCHIVE, x.__class__, x.message)
+                except OSError as x:
+                    gc3libs.log.error("Failed removing '%s': %s: %s", GEOTOP_INPUT_ARCHIVE, x.__class__, x.message)
                     pass
 
             tar = tarfile.open(GEOTOP_INPUT_ARCHIVE, "w:gz", dereference=True)
-            tar.add('./geotop.inpts')
-            tar.add('./in')
-            tar.add('./out')
+            tar.add("./geotop.inpts")
+            tar.add("./in")
+            tar.add("./out")
             # tar.add('./maps')
             # tar.add('./rec')
             # tar.add('./rad')
@@ -148,22 +147,24 @@ class GeotopApplication(Application):
             tar.close()
             os.chdir(cwd)
             yield (tar.name, GEOTOP_INPUT_ARCHIVE)
-        except Exception, x:
-            gc3libs.log.error("Failed creating input archive '%s': %s: %s",
-                              os.path.join(simulation_dir, GEOTOP_INPUT_ARCHIVE),
-                              x.__class__,x.message)
+        except Exception as x:
+            gc3libs.log.error(
+                "Failed creating input archive '%s': %s: %s",
+                os.path.join(simulation_dir, GEOTOP_INPUT_ARCHIVE),
+                x.__class__,
+                x.message,
+            )
             raise
 
     def __init__(self, simulation_dir, executable=None, **extra_args):
         # remember for later
         self.simulation_dir = simulation_dir
-        self.shared_FS = extra_args['shared_FS']
+        self.shared_FS = extra_args["shared_FS"]
 
         inputs = dict()
 
         # execution wrapper needs to be added anyway
-        geotop_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/geotop_wrap.sh")
+        geotop_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/geotop_wrap.sh")
         inputs[geotop_wrapper_sh] = os.path.basename(geotop_wrapper_sh)
 
         _command = "./%s " % os.path.basename(geotop_wrapper_sh)
@@ -181,7 +182,7 @@ class GeotopApplication(Application):
             if executable is not None:
                 # use the specified executable
                 # include executable within input list
-                executable_name = './' + os.path.basename(executable)
+                executable_name = "./" + os.path.basename(executable)
                 inputs[executable] = os.path.basename(executable)
 
             # use '-l' flag for wrapper script for non-shared FS
@@ -195,27 +196,27 @@ class GeotopApplication(Application):
         _command += "%s" % executable_name
 
         # set some execution defaults...
-        extra_args.setdefault('requested_cores', 1)
-        extra_args.setdefault('requested_architecture', Run.Arch.X86_64)
-        extra_args.setdefault('requested_walltime', Duration(8, hours))
+        extra_args.setdefault("requested_cores", 1)
+        extra_args.setdefault("requested_architecture", Run.Arch.X86_64)
+        extra_args.setdefault("requested_walltime", Duration(8, hours))
         # ...and remove excess ones
-        extra_args.pop('output_dir', None)
+        extra_args.pop("output_dir", None)
         Application.__init__(
             self,
             # GEOtop requires only one argument: the simulation directory
             # In our case, since all input files are staged to the
             # execution directory, the only argument is fixed to ``.``
             # arguments = ['./'+os.path.basename(geotop_wrapper_sh), 'input.tgz', executable_name ],
-            arguments = _command,
-            inputs = inputs,
+            arguments=_command,
+            inputs=inputs,
             # outputs = gc3libs.ANY_OUTPUT,
-            outputs = outputs,
-            output_dir = os.path.join(simulation_dir, 'tmp'),
-            stdout = 'ggeotop.log',
+            outputs=outputs,
+            output_dir=os.path.join(simulation_dir, "tmp"),
+            stdout="ggeotop.log",
             join=True,
-            tags = [ 'APPS/EARTH/GEOTOP-1.224' ],
-            **extra_args)
-
+            tags=["APPS/EARTH/GEOTOP-1.224"],
+            **extra_args
+        )
 
     def terminated(self):
         """
@@ -228,7 +229,6 @@ class GeotopApplication(Application):
         # ``_FAILED_RUN`` are found.
         self.execution.returncode = (0, 99)
 
-
         if not self.shared_FS:
             full_tarname = os.path.join(self.output_dir, GEOTOP_OUTPUT_ARCHIVE)
 
@@ -236,27 +236,21 @@ class GeotopApplication(Application):
             if os.path.isfile(full_tarname):
                 # execution somehow terminated.
                 # untar archive
-                gc3libs.log.info("Expected output archive found in file '%s'",
-                                 full_tarname)
+                gc3libs.log.info("Expected output archive found in file '%s'", full_tarname)
                 try:
                     tar = tarfile.open(full_tarname)
-                    gc3libs.log.debug("Output tarfile '%s' contains: %s",
-                                      full_tarname, str.join(', ', tar.getnames()))
+                    gc3libs.log.debug("Output tarfile '%s' contains: %s", full_tarname, str.join(", ", tar.getnames()))
                     tar.extractall(path=self.simulation_dir)
                     tar.close()
                     os.remove(full_tarname)
-                except Exception, ex:
-                    gc3libs.log.error("Error opening output archive '%s': %s: %s",
-                                      full_tarname, ex.__class__, ex.message)
+                except Exception as ex:
+                    gc3libs.log.error(
+                        "Error opening output archive '%s': %s: %s", full_tarname, ex.__class__, ex.message
+                    )
                     pass
 
             tmp_output_dir = self.output_dir
-            exclude = [
-                os.path.basename(self.arguments[0]),
-                self.stdout,
-                self.stderr,
-                GEOTOP_OUTPUT_ARCHIVE,
-                ]
+            exclude = [os.path.basename(self.arguments[0]), self.stdout, self.stderr, GEOTOP_OUTPUT_ARCHIVE]
 
             if not os.path.isdir(tmp_output_dir):
                 # output folder not available
@@ -283,10 +277,10 @@ class GeotopApplication(Application):
                         os.remove(src_entry)
                         gc3libs.log.debug("  ... appended to '%s'", os.path.join(self.simulation_dir, entry))
                         continue
-                    if entry in exclude or (entry.startswith('script.') and entry.endswith('.sh')):
+                    if entry in exclude or (entry.startswith("script.") and entry.endswith(".sh")):
                         # delete entry and continue with next one
                         os.remove(src_entry)
-                        gc3libs.log.debug("  ... it's a GC3Pie auxiliary file, ignore it!",)
+                        gc3libs.log.debug("  ... it's a GC3Pie auxiliary file, ignore it!")
                         continue
 
                     # now really move file one level up
@@ -301,14 +295,16 @@ class GeotopApplication(Application):
                 shutil.rmtree(tmp_output_dir, ignore_errors=True)
 
         # search for termination files
-        if (os.path.exists(os.path.join(self.simulation_dir, '_SUCCESSFUL_RUN'))
-            or os.path.exists(os.path.join(self.simulation_dir, 'out', '_SUCCESSFUL_RUN'))):
+        if os.path.exists(os.path.join(self.simulation_dir, "_SUCCESSFUL_RUN")) or os.path.exists(
+            os.path.join(self.simulation_dir, "out", "_SUCCESSFUL_RUN")
+        ):
             # XXX: why are we looking for '.old' files??
             # or os.path.exists(os.path.join(self.simulation_dir, '_SUCCESSFUL_RUN.old'))):
             # or os.path.exists(os.path.join(self.simulation_dir,'out', '_SUCCESSFUL_RUN.old'))):
             self.execution.returncode = (0, posix.EX_OK)
-        elif (os.path.exists(os.path.join(self.simulation_dir, '_FAILED_RUN'))
-              or os.path.exists(os.path.join(self.simulation_dir, '_FAILED_RUN'))):
+        elif os.path.exists(os.path.join(self.simulation_dir, "_FAILED_RUN")) or os.path.exists(
+            os.path.join(self.simulation_dir, "_FAILED_RUN")
+        ):
             # XXX: why are we looking for '.old' files??
             # or os.path.exists(os.path.join(self.simulation_dir, 'out', '_FAILED_RUN.old'))
             # or os.path.exists(os.path.join(self.simulation_dir, 'out', '_FAILED_RUN.old'))):
@@ -320,13 +316,11 @@ class GeotopApplication(Application):
             # XXX: To consider a better way of handling this
             # at the moment the entire input archive is recreated
 
-
             # XXX: How to distinguish a failed geotop execution from one terminated
             # by the LRMS ?
 
-            gc3libs.log.warning("Simulation did *not* produce any output marker"
-                                "[_SUCCESSFUL_RUN,_FAILED_RUN].")
-            self.execution.returncode = (0,98)
+            gc3libs.log.warning("Simulation did *not* produce any output marker" "[_SUCCESSFUL_RUN,_FAILED_RUN].")
+            self.execution.returncode = (0, 98)
             if not self.shared_FS:
                 gc3libs.log.info("Updating tar archive for resubmission.")
                 inputs = dict(self._scan_and_tar(self.simulation_dir))
@@ -337,13 +331,15 @@ class GeotopTask(RetryableTask, gc3libs.utils.Struct):
     """
     Run ``geotop`` on a given simulation directory until completion.
     """
+
     def __init__(self, simulation_dir, executable=None, **extra_args):
         RetryableTask.__init__(
             self,
             # actual computational job
             GeotopApplication(simulation_dir, executable, **extra_args),
             # keyword arguments
-            **extra_args)
+            **extra_args
+        )
 
     # def retry(self):
     #     """
@@ -365,6 +361,7 @@ class GeotopTask(RetryableTask, gc3libs.utils.Struct):
 
 
 ## main script class
+
 
 class GGeotopScript(SessionBasedScript):
     """
@@ -391,27 +388,37 @@ newly-created jobs so that this limit is never exceeded.
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GeotopTask,
+            version=__version__,  # module version == script version
+            application=GeotopTask,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GeotopTask,
-            )
+            stats_only_for=GeotopTask,
+        )
 
     def setup_options(self):
-        self.add_param("-x", "--executable", metavar="PATH", #type=executable_file,
-                       dest="executable", default=None,
-                       help="Path to the GEOtop executable file.")
+        self.add_param(
+            "-x",
+            "--executable",
+            metavar="PATH",  # type=executable_file,
+            dest="executable",
+            default=None,
+            help="Path to the GEOtop executable file.",
+        )
 
         # self.add_param("-q", "--summary", metavar="TIME", dest="summary_period",
         #                default=1800,
         #                help="Creates a summary of the current execution.")
 
-        self.add_param("-S", "--sharedfs", dest="shared_FS",
-                       action="store_true", default=False,
-                       help="Whether the destination resource should assume shared filesystem where Input/Output data will be made available. Data transfer will happen through lcoal filesystem. Default: False.")
+        self.add_param(
+            "-S",
+            "--sharedfs",
+            dest="shared_FS",
+            action="store_true",
+            default=False,
+            help="Whether the destination resource should assume shared filesystem where Input/Output data will be made available. Data transfer will happen through lcoal filesystem. Default: False.",
+        )
 
     def parse_args(self):
         """
@@ -419,15 +426,14 @@ newly-created jobs so that this limit is never exceeded.
         """
         if self.params.executable is None:
             raise gc3libs.exceptions.InvalidUsage(
-                "Use the '-x' option to specify a valid path to the GEOtop executable.")
+                "Use the '-x' option to specify a valid path to the GEOtop executable."
+            )
         if not os.path.exists(self.params.executable):
             raise gc3libs.exceptions.InvalidUsage(
                 "Path '%s' to the GEOtop executable does not exist;"
-                " use the '-x' option to specify a valid one."
-                % self.params.executable)
-        gc3libs.utils.test_file(self.params.executable, os.R_OK|os.X_OK,
-                                gc3libs.exceptions.InvalidUsage)
-
+                " use the '-x' option to specify a valid one." % self.params.executable
+            )
+        gc3libs.utils.test_file(self.params.executable, os.R_OK | os.X_OK, gc3libs.exceptions.InvalidUsage)
 
     def new_tasks(self, extra):
         # input_files = self._search_for_input_files(self.params.args, 'geotop.inpts')
@@ -438,17 +444,17 @@ newly-created jobs so that this limit is never exceeded.
             # construct GEOtop job
 
             args = extra.copy()
-            args['shared_FS'] = self.params.shared_FS
+            args["shared_FS"] = self.params.shared_FS
 
             yield GeotopTask(
-                path,                   # path to the directory containing input files
-                os.path.abspath(self.params.executable), # path to the GEOtop executable
+                path,  # path to the directory containing input files
+                os.path.abspath(self.params.executable),  # path to the GEOtop executable
                 # job name
                 jobname=gc3libs.utils.basename_sans(path),
                 # extra keyword arguments passed to the constructor,
                 # see `GeotopTask.__init__`
                 **args
-                )
+            )
 
     def _validate_input_folders(self, paths):
         """
@@ -465,21 +471,20 @@ newly-created jobs so that this limit is never exceeded.
             if os.path.isdir(path):
                 # recursively scan for input files
                 for dirpath, dirnames, filenames in os.walk(path):
-                    if ("geotop.inpts" in filenames
+                    if (
+                        "geotop.inpts" in filenames
                         and "in" in dirnames
                         and "out" in dirnames
                         and not dirpath.endswith("/tmp")
                         and not dirpath.endswith("~")
-                        and not os.path.isfile(os.path.join(dirpath, 'out', '_SUCCESSFUL_RUN'))
-                        and not os.path.isfile(os.path.join(dirpath, 'out', '_FAILED_RUN'))
-                        ):
+                        and not os.path.isfile(os.path.join(dirpath, "out", "_SUCCESSFUL_RUN"))
+                        and not os.path.isfile(os.path.join(dirpath, "out", "_FAILED_RUN"))
+                    ):
                         # Return absolute path
                         yield os.path.abspath(dirpath)
                     else:
                         gc3libs.log.warning(
-                            "Ignoring path '%s':"
-                            " will not be included in the simulation input bundle.",
-                            dirpath)
+                            "Ignoring path '%s':" " will not be included in the simulation input bundle.", dirpath
+                        )
             else:
-                gc3libs.log.warning("Ignoring input path '%s': not a directory.",
-                                    path)
+                gc3libs.log.warning("Ignoring input path '%s': not a directory.", path)

@@ -15,21 +15,20 @@ Python implementation of rosenbrock.cpp for tests.
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the GNU Lesser General Public License
-# along with this program; if not, write to the Free Software
+
+__docformat__ = "reStructuredText"
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
-__docformat__ = 'reStructuredText'
 
+import logging
 import os
-import sys
-import logging
-import tempfile
 import shutil
-import logging
+import sys
+import tempfile
 
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software
+from builtins import str
 
 if __name__ == "__main__":
     print("Compute Rosenbrock function")
@@ -45,7 +44,7 @@ if __name__ == "__main__":
 
     fun = 100.0 * (y - x ** 2) ** 2 + (1 - x) ** 2
 
-    out_file = open("rosenbrock.out", 'w')
-    out_file.write(str(fun) + '\n')
+    out_file = open("rosenbrock.out", "w")
+    out_file.write(str(fun) + "\n")
 
     print("done")

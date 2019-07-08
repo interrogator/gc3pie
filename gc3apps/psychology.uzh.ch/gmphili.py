@@ -20,7 +20,7 @@
 """
 """
 
-from __future__ import absolute_import, print_function
+
 import csv
 import os
 
@@ -28,28 +28,28 @@ from pkg_resources import Requirement, resource_filename
 
 import gc3libs
 import gc3libs.exceptions
+import gc3libs.utils
 from gc3libs import Application, Run, Task
 from gc3libs.cmdline import SessionBasedScript, existing_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
+from gc3libs.quantity import GB, MB, Duration, Memory, MiB, hours, kB, minutes, seconds
 from gc3libs.workflow import RetryableTask
-
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gmphili
+
     gmphili.GMphiliScript().run()
 
 
-__version__ = '1.0'
+__version__ = "1.0"
 # summary of user-visible changes
 __changelog__ = """
   2016-09-21:
   * Initial version
 """
-__author__ = 'Riccardo Murri <riccardo.murri@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Riccardo Murri <riccardo.murri@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 class GMphiliScript(SessionBasedScript):
@@ -74,7 +74,7 @@ class GMphiliScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version=__version__, # module version == script version
+            version=__version__,  # module version == script version
             application=GMphiliApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
@@ -83,21 +83,22 @@ class GMphiliScript(SessionBasedScript):
             stats_only_for=GMphiliApplication,
         )
 
-
     def setup_args(self):
         self.add_param(
-            'scenarios', nargs='+', type=existing_file,
+            "scenarios",
+            nargs="+",
+            type=existing_file,
             help=(
                 "CSV file(s) listing program invocation parameters."
                 " It is expected to have the following 5 columns:"
                 " 'dgp', 'learner', 'cldist', 'dim', 'n'."
-            ))
-
+            ),
+        )
 
     def new_tasks(self, extra):
         tasks = []
         for scenario in self.params.scenarios:
-            with open(scenario, 'r') as input_file:
+            with open(scenario, "r") as input_file:
                 header, dialect = _csv_features(input_file)
                 input_csv = csv.reader(input_file, dialect)
                 # skip header row
@@ -124,32 +125,33 @@ class GMphiliApplication(Application):
         self.dim = dim
         self.n = n
         # provide defaults
-        extra_args.setdefault('requested_cores', 1)
+        extra_args.setdefault("requested_cores", 1)
         # initialize GC3Pie Application object
         super(GMphiliApplication, self).__init__(
             # command-line to run
             [
                 # GC3Pie wrapper script
-                './run_R.sh',
+                "./run_R.sh",
                 # actual R code invocation
-                'runsim', dgp, learner, cldist, dim, n,
+                "runsim",
+                dgp,
+                learner,
+                cldist,
+                dim,
+                n,
                 # how many cores to use for parallel code
-                extra_args.get('requested_cores', 1),
+                extra_args.get("requested_cores", 1),
             ],
             # input files
             inputs=[
-                resource_filename(Requirement.parse('gc3pie'),
-                                  'gc3libs/etc/run_R.sh'),
-                'stability_v0.1-4.R',
-                'runsim.R',
+                resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/run_R.sh"),
+                "stability_v0.1-4.R",
+                "runsim.R",
             ],
             # output files
-            outputs=[
-                'siminfo.rda',
-                'simres.rda'
-            ],
-            stdout='runsim.log',
-            stderr='runsim.log',
+            outputs=["siminfo.rda", "simres.rda"],
+            stdout="runsim.log",
+            stderr="runsim.log",
             # output dir, etc.
             **extra_args
         )

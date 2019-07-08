@@ -13,15 +13,21 @@ Authentication support for the GC3Libs.
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
-from builtins import object
-__docformat__ = 'reStructuredText'
 
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import object, str
+
+import gc3libs.authentication.ec2
+import gc3libs.authentication.openstack
+
+# register additional auth types
+# FIXME: it would be nice to have some kind of auto-discovery instead
+import gc3libs.authentication.ssh
 import gc3libs.exceptions
 
 
@@ -62,6 +68,7 @@ class Auth(object):
       - The whole `auto_enable` stuff really belongs to the user-interface
         part, which is also hard-coded in the auth classes, and should not be.
     """
+
     types = {}
 
     def __init__(self, config, auto_enable):
@@ -70,7 +77,7 @@ class Auth(object):
         self._config = config
         self._ctors = {}
         for auth_name, auth_params in self._config.items():
-            self._ctors[auth_name] = Auth.types[auth_params['type']]
+            self._ctors[auth_name] = Auth.types[auth_params["type"]]
 
     def add_params(self, **params):
         """
@@ -110,12 +117,11 @@ class Auth(object):
                 params.update(kwargs)
                 a = self._ctors[auth_name](**dict(params))
             except KeyError as err:
-                a = gc3libs.exceptions.ConfigurationError(
-                    "Unknown auth section %s" % (str(err),))
+                a = gc3libs.exceptions.ConfigurationError("Unknown auth section %s" % (str(err),))
             except (AssertionError, AttributeError) as ex:
                 a = gc3libs.exceptions.ConfigurationError(
-                    "Missing required configuration parameters"
-                    " in auth section '%s': %s" % (auth_name, str(ex)))
+                    "Missing required configuration parameters" " in auth section '%s': %s" % (auth_name, str(ex))
+                )
         else:
             a = self.__auths[auth_name]
 
@@ -134,12 +140,13 @@ class Auth(object):
                     gc3libs.log.debug(
                         "Got exception while enabling auth '%s',"
                         " will remember for next invocations:"
-                        " %s: %s" % (auth_name, x.__class__.__name__, x))
+                        " %s: %s" % (auth_name, x.__class__.__name__, x)
+                    )
                     a = x
             else:
                 a = gc3libs.exceptions.UnrecoverableAuthError(
-                    "No valid credentials of type '%s'"
-                    " and `auto_enable` not set." % auth_name)
+                    "No valid credentials of type '%s'" " and `auto_enable` not set." % auth_name
+                )
 
         self.__auths[auth_name] = a
         return a
@@ -156,12 +163,9 @@ class NoneAuth(object):
     def __init__(self, **auth):
         try:
             # test validity
-            assert auth['type'] == 'none', (
-                "Configuration error. Unknown type: %s. Valid type: none"
-                % auth.type)
+            assert auth["type"] == "none", "Configuration error. Unknown type: %s. Valid type: none" % auth.type
         except AssertionError as x:
-            raise gc3libs.exceptions.ConfigurationError(
-                'Erroneous configuration parameter: %s' % str(x))
+            raise gc3libs.exceptions.ConfigurationError("Erroneous configuration parameter: %s" % str(x))
 
     def is_valid(self):
         return True
@@ -172,16 +176,12 @@ class NoneAuth(object):
     def enable(self):
         return True
 
-Auth.register('none', NoneAuth)
-# register additional auth types
-# FIXME: it would be nice to have some kind of auto-discovery instead
-import gc3libs.authentication.ssh
-import gc3libs.authentication.ec2
-import gc3libs.authentication.openstack
+
+Auth.register("none", NoneAuth)
 
 # main: run tests
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="__init__",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="__init__", optionflags=doctest.NORMALIZE_WHITESPACE)

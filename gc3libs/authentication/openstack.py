@@ -13,51 +13,50 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
-from builtins import object
-__docformat__ = 'reStructuredText'
 
 import os
 
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import object, str
+
 import gc3libs
-from gc3libs.authentication import Auth
 import gc3libs.exceptions
+from gc3libs.authentication import Auth
 
 
 class OpenStackAuth(object):
-
     def __init__(self, **auth):
         try:
             # test validity
-            assert auth['type'] == 'openstack', \
-                "Configuration error. Unknown type; %s. " \
-                "Valid type: openstack" \
-                % auth.type
+            assert auth["type"] == "openstack", (
+                "Configuration error. Unknown type; %s. " "Valid type: openstack" % auth.type
+            )
         except AssertionError as x:
-            raise gc3libs.exceptions.ConfigurationError(
-                'Erroneous configuration parameter: %s' % str(x))
+            raise gc3libs.exceptions.ConfigurationError("Erroneous configuration parameter: %s" % str(x))
 
         try:
             for (key, var) in (
-                    # list of mandatory env vars taken from:
-                    # http://docs.openstack.org/user-guide/common/cli_set_environment_variables_using_openstack_rc.html
-                    ('os_auth_url',     'OS_AUTH_URL'),
-                    ('os_password',     'OS_PASSWORD'),
-                    ('os_project_name', 'OS_TENANT_NAME'),
-                    ('os_username',     'OS_USERNAME'),
+                # list of mandatory env vars taken from:
+                # http://docs.openstack.org/user-guide/common/cli_set_environment_variables_using_openstack_rc.html
+                ("os_auth_url", "OS_AUTH_URL"),
+                ("os_password", "OS_PASSWORD"),
+                ("os_project_name", "OS_TENANT_NAME"),
+                ("os_username", "OS_USERNAME"),
             ):
                 if key not in auth:
                     auth[key] = os.getenv(var)
                     assert auth[key], (
                         "Missing mandatory configuration parameter for {name} auth:"
                         " either define the `{key}` configuration key,"
-                        " or set the `{var}` environmental variable."
-                        .format(name=("'" + auth['name'] + "'"), key=key, var=var,))
+                        " or set the `{var}` environmental variable.".format(
+                            name=("'" + auth["name"] + "'"), key=key, var=var
+                        )
+                    )
                     # Strip quotes from os_* in case someone put
                     # it in the configuration file
                     auth[key] = auth[key].strip('"').strip("'")
@@ -73,11 +72,11 @@ class OpenStackAuth(object):
         return True
 
 
-Auth.register('openstack', OpenStackAuth)
+Auth.register("openstack", OpenStackAuth)
 
 # main: run tests
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="openstack",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="openstack", optionflags=doctest.NORMALIZE_WHITESPACE)

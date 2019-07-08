@@ -17,52 +17,56 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-__docformat__ = 'reStructuredText'
 
 import os
+
 import gc3libs
 from gc3libs.cmdline import SessionBasedDaemon
+
+__docformat__ = "reStructuredText"
 
 
 class SimpleDaemon(SessionBasedDaemon):
     """Simple daemon"""
-    version = '1.0'
+
+    version = "1.0"
 
     def new_tasks(self, extra):
         """
         Populate session with initial tasks.
         """
-        jobname = 'EchoApp'
-        extra['output_dir'] = os.path.join(self.params.working_dir, jobname)
+        jobname = "EchoApp"
+        extra["output_dir"] = os.path.join(self.params.working_dir, jobname)
         return [
             gc3libs.Application(
-                ['/bin/echo', 'first run'],
+                ["/bin/echo", "first run"],
                 inputs=[],
                 outputs=gc3libs.ANY_OUTPUT,
-                stdout='stdout.txt',
-                stderr='stderr.txt',
+                stdout="stdout.txt",
+                stderr="stderr.txt",
                 jobname=jobname,
-                **extra)
-            ]
+                **extra
+            )
+        ]
 
     def created(self, inbox, subject):
         """
         A new file has been created. Process it.
         """
         path = subject.path
-        jobname = ('LSApp.' + os.path.basename(path))
+        jobname = "LSApp." + os.path.basename(path)
         extra = self.extra.copy()
-        extra['output_dir'] = os.path.join(self.params.working_dir, jobname)
+        extra["output_dir"] = os.path.join(self.params.working_dir, jobname)
         self.add(
             gc3libs.Application(
-                ['/bin/echo', path],
-                inputs={path:'foo'},
+                ["/bin/echo", path],
+                inputs={path: "foo"},
                 outputs=gc3libs.ANY_OUTPUT,
-                stdout='stdout.txt',
-                stderr='stderr.txt',
+                stdout="stdout.txt",
+                stderr="stderr.txt",
                 jobname=jobname,
-                **extra)
+                **extra
+            )
         )
 
 
@@ -70,4 +74,5 @@ class SimpleDaemon(SessionBasedDaemon):
 
 if "__main__" == __name__:
     from simpledaemon import SimpleDaemon
+
     SimpleDaemon().run()

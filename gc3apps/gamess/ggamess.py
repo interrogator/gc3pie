@@ -36,12 +36,12 @@ __changelog__ = """
   2010-12-20:
     * Initial release, forked off the ``grosetta`` sources.
 """
-__author__ = 'Riccardo Murri <riccardo.murri@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Riccardo Murri <riccardo.murri@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # stdlib imports
-from __future__ import absolute_import, print_function
+
 import os
 import sys
 
@@ -50,11 +50,11 @@ import gc3libs
 from gc3libs.application.gamess import GamessApplication, GamessAppPotApplication
 from gc3libs.cmdline import SessionBasedScript, existing_file
 
-
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
-if __name__ == '__main__':
+if __name__ == "__main__":
     import ggamess
+
     ggamess.GGamessScript().run()
 
 
@@ -79,29 +79,40 @@ of newly-created jobs so that this limit is never exceeded.
     """
 
     def setup_options(self):
-        self.add_param("-A", "--apppot", metavar="PATH",
-                       dest="apppot",
-                       type=existing_file, default=None,
-                       help="Use an AppPot image to run GAMESS."
-                       " PATH can point either to a complete AppPot system image"
-                       " file, or to a `.changes` file generated with the"
-                       " `apppot-snap` utility.")
-        self.add_param("-R", "--verno", metavar="VERNO",
-                       dest="verno", default='2012R1',
-                       help="Request the specified version of GAMESS"
-                       " (default: %(default)s).")
-        self.add_param("-e", "--extbas", metavar='FILE',
-                       dest='extbas',
-                       type=existing_file, default=None,
-                       help="Make the specified external basis file available to jobs.")
+        self.add_param(
+            "-A",
+            "--apppot",
+            metavar="PATH",
+            dest="apppot",
+            type=existing_file,
+            default=None,
+            help="Use an AppPot image to run GAMESS."
+            " PATH can point either to a complete AppPot system image"
+            " file, or to a `.changes` file generated with the"
+            " `apppot-snap` utility.",
+        )
+        self.add_param(
+            "-R",
+            "--verno",
+            metavar="VERNO",
+            dest="verno",
+            default="2012R1",
+            help="Request the specified version of GAMESS" " (default: %(default)s).",
+        )
+        self.add_param(
+            "-e",
+            "--extbas",
+            metavar="FILE",
+            dest="extbas",
+            type=existing_file,
+            default=None,
+            help="Make the specified external basis file available to jobs.",
+        )
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__, # module version == script version
-            input_filename_pattern = '*.inp'
-            )
-
+            self, version=__version__, input_filename_pattern="*.inp"  # module version == script version
+        )
 
     def new_tasks(self, extra):
         # setup AppPot parameters
@@ -110,23 +121,23 @@ of newly-created jobs so that this limit is never exceeded.
         apppot_changes = None
         if self.params.apppot:
             use_apppot = True
-            if self.params.apppot.endswith('.changes.tar.gz'):
+            if self.params.apppot.endswith(".changes.tar.gz"):
                 apppot_changes = self.params.apppot
             else:
                 apppot_img = self.params.apppot
         # create tasks
         inputs = self._search_for_input_files(self.params.args)
         for path in inputs:
-            parameters = [ path ]
+            parameters = [path]
             kwargs = extra.copy()
-            kwargs['verno'] = self.params.verno
+            kwargs["verno"] = self.params.verno
             if self.params.extbas is not None:
-                kwargs['extbas'] = self.params.extbas
+                kwargs["extbas"] = self.params.extbas
             if use_apppot:
                 if apppot_img is not None:
-                    kwargs['apppot_img'] = apppot_img
+                    kwargs["apppot_img"] = apppot_img
                 if apppot_changes is not None:
-                    kwargs['apppot_changes'] = apppot_changes
+                    kwargs["apppot_changes"] = apppot_changes
                 cls = GamessAppPotApplication
             else:
                 cls = GamessApplication
@@ -139,4 +150,5 @@ of newly-created jobs so that this limit is never exceeded.
                 # parameters to `cls` constructor, see `GamessApplication.__init__`
                 parameters,
                 # keyword arguments, see `GamessApplication.__init__`
-                kwargs)
+                kwargs,
+            )

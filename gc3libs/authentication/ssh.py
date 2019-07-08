@@ -14,35 +14,36 @@ Authentication support for accessing resources through the SSH protocol.
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import object
-__docformat__ = 'reStructuredText'
 
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import object
 
 import gc3libs
-from gc3libs.authentication import Auth
 import gc3libs.exceptions
+from gc3libs.authentication import Auth
 
 
 class SshAuth(object):
+    def __init__(
+        self,
+        # inherited from the generic `Auth` class
+        type,
+        # SSH-specific arguments
+        username,
+        keyfile=None,
+        port=None,
+        ssh_config=None,
+        timeout=None,
+        # extra arguments, if any
+        **extra
+    ):
 
-    def __init__(self,
-                 # inherited from the generic `Auth` class
-                 type,
-                 # SSH-specific arguments
-                 username,
-                 keyfile=None,
-                 port=None,
-                 ssh_config=None,
-                 timeout=None,
-                 # extra arguments, if any
-                 **extra):
-
-        assert type == 'ssh'
+        assert type == "ssh"
 
         # this is required
         self.username = username
@@ -65,16 +66,14 @@ class SshAuth(object):
             else:
                 self.port = None
         except (ValueError, TypeError) as err:
-            raise gc3libs.exceptions.ConfigurationError(
-                "Invalid `port` setting in SSH auth section.")
+            raise gc3libs.exceptions.ConfigurationError("Invalid `port` setting in SSH auth section.")
         try:
             if timeout is not None:
                 self.timeout = float(timeout)
             else:
                 self.timeout = None
         except (ValueError, TypeError) as err:
-            raise gc3libs.exceptions.ConfigurationError(
-                "Invalid `timeout` setting in SSH auth section.")
+            raise gc3libs.exceptions.ConfigurationError("Invalid `timeout` setting in SSH auth section.")
 
         # everything else is just stored as-is
         self.__dict__.update(extra)
@@ -85,12 +84,13 @@ class SshAuth(object):
     def enable(self):
         return True
 
-Auth.register('ssh', SshAuth)
+
+Auth.register("ssh", SshAuth)
 
 
 # main: run tests
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="ssh",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="ssh", optionflags=doctest.NORMALIZE_WHITESPACE)

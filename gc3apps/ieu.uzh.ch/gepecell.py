@@ -46,51 +46,54 @@ This would trigger the re-run of the whole workflow only
 for lines between 3000 and 7500
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import shutil
+import sys
+import tarfile
+import tempfile
+import time
+
+import pandas
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2013-07-03:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: http://code.google.com/p/gc3pie/issues/detail?id=95
 if __name__ == "__main__":
     import gepecell
+
     gepecell.GepecellScript().run()
 
-import os
-import sys
-import time
-import tempfile
 
-import tarfile
-import shutil
-import pandas
 # import csv
 
-from pkg_resources import Requirement, resource_filename
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 DEFAULT_REMOTE_OUTPUT_FOLDER = "output"
-DEFAULT_EPICELL_BINARY="robustnessintime"
+DEFAULT_EPICELL_BINARY = "robustnessintime"
 ## custom application class
 class GepecellApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
-    application_name = 'gepecell'
+
+    application_name = "gepecell"
 
     def __init__(self, parameter_string, **extra_args):
 
@@ -98,38 +101,39 @@ class GepecellApplication(Application):
         inputs = dict()
         outputs = dict()
 
-        if 'binary' in extra_args:
-            binary_name = os.path.basename(extra_args['binary'])
+        if "binary" in extra_args:
+            binary_name = os.path.basename(extra_args["binary"])
             arguments = "./%s" % binary_name
-            inputs[extra_args['binary']] = binary_name
+            inputs[extra_args["binary"]] = binary_name
             executables.append(binary_name)
         else:
             arguments = DEFAULT_EPICELL_BINARY
 
-        for param in parameter_string.strip().split(','):
+        for param in parameter_string.strip().split(","):
             arguments += " %s " % param
         # Set output
         outputs[DEFAULT_REMOTE_OUTPUT_FOLDER] = os.path.basename(DEFAULT_REMOTE_OUTPUT_FOLDER)
         arguments += DEFAULT_REMOTE_OUTPUT_FOLDER
 
-        gc3libs.log.debug("Creating application for executing: %s",
-                          arguments)
+        gc3libs.log.debug("Creating application for executing: %s", arguments)
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'gepecell.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout="gepecell.log",
             join=True,
-            executables = executables,
-            **extra_args)
+            executables=executables,
+            **extra_args
+        )
 
     def terminated(self):
         """
         Check whether output file has been properly created
         """
         pass
+
 
 class GepecellScript(SessionBasedScript):
     """
@@ -161,29 +165,36 @@ class GepecellScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GepecellApplication,
+            version=__version__,  # module version == script version
+            application=GepecellApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GepecellApplication,
-            )
+            stats_only_for=GepecellApplication,
+        )
 
     def setup_args(self):
 
-        self.add_param('csv_input_file', type=str,
-                       help="Input .csv file")
+        self.add_param("csv_input_file", type=str, help="Input .csv file")
 
-        self.add_param("-k", "--chunk", metavar="INT", type=int,
-                       dest="chunk_size", default=1000,
-                       help="How to split the edges input data set.")
+        self.add_param(
+            "-k",
+            "--chunk",
+            metavar="INT",
+            type=int,
+            dest="chunk_size",
+            default=1000,
+            help="How to split the edges input data set.",
+        )
 
-        self.add_param("-B", "--binary",
-                       dest="binary", default=None,
-                       help="Path to alternative 'Robustnessintime' binary file." \
-                       " Note: binary fily MUST be statically linked.")
-
+        self.add_param(
+            "-B",
+            "--binary",
+            dest="binary",
+            default=None,
+            help="Path to alternative 'Robustnessintime' binary file." " Note: binary fily MUST be statically linked.",
+        )
 
     def parse_args(self):
         """
@@ -191,18 +202,18 @@ class GepecellScript(SessionBasedScript):
         path to command_file should also be valid.
         """
         try:
-            assert os.path.isfile(os.path.abspath(self.params.csv_input_file)),  \
-                "Input CSV not found: %s " \
-                % os.path.abspath(self.params.csv_input_file)
+            assert os.path.isfile(
+                os.path.abspath(self.params.csv_input_file)
+            ), "Input CSV not found: %s " % os.path.abspath(self.params.csv_input_file)
 
             # Verify that 'self.params.chunk_size' is int
-            assert isinstance(self.params.chunk_size,int), \
-                "Chunk value must be an interger."
+            assert isinstance(self.params.chunk_size, int), "Chunk value must be an interger."
             self.params.chunk_size = int(self.params.chunk_size)
 
             if self.params.binary:
-                assert os.path.isfile(self.params.binary), \
+                assert os.path.isfile(self.params.binary), (
                     "'Robustnessintime' binary file '%s' not found" % self.params.binary
+                )
 
         except AssertionError as ex:
             raise ValueError(ex.message)
@@ -216,23 +227,21 @@ class GepecellScript(SessionBasedScript):
 
         with open(self.params.csv_input_file) as fd:
             for line in fd:
-                jobname = "gepecell-%s" % (line.strip().replace(",","_"))
+                jobname = "gepecell-%s" % (line.strip().replace(",", "_"))
 
                 extra_args = extra.copy()
-                extra_args['jobname'] = jobname
+                extra_args["jobname"] = jobname
 
-                extra_args['output_dir'] = self.params.output
-                extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', jobname)
-                extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', jobname)
-                extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', jobname)
-                extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', jobname)
+                extra_args["output_dir"] = self.params.output
+                extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", jobname)
+                extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", jobname)
+                extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", jobname)
+                extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", jobname)
 
                 if self.params.binary:
-                    extra_args['binary'] = self.params.binary
+                    extra_args["binary"] = self.params.binary
 
-                tasks.append(GepecellApplication(
-                    line,
-                    **extra_args))
+                tasks.append(GepecellApplication(line, **extra_args))
 
         return tasks
 
@@ -247,16 +256,18 @@ class GepecellScript(SessionBasedScript):
         """
 
         chunks = []
-        chunk_files_dir = os.path.join(self.session.path,"tmp")
+        chunk_files_dir = os.path.join(self.session.path, "tmp")
 
         # creating 'chunk_files_dir'
-        if not(os.path.isdir(chunk_files_dir)):
+        if not (os.path.isdir(chunk_files_dir)):
             try:
                 os.mkdir(chunk_files_dir)
-            except OSError, osx:
-                gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
-                                  "Error %s." % str(osx) +
-                                  "Using default '/tmp'")
+            except OSError as osx:
+                gc3libs.log.error(
+                    "Failed while creating tmp folder %s. " % chunk_files_dir
+                    + "Error %s." % str(osx)
+                    + "Using default '/tmp'"
+                )
                 chunk_files_dir = "/tmp"
 
         # XXX: by convenction, 1st row contains headers
@@ -265,8 +276,8 @@ class GepecellScript(SessionBasedScript):
         index = 0
         for chunk in reader:
             index += 1
-            filename = "%s/chunk_%s.csv" % (chunk_files_dir,index)
+            filename = "%s/chunk_%s.csv" % (chunk_files_dir, index)
             chunk.to_csv(filename, header=True, index=False)
-            chunks.append((filename,index))
+            chunks.append((filename, index))
 
         return chunks

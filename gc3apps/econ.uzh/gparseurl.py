@@ -33,37 +33,36 @@ Option:
 
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import shutil
+import sys
+import tempfile
+import time
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2015-10-24:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gparseurl
+
     gparseurl.GParseURLScript().run()
-
-import os
-import sys
-import time
-import tempfile
-
-import shutil
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 
 ## custom application class
@@ -71,29 +70,24 @@ class GParseURLApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
-    application_name = 'gparseurl'
+
+    application_name = "gparseurl"
 
     def __init__(self, url_to_read, **extra_args):
-
 
         inputs = dict()
         outputs = dict()
 
-        if 'master_script' in extra_args:
-            inputs[extra_args['master_script']] = "./master.py"
+        if "master_script" in extra_args:
+            inputs[extra_args["master_script"]] = "./master.py"
 
         command = "python ./master.py %s" % url_to_read
 
-        outputs['result.json'] = "%s.json" % extra_args['jobname']
+        outputs["result.json"] = "%s.json" % extra_args["jobname"]
 
         Application.__init__(
-            self,
-            arguments = command,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gpaseurl.log',
-            join=True,
-            **extra_args)
+            self, arguments=command, inputs=inputs, outputs=outputs, stdout="gpaseurl.log", join=True, **extra_args
+        )
 
 
 class GParseURLScript(SessionBasedScript):
@@ -119,20 +113,24 @@ newly-created jobs so that this limit is never exceeded.
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GParseURLApplication,
-            stats_only_for = GParseURLApplication,
-            )
+            version=__version__,  # module version == script version
+            application=GParseURLApplication,
+            stats_only_for=GParseURLApplication,
+        )
 
     def setup_options(self):
-        self.add_param("-Z", "--master", metavar="PATH",
-                       dest="master_script", default=None,
-                       help="Path to the parser script. Default: None.")
+        self.add_param(
+            "-Z",
+            "--master",
+            metavar="PATH",
+            dest="master_script",
+            default=None,
+            help="Path to the parser script. Default: None.",
+        )
 
     def setup_args(self):
 
-        self.add_param('url_file', type=str,
-                       help="Command file full path name")
+        self.add_param("url_file", type=str, help="Command file full path name")
 
     def parse_args(self):
         """
@@ -141,17 +139,11 @@ newly-created jobs so that this limit is never exceeded.
         """
 
         if not os.path.exists(self.params.url_file):
-            raise gc3libs.exceptions.InvalidUsage(
-                "gparseurl command file '%s' does not exist;"
-                % self.params.url_file)
-        gc3libs.utils.test_file(self.params.url_file, os.R_OK,
-                                gc3libs.exceptions.InvalidUsage)
+            raise gc3libs.exceptions.InvalidUsage("gparseurl command file '%s' does not exist;" % self.params.url_file)
+        gc3libs.utils.test_file(self.params.url_file, os.R_OK, gc3libs.exceptions.InvalidUsage)
 
-        if self.params.master_script and \
-        not os.path.exists(self.params.master_script):
-            raise gc3libs.exceptions.InvalidUsage(
-                "Input folder '%s' does not exists"
-                % self.params.master_script)
+        if self.params.master_script and not os.path.exists(self.params.master_script):
+            raise gc3libs.exceptions.InvalidUsage("Input folder '%s' does not exists" % self.params.master_script)
 
     def new_tasks(self, extra):
         """
@@ -164,21 +156,21 @@ newly-created jobs so that this limit is never exceeded.
         for url_to_read in open(self.params.url_file):
             jobname = os.path.splitext(os.path.basename(url_to_read))[0]
             extra_args = extra.copy()
-            extra_args['jobname'] = jobname
-            extra_args['output_dir'] = self.params.output
+            extra_args["jobname"] = jobname
+            extra_args["output_dir"] = self.params.output
 
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', os.path.join('.computation',jobname))
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', os.path.join('.computation',jobname))
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', os.path.join('.computation',jobname))
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', os.path.join('.computation',jobname))
+            extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", os.path.join(".computation", jobname))
+            extra_args["output_dir"] = extra_args["output_dir"].replace(
+                "SESSION", os.path.join(".computation", jobname)
+            )
+            extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", os.path.join(".computation", jobname))
+            extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", os.path.join(".computation", jobname))
 
             if self.params.master_script:
-                extra_args['master_script'] = self.params.master_script
+                extra_args["master_script"] = self.params.master_script
 
             self.log.debug("Creating Task for %s" % jobname)
 
-            tasks.append(GParseURLApplication(
-                url_to_read,
-                **extra_args))
+            tasks.append(GParseURLApplication(url_to_read, **extra_args))
 
         return tasks

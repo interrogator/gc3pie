@@ -36,49 +36,52 @@ XXX: To be clarified:
 * dependency in igraph python library
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import shutil
+import sys
+import tempfile
+import time
+
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2016-05-10:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gtopology
+
     gtopology.GtopologyScript().run()
 
-import os
-import sys
-import time
-import tempfile
 
-import shutil
 # import csv
 
-from pkg_resources import Requirement, resource_filename
 
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
-
-DEFAULT_MASTER_SCRIPT="run_topologies_cluster.py"
+DEFAULT_MASTER_SCRIPT = "run_topologies_cluster.py"
 
 ## custom application class
 class GtopologyApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
-    application_name = 'gtopology'
+
+    application_name = "gtopology"
 
     def __init__(self, param_file, source_folder, **extra_args):
 
@@ -90,12 +93,12 @@ class GtopologyApplication(Application):
         inputs[param_file] = "./input.csv"
         inputs[source_folder] = "./source/"
 
-        if 'master_script' in extra_args:
-            master_script = extra_args['master_script']
+        if "master_script" in extra_args:
+            master_script = extra_args["master_script"]
         else:
             master_script = DEFAULT_MASTER_SCRIPT
 
-        arguments ="pwd ; date ; cd source ; python %s ../input.csv " % master_script
+        arguments = "pwd ; date ; cd source ; python %s ../input.csv " % master_script
 
         # prepare execution script from command
         execution_script = """
@@ -109,35 +112,39 @@ RET=$?
 
 echo Program terminated with exit code $RET
 exit $RET
-        """ % (master_script)
+        """ % (
+            master_script
+        )
 
         try:
             # create script file
-            (handle, self.tmp_filename) = tempfile.mkstemp(prefix='gtopology-', suffix=extra_args['jobname'])
+            (handle, self.tmp_filename) = tempfile.mkstemp(prefix="gtopology-", suffix=extra_args["jobname"])
 
             # XXX: use NamedTemporaryFile instead with 'delete' = False
 
-            fd = open(self.tmp_filename,'w')
+            fd = open(self.tmp_filename, "w")
             fd.write(execution_script)
             fd.close()
-            os.chmod(fd.name,0o777)
-        except Exception, ex:
-            gc3libs.log.debug("Error creating execution script" +
-                              "Error type: %s." % type(ex) +
-                              "Message: %s"  %ex.message)
+            os.chmod(fd.name, 0o777)
+        except Exception as ex:
+            gc3libs.log.debug(
+                "Error creating execution script" + "Error type: %s." % type(ex) + "Message: %s" % ex.message
+            )
             raise
 
         inputs[fd.name] = "./master.sh"
 
         Application.__init__(
             self,
-            arguments = ['./master.sh'],
-            inputs = inputs,
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'gtopology.log',
+            arguments=["./master.sh"],
+            inputs=inputs,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout="gtopology.log",
             join=True,
-            executables = ['./master.sh'],
-            **extra_args)
+            executables=["./master.sh"],
+            **extra_args
+        )
+
 
 class GtopologyScript(SessionBasedScript):
     """
@@ -162,32 +169,33 @@ class GtopologyScript(SessionBasedScript):
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__,
-            application = GtopologyApplication,
-            stats_only_for = GtopologyApplication,
-            )
+            self, version=__version__, application=GtopologyApplication, stats_only_for=GtopologyApplication
+        )
 
     def setup_options(self):
-        self.add_param("-k", "--chunk", metavar="[NUM]",
-                       dest="chunk_size", default="1000",
-                       help="How to split the edges input data set. "
-                       "Default: %(default)s")
+        self.add_param(
+            "-k",
+            "--chunk",
+            metavar="[NUM]",
+            dest="chunk_size",
+            default="1000",
+            help="How to split the edges input data set. " "Default: %(default)s",
+        )
 
-        self.add_param("-M", "--master", metavar="[PATH]",
-                       dest="master_script", default=DEFAULT_MASTER_SCRIPT,
-                       help="Name of the main execution script. "
-                       "Default: %(default)s")
-
+        self.add_param(
+            "-M",
+            "--master",
+            metavar="[PATH]",
+            dest="master_script",
+            default=DEFAULT_MASTER_SCRIPT,
+            help="Name of the main execution script. " "Default: %(default)s",
+        )
 
     def setup_args(self):
 
-        self.add_param('input', type=str,
-                       help="Input csv.")
+        self.add_param("input", type=str, help="Input csv.")
 
-        self.add_param('source', type=str,
-                       help="Location of the main script source folder.")
-
+        self.add_param("source", type=str, help="Location of the main script source folder.")
 
     def parse_args(self):
         """
@@ -196,11 +204,9 @@ class GtopologyScript(SessionBasedScript):
         """
 
         try:
-            assert os.path.isfile(self.params.input), \
-                "Input csv file '%s' not found" % self.params.input
+            assert os.path.isfile(self.params.input), "Input csv file '%s' not found" % self.params.input
 
-            assert os.path.isdir(self.params.source), \
-                "Input source folder '%s' not found" % self.params.source
+            assert os.path.isdir(self.params.source), "Input source folder '%s' not found" % self.params.source
 
         except AssertionError as ex:
             raise OSError(ex.message)
@@ -209,7 +215,6 @@ class GtopologyScript(SessionBasedScript):
         int(self.params.chunk_size)
         self.params.chunk_size = int(self.params.chunk_size)
 
-
     def new_tasks(self, extra):
         """
         Read content of 'command_file'
@@ -217,38 +222,29 @@ class GtopologyScript(SessionBasedScript):
         """
         tasks = []
 
-        for (input_file, index_chunk) in self._generate_chunked_files_and_list(self.params.input,
-                                                                              self.params.chunk_size):
+        for (input_file, index_chunk) in self._generate_chunked_files_and_list(
+            self.params.input, self.params.chunk_size
+        ):
             extra_args = extra.copy()
 
             jobname = "gtopology-%s" % (str(index_chunk))
-            extra_args['jobname'] = jobname
-            extra_args['index_chunk'] = str(index_chunk)
+            extra_args["jobname"] = jobname
+            extra_args["index_chunk"] = str(index_chunk)
 
-            extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                        os.path.join('.computation',
-                                                                                     jobname))
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION',
-                                                                        os.path.join('.computation',
-                                                                                     jobname))
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE',
-                                                                        os.path.join('.computation',
-                                                                                     jobname))
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME',
-                                                                        os.path.join('.computation',
-                                                                                     jobname))
+            extra_args["output_dir"] = self.params.output
+            extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", os.path.join(".computation", jobname))
+            extra_args["output_dir"] = extra_args["output_dir"].replace(
+                "SESSION", os.path.join(".computation", jobname)
+            )
+            extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", os.path.join(".computation", jobname))
+            extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", os.path.join(".computation", jobname))
 
-            extra_args['source'] = self.params.source
-            extra_args['master_script'] = self.params.master_script
+            extra_args["source"] = self.params.source
+            extra_args["master_script"] = self.params.master_script
 
-            self.log.debug("Creating Task for index : %d - %d" %
-                           (index_chunk, (index_chunk + self.params.chunk_size)))
+            self.log.debug("Creating Task for index : %d - %d" % (index_chunk, (index_chunk + self.params.chunk_size)))
 
-            tasks.append(GtopologyApplication(
-                input_file,
-                os.path.abspath(self.params.source),
-                **extra_args))
+            tasks.append(GtopologyApplication(input_file, os.path.abspath(self.params.source), **extra_args))
 
         return tasks
 
@@ -264,20 +260,22 @@ class GtopologyScript(SessionBasedScript):
         index = 0
         chunk = []
         failure = False
-        chunk_files_dir = os.path.join(self.session.path,"tmp")
+        chunk_files_dir = os.path.join(self.session.path, "tmp")
 
         # creating 'chunk_files_dir'
-        if not(os.path.isdir(chunk_files_dir)):
+        if not (os.path.isdir(chunk_files_dir)):
             try:
                 os.mkdir(chunk_files_dir)
-            except OSError, osx:
-                gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
-                                  "Error %s." % str(osx) +
-                                  "Using default '/tmp'")
+            except OSError as osx:
+                gc3libs.log.error(
+                    "Failed while creating tmp folder %s. " % chunk_files_dir
+                    + "Error %s." % str(osx)
+                    + "Using default '/tmp'"
+                )
                 chunk_files_dir = "/tmp"
 
         try:
-            fd = open(file_to_chunk,'rb')
+            fd = open(file_to_chunk, "rb")
 
             fout = None
 
@@ -285,30 +283,24 @@ class GtopologyScript(SessionBasedScript):
                 if i % chunk_size == 0:
                     if fout:
                         fout.close()
-                    (handle, self.tmp_filename) = tempfile.mkstemp(dir=chunk_files_dir,
-                                                                    prefix=
-                                                                   'gtopology-',
-                                                                   suffix=
-                                                                   "%d.csv" % i)
-                    fout = open(self.tmp_filename,'w')
-                    chunk.append((fout.name,i))
+                    (handle, self.tmp_filename) = tempfile.mkstemp(
+                        dir=chunk_files_dir, prefix="gtopology-", suffix="%d.csv" % i
+                    )
+                    fout = open(self.tmp_filename, "w")
+                    chunk.append((fout.name, i))
                 fout.write(line)
             fout.close()
-        except OSError, osx:
-            gc3libs.log.critical("Failed while creating chunk files." +
-                                 "Error %s", (str(osx)))
+        except OSError as osx:
+            gc3libs.log.critical("Failed while creating chunk files." + "Error %s", (str(osx)))
             failure = True
         finally:
             if failure:
                 # remove all tmp file created
-                gc3libs.log.info("Could not generate full chunk list. "
-                                 "Removing all existing tmp files... ")
+                gc3libs.log.info("Could not generate full chunk list. " "Removing all existing tmp files... ")
                 for (cfile, index) in chunk:
                     try:
                         os.remove(cfile)
-                    except OSError, osx:
-                        gc3libs.log.error("Failed while removing " +
-                                          "tmp file %s. " +
-                                          "Message %s" % osx.message)
+                    except OSError as osx:
+                        gc3libs.log.error("Failed while removing " + "tmp file %s. " + "Message %s" % osx.message)
 
         return chunk

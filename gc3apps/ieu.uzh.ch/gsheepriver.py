@@ -33,51 +33,54 @@ Input argument consists of:
 Options:
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import re
+import shutil
+import sys
+import tempfile
+import time
+
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, MiB, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2016-03-29:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gsheepriver
+
     gsheepriver.GsheepriverScript().run()
 
-import os
-import sys
-import time
-import tempfile
-import re
 
-import shutil
 # import csv
 
-from pkg_resources import Requirement, resource_filename
 
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
-
-DEFAULT_ITERATIONS=10000
-DEFAULT_OUTPUT_FOLDER="results"
-DEFAULT_OUTPUT_ARCHIVE="results.tgz"
+DEFAULT_ITERATIONS = 10000
+DEFAULT_OUTPUT_FOLDER = "results"
+DEFAULT_OUTPUT_ARCHIVE = "results.tgz"
 
 ## custom application class
 class GsheepriverApplication(Application):
     """
     """
-    application_name = 'gsheepriver'
+
+    application_name = "gsheepriver"
 
     def __init__(self, hunting, **extra_args):
         """
@@ -91,47 +94,48 @@ class GsheepriverApplication(Application):
         inputs = dict()
         outputs = dict()
 
-        wrapper = resource_filename(Requirement.parse("gc3pie"),
-                                    "gc3libs/etc/sheepriver_wrapper.sh")
+        wrapper = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/sheepriver_wrapper.sh")
         inputs[wrapper] = "./wrapper.sh"
 
         arguments = "./wrapper.sh %d " % hunting
 
-        if 'sources' in extra_args:
-            sources = os.path.basename(extra_args['sources'])
-            inputs[extra_args['sources']] = sources
+        if "sources" in extra_args:
+            sources = os.path.basename(extra_args["sources"])
+            inputs[extra_args["sources"]] = sources
             arguments += " -s %s " % sources
 
-        if 'sheepriver' in extra_args:
-            sheepriver = os.path.basename(extra_args['sheepriver'])
-            inputs[extra_args['sheepriver']] = sheepriver
+        if "sheepriver" in extra_args:
+            sheepriver = os.path.basename(extra_args["sheepriver"])
+            inputs[extra_args["sheepriver"]] = sheepriver
             arguments += " -p %s " % sheepriver
 
-        if 'seeds' in extra_args:
-            seeds = os.path.basename(extra_args['seeds'])
-            inputs[extra_args['seeds']] = seeds
+        if "seeds" in extra_args:
+            seeds = os.path.basename(extra_args["seeds"])
+            inputs[extra_args["seeds"]] = seeds
             arguments += " -m %s " % seeds
 
-        if 'jar' in extra_args:
-            jar = os.path.basename(extra_args['jar'])
-            inputs[extra_args['jar']] = jar
+        if "jar" in extra_args:
+            jar = os.path.basename(extra_args["jar"])
+            inputs[extra_args["jar"]] = jar
             arguments += " -j %s " % jar
 
-        if 'iterations' in extra_args:
-            arguments += " -i %d " % extra_args['iterations']
+        if "iterations" in extra_args:
+            arguments += " -i %d " % extra_args["iterations"]
 
         # set output folder
         arguments += " -o %s " % DEFAULT_OUTPUT_ARCHIVE
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = [DEFAULT_OUTPUT_ARCHIVE],
-            stdout = 'gsheepriver.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=[DEFAULT_OUTPUT_ARCHIVE],
+            stdout="gsheepriver.log",
             join=True,
-            executables = ["./wrapper.sh"],
-            **extra_args)
+            executables=["./wrapper.sh"],
+            **extra_args
+        )
+
 
 class GsheepriverScript(SessionBasedScript):
     """
@@ -150,74 +154,89 @@ class GsheepriverScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GsheepriverApplication,
+            version=__version__,  # module version == script version
+            application=GsheepriverApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GsheepriverApplication,
-            )
+            stats_only_for=GsheepriverApplication,
+        )
 
     def setup_args(self):
 
-        self.add_param('range', type=str,
-                       help="hunting pressures range. "
-                       "Format: [int],[int]|[int]:[int]. E.g 1:432|3|6,9")
+        self.add_param(
+            "range", type=str, help="hunting pressures range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3|6,9"
+        )
 
     def setup_options(self):
-        self.add_param("-S", "--source", metavar="STRING", type=str,
-                       dest="sources",
-                       default=None,
-                       help="Location of java scripts to drive the "
-                       " execution of sheepriver. Default: %(default)s")
+        self.add_param(
+            "-S",
+            "--source",
+            metavar="STRING",
+            type=str,
+            dest="sources",
+            default=None,
+            help="Location of java scripts to drive the " " execution of sheepriver. Default: %(default)s",
+        )
 
-        self.add_param("-j", "--jar", metavar="STRING", type=str,
-                       dest="jar",
-                       default=None,
-                       help="Location of .jar package to drive the "
-                       " execution of sheepriver. Default: %(default)s")
+        self.add_param(
+            "-j",
+            "--jar",
+            metavar="STRING",
+            type=str,
+            dest="jar",
+            default=None,
+            help="Location of .jar package to drive the " " execution of sheepriver. Default: %(default)s",
+        )
 
-        self.add_param("-P", "--param_SheepRiver_wear", metavar="PATH", type=str,
-                       dest="param_SheepRiver_wear",
-                       default=None,
-                       help="Location of the 'param_SheepRiver_wear' input file. "
-                       "Default: %(default)s")
+        self.add_param(
+            "-P",
+            "--param_SheepRiver_wear",
+            metavar="PATH",
+            type=str,
+            dest="param_SheepRiver_wear",
+            default=None,
+            help="Location of the 'param_SheepRiver_wear' input file. " "Default: %(default)s",
+        )
 
-        self.add_param("-M", "--seeds", metavar="PATH", type=str,
-                       dest="seeds",
-                       default=None,
-                       help="Location of the seeds file. "
-                       "Default: %(default)s")
+        self.add_param(
+            "-M",
+            "--seeds",
+            metavar="PATH",
+            type=str,
+            dest="seeds",
+            default=None,
+            help="Location of the seeds file. " "Default: %(default)s",
+        )
 
-        self.add_param("-I", "--iterations", metavar="INT", type=int,
-                       dest="iterations",
-                       default=DEFAULT_ITERATIONS,
-                       help="Number of repeating iterations. "
-                       "Default: %(default)s")
+        self.add_param(
+            "-I",
+            "--iterations",
+            metavar="INT",
+            type=int,
+            dest="iterations",
+            default=DEFAULT_ITERATIONS,
+            help="Number of repeating iterations. " "Default: %(default)s",
+        )
 
     def parse_args(self):
         try:
             if self.params.sources:
-                assert os.path.isdir(self.params.sources), \
-                    "Simulation source folder %s not found" % self.params.sources
-
+                assert os.path.isdir(self.params.sources), "Simulation source folder %s not found" % self.params.sources
 
             if self.params.param_SheepRiver_wear:
-                assert os.path.isfile(self.params.param_SheepRiver_wear), \
+                assert os.path.isfile(self.params.param_SheepRiver_wear), (
                     "SheepRiver file %s not found" % self.params.param_SheepRiver_wear
+                )
 
             if self.params.seeds:
-                assert os.path.isfile(self.params.seeds), \
-                    "Seeds file %s not found" % self.params.seeds
+                assert os.path.isfile(self.params.seeds), "Seeds file %s not found" % self.params.seeds
 
             if self.params.jar:
-                assert os.path.isfile(self.params.jar), \
-                    "Jar file %s not found" % self.params.jar
+                assert os.path.isfile(self.params.jar), "Jar file %s not found" % self.params.jar
 
-
-            assert int(self.params.iterations), \
-                "Iterations should be a positive integer"
+            assert int(self.params.iterations), "Iterations should be a positive integer"
 
             # Validate month range
             try:
@@ -230,31 +249,25 @@ class GsheepriverScript(SessionBasedScript):
                     if len(self.params.range.split(":")) == 2:
                         # Use ':' as separator
                         try:
-                            start,end = [ int(mrange) for mrange in \
-                                          self.params.range.split(":") \
-                                          if int(mrange) ]
+                            start, end = [int(mrange) for mrange in self.params.range.split(":") if int(mrange)]
                             if end <= start:
-                                raise ValueError("No valid input range. "
-                                                 "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
-                            self.input_range = range(start,end+1)
+                                raise ValueError(
+                                    "No valid input range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3"
+                                )
+                            self.input_range = range(start, end + 1)
                         except TypeError as ex:
                             gc3libs.log.critical(ex.message)
-                            raise ValueError("No valid input range. "
-                                             "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
+                            raise ValueError("No valid input range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
                     elif len(self.params.range.split(",")) > 0:
                         # Use ',' as separator
-                        self.input_range = [ int(mrange) for mrange in \
-                                             self.params.range.split(",") \
-                                             if int(mrange) ]
+                        self.input_range = [int(mrange) for mrange in self.params.range.split(",") if int(mrange)]
                     else:
                         # Anything else should fail
-                        raise ValueError("No valid input range. "
-                                         "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
+                        raise ValueError("No valid input range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
 
             except ValueError as ex:
                 gc3libs.log.debug(ex.message)
-                raise AttributeError("No valid input range. "
-                                     "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
+                raise AttributeError("No valid input range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
 
         except AssertionError as ex:
             raise OSError(ex.message)
@@ -270,34 +283,28 @@ class GsheepriverScript(SessionBasedScript):
             # filename example: 0103645_anat.nii.gz
             # extract root folder name to be used as jobname
             extra_args = extra.copy()
-            extra_args['jobname'] = 'sheepriver-%s' % str(hunting)
+            extra_args["jobname"] = "sheepriver-%s" % str(hunting)
 
-            extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                        'run_%s' % hunting)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION',
-                                                                        'run_%s' % hunting)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE',
-                                                                        'run_%s' % hunting)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME',
-                                                                        'run_%s' % hunting)
+            extra_args["output_dir"] = self.params.output
+            extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", "run_%s" % hunting)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", "run_%s" % hunting)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", "run_%s" % hunting)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", "run_%s" % hunting)
 
             if self.params.sources:
-                extra_args['sources'] = os.path.abspath(self.params.sources)
+                extra_args["sources"] = os.path.abspath(self.params.sources)
 
             if self.params.param_SheepRiver_wear:
-                extra_args['sheepriver'] = os.path.abspath(self.params.param_SheepRiver_wear)
+                extra_args["sheepriver"] = os.path.abspath(self.params.param_SheepRiver_wear)
 
             if self.params.seeds:
-                extra_args['seeds'] = os.path.abspath(self.params.seeds)
+                extra_args["seeds"] = os.path.abspath(self.params.seeds)
 
             if self.params.jar:
-                extra_args['jar'] = os.path.abspath(self.params.jar)
+                extra_args["jar"] = os.path.abspath(self.params.jar)
 
-            extra_args['iterations'] = self.params.iterations
+            extra_args["iterations"] = self.params.iterations
 
-            tasks.append(GsheepriverApplication(
-                hunting,
-                **extra_args))
+            tasks.append(GsheepriverApplication(hunting, **extra_args))
 
         return tasks

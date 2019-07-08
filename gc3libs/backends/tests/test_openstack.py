@@ -14,35 +14,37 @@ Unit tests for the OpenStack backend
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
+
+import os
+
+#
+# You should have received a copy of the GNU Lesser General Public License
 from builtins import object
-__docformat__ = 'reStructuredText'
 
 # stdlib imports
 from collections import namedtuple
-import os
 
-# 3rd party imports
-from mock import MagicMock
+import gc3libs.config
+import gc3libs.exceptions
 import pytest
 
 # local imports
 from gc3libs import Application
-import gc3libs.config
-import gc3libs.exceptions
-from gc3libs.quantity import MiB, GB
+from gc3libs.quantity import GB, MiB
+from gc3libs.testing.helpers import temporary_config, temporary_config_file
+
+# 3rd party imports
+from mock import MagicMock
 
 # The OpenStack backend might not be installed (it's currently marked as
 # optional in `setup.py`), or we may be running Python 2.6 which is no longer
 # supported so skip these tests altogether if there is any error
-OpenStackLrms = pytest.importorskip('gc3libs.backends.openstack').OpenStackLrms
+OpenStackLrms = pytest.importorskip("gc3libs.backends.openstack").OpenStackLrms
 
-
-from gc3libs.testing.helpers import temporary_config, temporary_config_file
 
 class _const(object):
     SSH_AUTH_STANZA = """
@@ -89,55 +91,52 @@ type=openstack
 
 """
 
+
 @pytest.mark.xfail
 def test_openstack_variables_are_optional():
     with temporary_config_file(
-        _const.SSH_AUTH_STANZA
-        + _const.CLOUD_AUTH_STANZA_USE_ENV
-        + _const.RESOURCE_STANZA
+        _const.SSH_AUTH_STANZA + _const.CLOUD_AUTH_STANZA_USE_ENV + _const.RESOURCE_STANZA
     ) as cfgfile:
         # set up fake environment
-        env = ['username', 'password', 'tenant_name', 'auth_url']
+        env = ["username", "password", "tenant_name", "auth_url"]
         for name in env:
-            os.environ['OS_' + name.upper()] = name
+            os.environ["OS_" + name.upper()] = name
 
         # check that resource has been correctly created
         cfg = gc3libs.config.Configuration(cfgfile.name)
         resources = cfg.make_resources()
-        assert 'hobbes' in resources
+        assert "hobbes" in resources
 
-        cloud = resources['hobbes']
+        cloud = resources["hobbes"]
         assert isinstance(cloud, OpenStackLrms)
 
         # check that values have been inherited from the environment
         for name in env:
-            attr = ('os_' + name)
+            attr = "os_" + name
             assert hasattr(cloud, attr)
             assert getattr(cloud, attr) == name
 
 
-def _setup_flavor_selection_tests(extra_conf=''):
+def _setup_flavor_selection_tests(extra_conf=""):
     # FIXME: the test does not run if this is not in the environment!
-    os.environ['OS_AUTH_URL'] = 'http://localhost:5000/v2/'
-    env = ['username', 'password', 'tenant_name', 'auth_url']
+    os.environ["OS_AUTH_URL"] = "http://localhost:5000/v2/"
+    env = ["username", "password", "tenant_name", "auth_url"]
     for name in env:
-        os.environ['OS_' + name.upper()] = name
+        os.environ["OS_" + name.upper()] = name
 
     with temporary_config_file(
-        _const.SSH_AUTH_STANZA
-        + _const.CLOUD_AUTH_STANZA_FULL
-        + _const.RESOURCE_STANZA + extra_conf
+        _const.SSH_AUTH_STANZA + _const.CLOUD_AUTH_STANZA_FULL + _const.RESOURCE_STANZA + extra_conf
     ) as cfgfile:
         cfg = gc3libs.config.Configuration(cfgfile.name)
         resources = cfg.make_resources()
-        cloud = resources['hobbes']
+        cloud = resources["hobbes"]
 
     # mock novaclient's `Flavor` type using a namedtuple
-    _Flavor = namedtuple('_Flavor', 'name vcpus ram disk'.split())
+    _Flavor = namedtuple("_Flavor", "name vcpus ram disk".split())
     flavors = (
-        _Flavor(name='1cpu-4ram-hpc', vcpus=1, ram=4000, disk=100),
-        _Flavor(name='4cpu-16ram-hpc', vcpus=4, ram=16000, disk=100),
-        _Flavor(name='8cpu-8ram-server', vcpus=8, ram=7680, disk=100),
+        _Flavor(name="1cpu-4ram-hpc", vcpus=1, ram=4000, disk=100),
+        _Flavor(name="4cpu-16ram-hpc", vcpus=4, ram=16000, disk=100),
+        _Flavor(name="8cpu-8ram-server", vcpus=8, ram=7680, disk=100),
     )
 
     cloud.client = MagicMock()
@@ -157,8 +156,8 @@ def test_flavor_selection_at_init():
 
     # check selection of the largest flavor in lexicographic order
     # (cpus, ram, disk)
-    assert cloud['max_cores'] == flavors[2].vcpus
-    assert cloud['max_memory_per_core'] == flavors[2].ram * MiB
+    assert cloud["max_cores"] == flavors[2].vcpus
+    assert cloud["max_memory_per_core"] == flavors[2].ram * MiB
 
 
 @pytest.mark.xfail
@@ -169,34 +168,17 @@ def test_flavor_selection_default():
     cloud, flavors = _setup_flavor_selection_tests()
 
     # no instance type specified, should get smallest one
-    app1 = Application(
-        ['/bin/true'],
-        inputs=[],
-        outputs=[],
-        output_dir='/tmp',
-    )
+    app1 = Application(["/bin/true"], inputs=[], outputs=[], output_dir="/tmp")
     flv = cloud.get_instance_type_for_job(app1)
     assert flv == flavors[0]
 
     # require 10 GB, get 4cpu-16ram-hpc flavor
-    app2 = Application(
-        ['/bin/true'],
-        inputs=[],
-        outputs=[],
-        output_dir='/tmp',
-        requested_memory=10*GB,
-    )
+    app2 = Application(["/bin/true"], inputs=[], outputs=[], output_dir="/tmp", requested_memory=10 * GB)
     flv = cloud.get_instance_type_for_job(app2)
     assert flv == flavors[1]
 
     # require 6 cores, get 8cpu-8ram-server flavor
-    app3 = Application(
-        ['/bin/true'],
-        inputs=[],
-        outputs=[],
-        output_dir='/tmp',
-        requested_cores=6,
-    )
+    app3 = Application(["/bin/true"], inputs=[], outputs=[], output_dir="/tmp", requested_cores=6)
     flv = cloud.get_instance_type_for_job(app3)
     assert flv == flavors[2]
 
@@ -218,35 +200,19 @@ small_instance_type = 1cpu-4ram-hpc
     cloud, flavors = _setup_flavor_selection_tests(EXTRA_CONF)
 
     # no instance type specified, should get configured one
-    app1 = Application(
-        ['/bin/true'],
-        inputs=[],
-        outputs=[],
-        output_dir='/tmp',
-    )
+    app1 = Application(["/bin/true"], inputs=[], outputs=[], output_dir="/tmp")
     flv = cloud.get_instance_type_for_job(app1)
     assert flv == flavors[1]
 
     # application-specific instance type specified, should override default
-    app2 = Application(
-        ['/bin/true'],
-        inputs=[],
-        outputs=[],
-        output_dir='/tmp',
-    )
-    app2.application_name = 'small'
+    app2 = Application(["/bin/true"], inputs=[], outputs=[], output_dir="/tmp")
+    app2.application_name = "small"
     flv = cloud.get_instance_type_for_job(app2)
     assert flv == flavors[0]
 
     # requirements exclude default instance type
-    app3 = Application(
-        ['/bin/true'],
-        inputs=[],
-        outputs=[],
-        output_dir='/tmp',
-        requested_cores=6,
-    )
-    app3.application_name = 'large'
+    app3 = Application(["/bin/true"], inputs=[], outputs=[], output_dir="/tmp", requested_cores=6)
+    app3.application_name = "large"
     flv = cloud.get_instance_type_for_job(app3)
     assert flv == flavors[2]
 
@@ -267,36 +233,20 @@ large_instance_type = 4cpu-16ram-hpc
     cloud, flavors = _setup_flavor_selection_tests(EXTRA_CONF)
 
     # no instance type specified, should get smallest one
-    app1 = Application(
-        ['/bin/true'],
-        inputs=[],
-        outputs=[],
-        output_dir='/tmp',
-    )
+    app1 = Application(["/bin/true"], inputs=[], outputs=[], output_dir="/tmp")
     flv = cloud.get_instance_type_for_job(app1)
     assert flv == flavors[0]
 
     # application-specific instance type specified
-    app2 = Application(
-        ['/bin/true'],
-        inputs=[],
-        outputs=[],
-        output_dir='/tmp',
-    )
-    app2.application_name = 'large'
+    app2 = Application(["/bin/true"], inputs=[], outputs=[], output_dir="/tmp")
+    app2.application_name = "large"
     flv = cloud.get_instance_type_for_job(app2)
     assert flv == flavors[1]
 
     # application-specific instance type specified,
     # but requirements exclude it
-    app3 = Application(
-        ['/bin/true'],
-        inputs=[],
-        outputs=[],
-        output_dir='/tmp',
-        requested_cores=6,
-    )
-    app3.application_name = 'large'
+    app3 = Application(["/bin/true"], inputs=[], outputs=[], output_dir="/tmp", requested_cores=6)
+    app3.application_name = "large"
     flv = cloud.get_instance_type_for_job(app3)
     assert flv == flavors[2]
 
@@ -317,37 +267,21 @@ large_instance_type = 5cpu-11ram-server
     cloud, flavors = _setup_flavor_selection_tests(EXTRA_CONF)
 
     # no instance type specified, should get smallest one
-    app1 = Application(
-        ['/bin/true'],
-        inputs=[],
-        outputs=[],
-        output_dir='/tmp',
-    )
+    app1 = Application(["/bin/true"], inputs=[], outputs=[], output_dir="/tmp")
     flv = cloud.get_instance_type_for_job(app1)
     assert flv == flavors[0]
 
     # application-specific instance type specified but unavailable:
     # should yield same result as before
-    app2 = Application(
-        ['/bin/true'],
-        inputs=[],
-        outputs=[],
-        output_dir='/tmp',
-    )
-    app2.application_name = 'large'
+    app2 = Application(["/bin/true"], inputs=[], outputs=[], output_dir="/tmp")
+    app2.application_name = "large"
     flv = cloud.get_instance_type_for_job(app2)
     assert flv == flavors[0]
 
     # application-specific instance type specified,
     # but requirements exclude it
-    app3 = Application(
-        ['/bin/true'],
-        inputs=[],
-        outputs=[],
-        output_dir='/tmp',
-        requested_cores=6,
-    )
-    app3.application_name = 'large'
+    app3 = Application(["/bin/true"], inputs=[], outputs=[], output_dir="/tmp", requested_cores=6)
+    app3.application_name = "large"
     flv = cloud.get_instance_type_for_job(app3)
     assert flv == flavors[2]
 
@@ -356,4 +290,5 @@ large_instance_type = 5cpu-11ram-server
 
 if "__main__" == __name__:
     import pytest
+
     pytest.main(["-v", __file__])

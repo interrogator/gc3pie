@@ -1,11 +1,11 @@
 #! /usr/bin/env python
 
-from __future__ import absolute_import, print_function
-import sys
+
 import fnmatch
 import os
-from optparse import OptionParser
 import shutil
+import sys
+from optparse import OptionParser
 
 """
 1. new simulation: just generated
@@ -26,15 +26,17 @@ in/ remain unchaged
 dirs = ["in", "maps" "rec", "rad"]
 # files = ["svf.asc","slp.asc", "asp.asc", "dem.asc"]
 
+
 def search_and_list(input_folder):
     # agreed vlid input folder format:
     # ggeotop.inpts
     # in/
     # out/
     #
-    for r,d,f in os.walk(input_folder):
+    for r, d, f in os.walk(input_folder):
         if "geotop.inpts" in f and "in" in d and "out" in d:
             print(r)
+
 
 def main():
     """
@@ -44,14 +46,18 @@ def main():
     *~
     """
     parser = OptionParser(usage="%prog [clean|list] [INPUT FOLDERs]")
-    parser.add_option("-s", "--simulate", action="store_true", dest="simulate",
-                      metavar="LEVEL",
-                      help="Execute scrit in simulation mode"
-                      " (default is FALSE).")
+    parser.add_option(
+        "-s",
+        "--simulate",
+        action="store_true",
+        dest="simulate",
+        metavar="LEVEL",
+        help="Execute scrit in simulation mode" " (default is FALSE).",
+    )
 
-    parser.add_option("-f", "--full", action="store_true", dest="rec_also",
-                      metavar="LEVEL",
-                      help="Force removing also 'rec' folder")
+    parser.add_option(
+        "-f", "--full", action="store_true", dest="rec_also", metavar="LEVEL", help="Force removing also 'rec' folder"
+    )
 
     (options, args) = parser.parse_args(sys.argv[1:])
 
@@ -61,7 +67,7 @@ def main():
 
     command = args[0]
     input_folders = args[1:]
-    
+
     if command == "list":
         for folder in input_folders:
             search_and_list(folder)
@@ -71,18 +77,19 @@ def main():
     else:
         print(parser.usage)
 
+
 def clean_folder(input_folder, simulate, rec_also):
-    
+
     filename_patterns = ["*~", "*.tgz"]
-    dirname_patterns = ["tmp","*~"]
+    dirname_patterns = ["tmp", "*~"]
 
     if rec_also:
         dirname_patterns.append("rec")
 
-    for r,d,f in os.walk(input_folder):
-        
+    for r, d, f in os.walk(input_folder):
+
         skip = False
-        
+
         for directory in dirs:
             if r.endswith(directory):
                 skip = True
@@ -97,32 +104,32 @@ def clean_folder(input_folder, simulate, rec_also):
         # start remove folders
         for folder in d:
             for p in dirname_patterns:
-                if fnmatch.fnmatch(folder,p):
+                if fnmatch.fnmatch(folder, p):
                     try:
                         # XXX: is this too strong assumption ?
                         # remove a folder 'out'
                         if simulate:
-                            print("Removing folder %s" % os.path.join(r,folder))
+                            print("Removing folder %s" % os.path.join(r, folder))
                         else:
-                            shutil.rmtree(os.path.join(r,folder), ignore_errors=True)
+                            shutil.rmtree(os.path.join(r, folder), ignore_errors=True)
                             if folder == "rec":
                                 # create an empty new one
-                                os.mkdir(os.path.join(r,folder))
+                                os.mkdir(os.path.join(r, folder))
                     except Exception as x:
-                        print("Failed deleting folder %s. Error %s. Message %s" % (folder,x.__class__,x.message))
+                        print("Failed deleting folder %s. Error %s. Message %s" % (folder, x.__class__, x.message))
                     break
 
         for fn in f:
             # try remove file matching pattern
             for p in filename_patterns:
-                if fnmatch.fnmatch(fn,p):
+                if fnmatch.fnmatch(fn, p):
                     try:
                         if simulate:
-                            print("Removing file %s" % os.path.join(r,fn))
+                            print("Removing file %s" % os.path.join(r, fn))
                         else:
-                            os.remove(os.path.join(r,fn))
+                            os.remove(os.path.join(r, fn))
                     except Exception as x:
-                        print("Failed deleting file %s. Error %s. Message %s" % (fn,x.__class__,x.message))
+                        print("Failed deleting file %s. Error %s. Message %s" % (fn, x.__class__, x.message))
                     break
 
 

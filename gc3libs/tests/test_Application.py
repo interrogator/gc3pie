@@ -17,36 +17,26 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-__docformat__ = 'reStructuredText'
 
-
-import pytest
-
-from gc3libs import Application
 import gc3libs.exceptions
+import pytest
+from gc3libs import Application
+
+__docformat__ = "reStructuredText"
 
 
 def test_invalid_invocation():
     with pytest.raises(TypeError):
         Application()
 
-app_mandatory_arguments = (
-    'arguments',
-    'inputs',
-    'outputs',
-    'output_dir',
-)
+
+app_mandatory_arguments = ("arguments", "inputs", "outputs", "output_dir")
+
 
 @pytest.mark.parametrize("mandatory", app_mandatory_arguments)
 def test_mandatory_arguments(mandatory):
     # check for all mandatory arguments
-    args = {
-        'arguments': ['/bin/true'],
-        'inputs': [],
-        'outputs': [],
-        'output_dir': '/tmp',
-    }
+    args = {"arguments": ["/bin/true"], "inputs": [], "outputs": [], "output_dir": "/tmp"}
 
     # test *valid* invocation
     Application(**args)
@@ -61,12 +51,13 @@ def test_mandatory_arguments(mandatory):
 app_wrong_arguments = (
     # 'inputs' : ['duplicated', 'duplicated'],
     # duplicated inputs doesnt raise an exception but just a warning
-    ('outputs', ['/should/not/be/absolute']),
+    ("outputs", ["/should/not/be/absolute"]),
     # 'outputs' : ['duplicated', 'duplicated'],
     # duplicated outputs doesnt raise an exception but just a warning
-    ('requested_architecture', 'FooBar'),
-    ('requested_cores', 'one'),
+    ("requested_architecture", "FooBar"),
+    ("requested_cores", "one"),
 )
+
 
 @pytest.mark.parametrize("wrongarg", app_wrong_arguments)
 def test_wrong_type_arguments(wrongarg):
@@ -78,13 +69,7 @@ def test_wrong_type_arguments(wrongarg):
     # What happens when you request non-integer cores/memory/walltime?
     # what happens when you request non-existent architecture?
 
-    args = {
-        'arguments': ['/bin/true'],
-        'inputs': [],
-        'outputs': [],
-        'output_dir': '/tmp',
-        'requested_cores': 1,
-    }
+    args = {"arguments": ["/bin/true"], "inputs": [], "outputs": [], "output_dir": "/tmp", "requested_cores": 1}
 
     key, value = wrongarg
 
@@ -94,23 +79,16 @@ def test_wrong_type_arguments(wrongarg):
 
 
 def test_valid_invocation():
-    ma = {'arguments': ['/bin/true'],
-          'inputs': ['/tmp/a', 'b'],
-          'outputs': ['o1', 'o2'],
-          'output_dir': '/tmp',
-          }
+    ma = {"arguments": ["/bin/true"], "inputs": ["/tmp/a", "b"], "outputs": ["o1", "o2"], "output_dir": "/tmp"}
     Application(**ma)
 
 
 def test_io_spec_to_dict_unicode():
     # pylint: disable=import-error,protected-access,redefined-outer-name
     import gc3libs.url
+
     with pytest.raises(gc3libs.exceptions.InvalidValue):
-        Application._io_spec_to_dict(
-            gc3libs.url.UrlKeyDict, {
-                u'/tmp/\u0246': u'\u0246',
-                b'/tmp/b/': b'b'},
-            True)
+        Application._io_spec_to_dict(gc3libs.url.UrlKeyDict, {"/tmp/\u0246": "\u0246", b"/tmp/b/": b"b"}, True)
 
 
 # main: run tests

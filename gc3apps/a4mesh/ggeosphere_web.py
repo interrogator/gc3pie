@@ -24,7 +24,20 @@ It uses the generic `gc3libs.cmdline.SessionBasedScript` framework.
 See the output of ``ggeosphere_web.py --help`` for program usage instructions.
 """
 
-from __future__ import absolute_import, print_function
+
+import logging
+import os
+import posix
+
+from pkg_resources import Requirement, resource_filename
+
+# gc3 library imports
+import gc3libs
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
@@ -32,54 +45,43 @@ __changelog__ = """
   2014-03-21:
   * Initial release, forked off the ``ggeoshpere`` sources.
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import ggeosphere_web
+
     ggeosphere_web.GeoSphereScript().run()
 
-from pkg_resources import Requirement, resource_filename
-import os
-import posix
-
-# gc3 library imports
-import gc3libs
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
-import logging
 
 # Default values
-DEFAULT_S3CFG="$HOME/.s3cfg"
-DEFAULT_CLOUD_ALL="*"
-DEFAULT_MAX_RUNNING=10
-DEFAULT_MAX_RETRIES=3
-DEFAULT_LOG_LEVEL=logging.ERROR
-A4MESH_CONFIG_FILE="/etc/a4mesh/a4mesh.cfg"
+DEFAULT_S3CFG = "$HOME/.s3cfg"
+DEFAULT_CLOUD_ALL = "*"
+DEFAULT_MAX_RUNNING = 10
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_LOG_LEVEL = logging.ERROR
+A4MESH_CONFIG_FILE = "/etc/a4mesh/a4mesh.cfg"
 
 ## custom application class
 def validate_config_option(config, option_name, default_value=None):
-    if not config.has_option("default",option_name):
+    if not config.has_option("default", option_name):
         if default_value:
-            gc3libs.log.warning("No option '%s' defined. "+
-                                "Using default: '%s'" % (option_name, default_value))
+            gc3libs.log.warning("No option '%s' defined. " + "Using default: '%s'" % (option_name, default_value))
             return default_value
         else:
             raise ConfigParser.ParsingError("No option '%s' defined." % option_name)
     else:
-        return config.get('default',option_name)
+        return config.get("default", option_name)
+
 
 class GeoSphereApplication(Application):
     """
     """
 
-    application_name = 'geosphere'
+    application_name = "geosphere"
 
     def __init__(self, input_dir, working_dir, output_container, **extra_args):
         """
@@ -95,42 +97,30 @@ class GeoSphereApplication(Application):
         -d                       enable debug
         """
 
-
         self.input_dir = input_dir
 
         inputs = []
 
-        geosphere_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/geosphere_wrapper.sh")
+        geosphere_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/geosphere_wrapper.sh")
 
-
-        inputs.append((geosphere_wrapper_sh,os.path.basename(geosphere_wrapper_sh)))
+        inputs.append((geosphere_wrapper_sh, os.path.basename(geosphere_wrapper_sh)))
 
         cmd = "./geosphere_wrapper.sh -d "
 
+        if extra_args.has_key("s3cfg"):
+            inputs.append((extra_args["s3cfg"], "etc/s3cfg"))
 
-        if extra_args.has_key('s3cfg'):
-            inputs.append((extra_args['s3cfg'],
-                           "etc/s3cfg"))
+        if extra_args.has_key("grok_bin"):
+            cmd += "-g %s " % extra_args["grok_bin"]
 
-        if extra_args.has_key('grok_bin'):
-            cmd += "-g %s " % extra_args['grok_bin']
+            inputs.append((extra_args["grok_bin"], os.path.join("./bin", os.path.basename(extra_args["grok_bin"]))))
 
-            inputs.append((extra_args['grok_bin'],
-                          os.path.join("./bin",
-                                       os.path.basename(extra_args['grok_bin']))))
+        if extra_args.has_key("hgs_bin"):
+            cmd += "-h %s " % extra_args["hgs_bin"]
 
-        if extra_args.has_key('hgs_bin'):
-            cmd += "-h %s " % extra_args['hgs_bin']
+            inputs.append((extra_args["hgs_bin"], os.path.join("./bin", os.path.basename(extra_args["hgs_bin"]))))
 
-            inputs.append((extra_args['hgs_bin'],
-                          os.path.join("./bin",
-                                       os.path.basename(extra_args['hgs_bin']))))
-
-        cmd += "%s %s %s" % (input_dir,
-                             working_dir,
-                             output_container)
-
+        cmd += "%s %s %s" % (input_dir, working_dir, output_container)
 
         # Application.__init__(
         #     self,
@@ -143,33 +133,38 @@ class GeoSphereApplication(Application):
         #     join=True,
         #     **extra_args)
 
-
-        #XXX: TESTING PURPOSES...
-        extra_args['requested_memory'] = 1*MB
+        # XXX: TESTING PURPOSES...
+        extra_args["requested_memory"] = 1 * MB
 
         Application.__init__(
             self,
             # the following arguments are mandatory:
-            arguments = ["/bin/hostname"],
-            inputs = [],
-            outputs = [],
-            stdout = "stdout.txt",
-            join = True,
-            **extra_args)
+            arguments=["/bin/hostname"],
+            inputs=[],
+            outputs=[],
+            stdout="stdout.txt",
+            join=True,
+            **extra_args
+        )
+
 
 class GeoSphereTask(RetryableTask, gc3libs.utils.Struct):
     """
     Run ``geosphere`` on a given simulation directory until completion.
     """
+
     def __init__(self, input_dir, working_dir, output_container, **extra_args):
         RetryableTask.__init__(
             self,
             # actual computational job
             GeoSphereApplication(input_dir, working_dir, output_container, **extra_args),
             # keyword arguments
-            **extra_args)
+            **extra_args
+        )
+
 
 ## main script class
+
 
 class GeoSphereScript(SessionBasedScript):
     """
@@ -197,24 +192,25 @@ class GeoSphereScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GeoSphereTask,
+            version=__version__,  # module version == script version
+            application=GeoSphereTask,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GeoSphereTask,
-            )
-
+            stats_only_for=GeoSphereTask,
+        )
 
     def setup_options(self):
-        self.add_param("-c", "--config",
-                       metavar="PATH",
-                       action="store",
-                       default=A4MESH_CONFIG_FILE,
-                       dest="config_file",
-                       help="Location of the configuration file. "+
-                       "Default: /etc/a4mesh/a4mesh.cfg")
+        self.add_param(
+            "-c",
+            "--config",
+            metavar="PATH",
+            action="store",
+            default=A4MESH_CONFIG_FILE,
+            dest="config_file",
+            help="Location of the configuration file. " + "Default: /etc/a4mesh/a4mesh.cfg",
+        )
 
     def parse_args(self):
         """
@@ -228,56 +224,50 @@ class GeoSphereScript(SessionBasedScript):
 
         self._read_config_file(self.params.config_file)
 
-        self.input_folder_url = gc3libs.url.Url(os.path.join(self.extra['fs_endpoint'],
-                                                             self.extra['model_input']))
-        self.output_folder_url = gc3libs.url.Url(os.path.join(self.extra['fs_endpoint'],
-                                                              self.extra['model_output']))
+        self.input_folder_url = gc3libs.url.Url(os.path.join(self.extra["fs_endpoint"], self.extra["model_input"]))
+        self.output_folder_url = gc3libs.url.Url(os.path.join(self.extra["fs_endpoint"], self.extra["model_output"]))
 
         if self.input_folder_url.scheme.lower() == "s3":
             # Then check validity of s3cmd configuration file
-            if not os.path.isfile(self.extra['s3cmd_conf_location']):
-                raise gc3libs.exceptions.InvalidArgument("S3cmd config file '%s' not found" \
-                                                         % self.extra['s3cmd_conf_location'])
+            if not os.path.isfile(self.extra["s3cmd_conf_location"]):
+                raise gc3libs.exceptions.InvalidArgument(
+                    "S3cmd config file '%s' not found" % self.extra["s3cmd_conf_location"]
+                )
         elif self.input_folder_url.scheme.lower() == "file":
             # Check local filesystem
             if not os.path.exists(os.path.abspath(self.input_folder_url.path)):
-                raise gc3libs.exceptions.InvalidArgument("Local input folder %s not found" \
-                                                         % os.path.abspath(self.input_folder_url.path))
+                raise gc3libs.exceptions.InvalidArgument(
+                    "Local input folder %s not found" % os.path.abspath(self.input_folder_url.path)
+                )
 
     def _create_task(self, input_dir, **extra_args):
         working_dir = os.path.splitext(os.path.basename(input_dir))[0]
 
         jobname = "a4mesh-%s" % working_dir
 
-        extra_args['jobname'] = jobname
+        extra_args["jobname"] = jobname
 
         # FIXME: ignore SessionBasedScript feature of customizing
         # output folder
         # extra_args['output_dir'] = self.params.output
-        extra_args['output_dir'] = os.path.join(self.extra['simulation_log_location'],jobname)
+        extra_args["output_dir"] = os.path.join(self.extra["simulation_log_location"], jobname)
 
-        extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', jobname)
-        extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', jobname)
-        extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', jobname)
-        extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', jobname)
+        extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", jobname)
+        extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", jobname)
+        extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", jobname)
+        extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", jobname)
 
-        extra_args['s3cfg'] = self.extra['s3cmd_conf_location']
+        extra_args["s3cfg"] = self.extra["s3cmd_conf_location"]
 
         self.log.info("Creating Task for input file: %s" % input_dir)
 
-        return GeoSphereTask(
-            input_dir,
-            working_dir,
-            self.output_folder_url,
-            **extra_args
-        )
-
+        return GeoSphereTask(input_dir, working_dir, self.output_folder_url, **extra_args)
 
     def new_tasks(self, extra):
 
         self.tasks = []
 
-        for input_dir in self._list_S3_container(self.input_folder_url, self.extra['s3cmd_conf_location']):
+        for input_dir in self._list_S3_container(self.input_folder_url, self.extra["s3cmd_conf_location"]):
             self.tasks.append(self._create_task(input_dir, **extra.copy()))
 
         return self.tasks
@@ -288,7 +278,7 @@ class GeoSphereScript(SessionBasedScript):
 
         gc3libs.log.debug("Reading S3 container for new models")
 
-        for input_dir in self._list_S3_container(self.input_folder_url, self.extra['s3cmd_conf_location']):
+        for input_dir in self._list_S3_container(self.input_folder_url, self.extra["s3cmd_conf_location"]):
             # check if input_dir is already associated to a running Task
 
             skip = False
@@ -303,7 +293,7 @@ class GeoSphereScript(SessionBasedScript):
             if not skip:
                 # Add as a new task
                 gc3libs.log.debug("Found new model to add: '%s'" % input_dir)
-                task =  self._create_task(input_dir, **self.extra.copy())
+                task = self._create_task(input_dir, **self.extra.copy())
                 self.add(task)
 
         # # Remove all terminated tasks
@@ -330,44 +320,25 @@ class GeoSphereScript(SessionBasedScript):
         if not config.has_section("default"):
             raise ConfigParser.ParsingError("Section 'default' not found")
 
+        self.extra["s3cmd_conf_location"] = validate_config_option(config, "s3cmd_conf_location", DEFAULT_S3CFG)
 
-        self.extra['s3cmd_conf_location'] = validate_config_option(config,
-                                                                   "s3cmd_conf_location",
-                                                                   DEFAULT_S3CFG)
+        self.extra["fs_endpoint"] = validate_config_option(config, "fs_endpoint")
 
-        self.extra['fs_endpoint'] = validate_config_option(config,
-                                                           "fs_endpoint")
+        self.extra["model_input"] = validate_config_option(config, "model_input")
 
-        self.extra['model_input'] = validate_config_option(config,
-                                                           "model_input")
+        self.extra["model_output"] = validate_config_option(config, "model_output")
 
-        self.extra['model_output'] = validate_config_option(config,
-                                                            "model_output")
+        self.extra["computing_resources"] = validate_config_option(config, "computing_resources", DEFAULT_CLOUD_ALL)
 
-        self.extra['computing_resources'] = validate_config_option(config,
-                                                                   "computing_resources",
-                                                                   DEFAULT_CLOUD_ALL)
+        self.extra["max_running"] = validate_config_option(config, "max_running", DEFAULT_MAX_RUNNING)
 
-        self.extra['max_running'] = validate_config_option(config,
-                                                           "max_running",
-                                                           DEFAULT_MAX_RUNNING)
+        self.extra["max_retries"] = validate_config_option(config, "max_retries", DEFAULT_MAX_RETRIES)
 
-        self.extra['max_retries'] = validate_config_option(config,
-                                                           "max_retries",
-                                                           DEFAULT_MAX_RETRIES)
+        self.extra["log_level"] = validate_config_option(config, "log_level", DEFAULT_LOG_LEVEL)
 
-        self.extra['log_level'] = validate_config_option(config,
-                                                         "log_level",
-                                                         DEFAULT_LOG_LEVEL)
+        self.extra["save_simulation_log"] = validate_config_option(config, "save_simulation_log", False)
 
-        self.extra['save_simulation_log'] = validate_config_option(config,
-                                                                   "save_simulation_log",
-                                                                   False)
-
-        self.extra['simulation_log_location'] = validate_config_option(config,
-                                                                       "simulation_log_location",
-                                                                       False)
-
+        self.extra["simulation_log_location"] = validate_config_option(config, "simulation_log_location", False)
 
     def _list_S3_container(self, s3_url, s3_config_file=None):
         """
@@ -390,19 +361,17 @@ class GeoSphereScript(SessionBasedScript):
             if s3_config_file:
                 _command += " -c %s " % s3_config_file
 
-            _command += " ls %s/"  % str(s3_url)
+            _command += " ls %s/" % str(s3_url)
 
-            _process = subprocess.Popen(_command,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE,
-                                        close_fds=True, shell=True)
+            _process = subprocess.Popen(
+                _command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, shell=True
+            )
 
             (out, err) = _process.communicate()
             exitcode = _process.returncode
 
-            if (exitcode != 0):
-                gc3libs.log.error("Failed accessing S3 container. "
-                                  "Exitcode %s, error %s" % (exitcode,err))
+            if exitcode != 0:
+                gc3libs.log.error("Failed accessing S3 container. " "Exitcode %s, error %s" % (exitcode, err))
                 yield None
 
             # Parse 'out_list' result and extract all .tgz or .zip archive names
@@ -413,12 +382,12 @@ class GeoSphereScript(SessionBasedScript):
                     continue
                 # object string format: '2014-01-09 16:41 3627374 s3://a4mesh/model_1.zip'
                 s3_url = s3_obj.split()[3]
-                if(s3_url.startswith("s3://")):
-                   yield s3_url
+                if s3_url.startswith("s3://"):
+                    yield s3_url
 
-        except Exception, ex:
-            gc3libs.log.error("Failed while reading remote S3 container. "+
-                              "%s", ex.message)
+        except Exception as ex:
+            gc3libs.log.error("Failed while reading remote S3 container. " + "%s", ex.message)
+
 
 ##################
 

@@ -24,48 +24,50 @@ It uses the generic `gc3libs.cmdline.SessionBasedScript` framework.
 See the output of ``gipyrad --help`` for program usage instructions.
 """
 
-from __future__ import absolute_import, print_function
 
-__docformat__ = 'reStructuredText'
+# from pkg_resources import Requirement, resource_filename
+import os
+import posix
+
+# gc3 library imports
+import gc3libs
+import gc3libs.url
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file, existing_directory
+from gc3libs.quantity import GB, MB, Duration, GiB, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
+
+__docformat__ = "reStructuredText"
 # summary of user-visible changes
 __changelog__ = """
   2017-11-27:
   * initial working version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@uzh.ch>'
-__docformat__ = 'reStructuredText'
-__version__ = '$Revision$'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@uzh.ch>"
+__docformat__ = "reStructuredText"
+__version__ = "$Revision$"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gipyrad
+
     gipyrad.GipyradScript().run()
 
-#from pkg_resources import Requirement, resource_filename
-import os
-import posix
-
-# gc3 library imports
-import gc3libs
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file, existing_directory
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds, GiB
-from gc3libs.workflow import RetryableTask
-import gc3libs.url
 
 # Default values
-FASTQ_FORMATS = ["fastq","fastq.gz"]
-DATA_PATH="/data"
-IPYRAD_STEPS="1234567"
-IPYRAD_PARAMFILE_NAME="params.txt.modified"
-IPYRAD_COMMAND="sudo docker run --rm -v $PWD:{0} smaffiol/ipyrad -p {0}/{1} -s{2}"
-IPYRAD_PARAMFILE_PATTERN="sorted_fastq_path"
-IPYRAD_PARAMFILE_REPLACEMENT_STRING="{0}/*.fastq.gz".format(DATA_PATH)
+FASTQ_FORMATS = ["fastq", "fastq.gz"]
+DATA_PATH = "/data"
+IPYRAD_STEPS = "1234567"
+IPYRAD_PARAMFILE_NAME = "params.txt.modified"
+IPYRAD_COMMAND = "sudo docker run --rm -v $PWD:{0} smaffiol/ipyrad -p {0}/{1} -s{2}"
+IPYRAD_PARAMFILE_PATTERN = "sorted_fastq_path"
+IPYRAD_PARAMFILE_REPLACEMENT_STRING = "{0}/*.fastq.gz".format(DATA_PATH)
 
 ## Utility methods
+
 
 def get_valid_input_pair(input_folder):
     """
@@ -74,15 +76,19 @@ def get_valid_input_pair(input_folder):
     search for a pair of type [R1,R2].
     Search is done at filename level.
     """
-    R1list = [infile.split('R1')[0] for infile in os.listdir(input_folder) \
-              if infile.endswith('R1.fastq.gz')]
+    R1list = [infile.split("R1")[0] for infile in os.listdir(input_folder) if infile.endswith("R1.fastq.gz")]
 
-    input_list = [(os.path.join(input_folder,
-                                "{0}R1.fastq.gz".format(infile.split('R2')[0])),
-                   os.path.join(input_folder,
-                                "{0}R2.fastq.gz".format(infile.split('R2')[0]))) for infile in os.listdir(input_folder) if infile.endswith('R2.fastq.gz') and infile.split('R2')[0] in R1list]
+    input_list = [
+        (
+            os.path.join(input_folder, "{0}R1.fastq.gz".format(infile.split("R2")[0])),
+            os.path.join(input_folder, "{0}R2.fastq.gz".format(infile.split("R2")[0])),
+        )
+        for infile in os.listdir(input_folder)
+        if infile.endswith("R2.fastq.gz") and infile.split("R2")[0] in R1list
+    ]
 
     return input_list
+
 
 def prepare_ipyrad_param_file(pyrad_param_file):
     """
@@ -90,14 +96,15 @@ def prepare_ipyrad_param_file(pyrad_param_file):
     change [4] to reflect docker invokation:
     /data/*.fastq.gz
     """
-    with open(IPYRAD_PARAMFILE_NAME,'w+') as wd:
-        with open(pyrad_param_file,'r') as fd:
+    with open(IPYRAD_PARAMFILE_NAME, "w+") as wd:
+        with open(pyrad_param_file, "r") as fd:
             for line in fd:
                 if IPYRAD_PARAMFILE_PATTERN in line:
                     wd.write(IPYRAD_PARAMFILE_REPLACEMENT_STRING)
                 else:
                     wd.write(line)
     return wd.name
+
 
 ## custom application class
 class GipyradApplication(Application):
@@ -106,7 +113,7 @@ class GipyradApplication(Application):
     whether optional arguments have been passed.
     """
 
-    application_name = 'gipyrad'
+    application_name = "gipyrad"
 
     def __init__(self, input_files, dockerimage, paramsfile, ipyradsteps, **extra_args):
         """
@@ -122,16 +129,17 @@ class GipyradApplication(Application):
 
         Application.__init__(
             self,
-            arguments = IPYRAD_COMMAND.format(DATA_PATH,
-                                              IPYRAD_PARAMFILE_NAME,
-                                              ipyradsteps),
-            inputs = inputs,
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'gipyrad.log',
+            arguments=IPYRAD_COMMAND.format(DATA_PATH, IPYRAD_PARAMFILE_NAME, ipyradsteps),
+            inputs=inputs,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout="gipyrad.log",
             join=True,
-            **extra_args)
+            **extra_args
+        )
+
 
 ## main script class
+
 
 class GipyradScript(SessionBasedScript):
     """
@@ -154,31 +162,39 @@ newly-created jobs so that this limit is never exceeded.
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__,
-            application = GipyradApplication,
-            stats_only_for = GipyradApplication,
-            )
+            self, version=__version__, application=GipyradApplication, stats_only_for=GipyradApplication
+        )
 
     def setup_args(self):
-        self.add_param('input_folder', type=existing_directory,
-                       help="Path to folder containing fastq files.")
+        self.add_param("input_folder", type=existing_directory, help="Path to folder containing fastq files.")
 
     def setup_options(self):
-        self.add_param("-D", "--dockerimage", metavar="STRING",
-                       dest="dockerimage", default="smaffiol/ipyrad",
-                       help="Docker image to be used to execute ipyrad." \
-                       " Default: %(default)s")
+        self.add_param(
+            "-D",
+            "--dockerimage",
+            metavar="STRING",
+            dest="dockerimage",
+            default="smaffiol/ipyrad",
+            help="Docker image to be used to execute ipyrad." " Default: %(default)s",
+        )
 
-        self.add_param("-S", "--ipyrad-steps", metavar="STRING",
-                       dest="ipyradsteps", default=IPYRAD_STEPS,
-                       help="ipyrad Set of assembly steps to perform." \
-                       " e.g., -S 123. Default: %(default)s")
+        self.add_param(
+            "-S",
+            "--ipyrad-steps",
+            metavar="STRING",
+            dest="ipyradsteps",
+            default=IPYRAD_STEPS,
+            help="ipyrad Set of assembly steps to perform." " e.g., -S 123. Default: %(default)s",
+        )
 
-        self.add_param("-P", "--params", metavar="PATH",
-                       dest="paramsfile", default='./params.txt',
-                       help="path to ipyrad params file for Assembly." \
-                       " Default: %(default)s")
+        self.add_param(
+            "-P",
+            "--params",
+            metavar="PATH",
+            dest="paramsfile",
+            default="./params.txt",
+            help="path to ipyrad params file for Assembly." " Default: %(default)s",
+        )
 
     def new_tasks(self, extra):
 
@@ -191,25 +207,23 @@ newly-created jobs so that this limit is never exceeded.
             jobname = "%s" % os.path.basename(input_file[0]).split(".fastq.gz")[0]
 
             extra_args = extra.copy()
-            extra_args['jobname'] = jobname
+            extra_args["jobname"] = jobname
 
             # FIXME: ignore SessionBasedScript feature of customizing
             # output folder
-            extra_args['output_dir'] = self.params.output
+            extra_args["output_dir"] = self.params.output
 
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", jobname)
 
             self.log.info("Creating Task: [{0}]".format(jobname))
 
-            tasks.append(GipyradApplication(
-                input_file,
-                self.params.dockerimage,
-                paramsfile,
-                self.params.ipyradsteps,
-                **extra_args
-            ))
+            tasks.append(
+                GipyradApplication(
+                    input_file, self.params.dockerimage, paramsfile, self.params.ipyradsteps, **extra_args
+                )
+            )
 
         return tasks

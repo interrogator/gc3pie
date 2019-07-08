@@ -29,13 +29,13 @@ which will exit with an exit code between 1 and 6.
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #
-__docformat__ = 'reStructuredText'
+__docformat__ = "reStructuredText"
 
 
-from __future__ import absolute_import
 import gc3libs
 import gc3libs.cmdline
 import gc3libs.workflow
+
 
 class SimpleScript(gc3libs.cmdline.SessionBasedScript):
     """
@@ -47,29 +47,31 @@ class SimpleScript(gc3libs.cmdline.SessionBasedScript):
     even exit code``, otherwise it will write ``previous application
     exited with an odd exit code``.
     """
-    version = '0.1'
-    
+
+    version = "0.1"
+
     def new_tasks(self, extra):
         yield (
-            'Dice App',
+            "Dice App",
             DiceApplication,
             [
-                
                 gc3libs.Application(
-                    arguments = ["bash", "-c", "exit $[$RANDOM%6]"],
-                    inputs = [],
-                    outputs = [],
-                    output_dir = 'DiceApp',
-                    stderr='stderr.txt',
-                    stdout='stdout.txt',
+                    arguments=["bash", "-c", "exit $[$RANDOM%6]"],
+                    inputs=[],
+                    outputs=[],
+                    output_dir="DiceApp",
+                    stderr="stderr.txt",
+                    stdout="stdout.txt",
                     **extra
-                    )
-                ],
-            extra)
+                )
+            ],
+            extra,
+        )
 
 
 if __name__ == "__main__":
     from exercise_F import SimpleScript
+
     SimpleScript().run()
 
 
@@ -79,11 +81,10 @@ class DiceApplication(gc3libs.workflow.RetryableTask):
 
     Then, depending on the exit code of the first application, decide
     which application to run next.
-    
     """
 
     def retry(self):
-        print "Previous application returned: %s" % self.task.execution.returncode
+        print("Previous application returned: %s" % self.task.execution.returncode)
         if self.task.execution.returncode == 1:
             return False
         else:

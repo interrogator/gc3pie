@@ -14,28 +14,27 @@ Test interaction with the SLURM batch-queueing system.
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import object
-__docformat__ = 'reStructuredText'
 
 import datetime
 import os
 import tempfile
 
-import mock
-import pytest
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import object
 
 import gc3libs
-import gc3libs.core
 import gc3libs.config
-from gc3libs.exceptions import LRMSError
-from gc3libs.quantity import kB, seconds, minutes
-
+import gc3libs.core
+import mock
+import pytest
 from faketransport import FakeTransport
+from gc3libs.exceptions import LRMSError
+from gc3libs.quantity import kB, minutes, seconds
 
 
 def sbatch_submit_ok(jobid=123):
@@ -45,26 +44,30 @@ def sbatch_submit_ok(jobid=123):
         # stdout
         ("Submitted batch job %d\n" % jobid),
         # stderr
-        '')
+        "",
+    )
+
 
 def sbatch_submit_failed(jobid=123):
     return (
         # command exit code
         1,
         # stdout
-        '',
+        "",
         # stderr
-        'sbatch: error: Batch job submission failed:'
-        ' Invalid account or account/partition combination specified')
+        "sbatch: error: Batch job submission failed:" " Invalid account or account/partition combination specified",
+    )
+
 
 def sacct_no_accounting(jobid=123):
     return (
         # command exitcode
         1,
         # stdout
-        '',
+        "",
         # stderr
-        'SLURM accounting storage is disabled\n')
+        "SLURM accounting storage is disabled\n",
+    )
 
 
 def squeue_pending(jobid=123):
@@ -73,9 +76,10 @@ def squeue_pending(jobid=123):
         # command exitcode
         0,
         # stdout
-        ('%d^PENDING^Resources' % jobid),
+        ("%d^PENDING^Resources" % jobid),
         # stderr
-        '')
+        "",
+    )
 
 
 def squeue_running(jobid=123):
@@ -84,9 +88,10 @@ def squeue_running(jobid=123):
         # command exitcode
         0,
         # stdout
-        ('%d^RUNNING^None' % jobid),
+        ("%d^RUNNING^None" % jobid),
         # stderr
-        '')
+        "",
+    )
 
 
 def squeue_recently_completed(jobid=123):
@@ -95,9 +100,10 @@ def squeue_recently_completed(jobid=123):
         # command exitcode
         0,
         # stdout
-        '',
+        "",
         # stderr
-        '')
+        "",
+    )
 
 
 def squeue_notfound(jobid=123):
@@ -106,9 +112,10 @@ def squeue_notfound(jobid=123):
         # command exitcode
         1,
         # stdout
-        '',
+        "",
         # stderr
-        'slurm_load_jobs error: Invalid job id specified')
+        "slurm_load_jobs error: Invalid job id specified",
+    )
 
 
 def scancel_success(jobid=123):
@@ -120,10 +127,10 @@ def scancel_notfound(jobid=123):
         # command exitcode
         1,
         # stdout
-        '',
+        "",
         # stderr
-        ('scancel: error: Kill job error on job id %d: '
-         'Invalid job id specified' % jobid))
+        ("scancel: error: Kill job error on job id %d: " "Invalid job id specified" % jobid),
+    )
 
 
 def scancel_permission_denied(jobid=123):
@@ -133,8 +140,8 @@ def scancel_permission_denied(jobid=123):
         # stdout
         "",
         # stderr
-        "scancel: error: Kill job error on job id %d: "
-        "Access/permission denied\n" % jobid)
+        "scancel: error: Kill job error on job id %d: " "Access/permission denied\n" % jobid,
+    )
 
 
 def sacct_notfound(jobid=123):
@@ -145,7 +152,8 @@ def sacct_notfound(jobid=123):
         # stdout
         "",
         # stderr
-        "")
+        "",
+    )
 
 
 def sacct_done_ok(jobid=123):
@@ -157,9 +165,12 @@ def sacct_done_ok(jobid=123):
         """
 {jobid}|0:0|COMPLETED|1|00:08:07|05:05.002|2016-02-16T12:16:33|2016-02-16T14:24:46|2016-02-16T14:32:53|||
 {jobid}.batch|0:0|COMPLETED|1|00:08:07|05:05.002|2016-02-16T14:24:46|2016-02-16T14:24:46|2016-02-16T14:32:53|1612088K|7889776K|
-        """.strip().format(jobid=jobid),
+        """.strip().format(
+            jobid=jobid
+        ),
         # stderr
-        "")
+        "",
+    )
 
 
 def sacct_done_bad_timestamps(jobid=123):
@@ -173,9 +184,12 @@ def sacct_done_bad_timestamps(jobid=123):
         """
 {jobid}|0:0|COMPLETED|1|00:01:06|00:00:00|2012-09-24T10:48:34|2012-09-24T10:47:28|2012-09-24T10:48:34|||
 {jobid}.0|0:0|COMPLETED|1|00:01:05|00:00:00|2012-09-24T10:47:29|2012-09-24T10:47:29|2012-09-24T10:48:34|0|0|
-        """.strip().format(jobid=jobid),
+        """.strip().format(
+            jobid=jobid
+        ),
         # stderr
-        "")
+        "",
+    )
 
 
 def sacct_done_parallel(jobid=123):
@@ -187,9 +201,13 @@ def sacct_done_parallel(jobid=123):
         """
 {jobid}|0:0|COMPLETED|64|00:00:23|00:01.452|2012-09-04T11:18:06|2012-09-04T11:18:24|2012-09-04T11:18:47|||
 {jobid}.batch|0:0|COMPLETED|1|00:00:23|00:01.452|2012-09-04T11:18:24|2012-09-04T11:18:24|2012-09-04T11:18:47|7884K|49184K|
-        """.strip().format(jobid=jobid),
+        """.strip().format(
+            jobid=jobid
+        ),
         # stderr
-        "")
+        "",
+    )
+
 
 def sacct_done_cancelled(jobid=123):
     return (
@@ -199,33 +217,45 @@ def sacct_done_cancelled(jobid=123):
         """
 {jobid}|0:0|CANCELLED by 1000|4|00:00:05|00:00:00|2014-12-11T17:13:39|2014-12-11T17:13:39|2014-12-11T17:13:44|||
 {jobid}.batch|0:15|CANCELLED|1|00:00:05|00:00:00|2014-12-11T17:13:39|2014-12-11T17:13:39|2014-12-11T17:13:44|0|0|
-        """.strip().format(jobid=jobid),
+        """.strip().format(
+            jobid=jobid
+        ),
         # stderr
-        "")
+        "",
+    )
+
 
 def sacct_done_node_fail(jobid=123):
     return (
         # command exitcode
         0,
         # stdout
-        '''
+        """
 {jobid}|1:0|NODE_FAIL|8|01:21:47|00:00:00|2016-09-23T18:44:37|2016-09-23T18:44:37|2016-09-23T20:06:24|||
 {jobid}.0|-2:0|CANCELLED by 1000|8|01:21:47|00:00:00|2016-09-23T18:44:37|2016-09-23T18:44:37|2016-09-23T20:06:24|||
-        '''.strip().format(jobid=jobid),
+        """.strip().format(
+            jobid=jobid
+        ),
         # stderr
-        '')
+        "",
+    )
+
 
 def sacct_done_fail_early(jobid=123):
     return (
         # command exitcode
         0,
         # stdout
-        '''
+        """
 {jobid}|1:0|FAILED|14|00:00:01|00:00:00|2016-10-14T16:14:49|2016-10-14T16:14:49|2016-10-14T16:14:50|||
 {jobid}.batch|1:0|FAILED|14|00:00:01|00:00:00|2016-10-14T16:14:49|2016-10-14T16:14:49|2016-10-14T16:14:50|||
-        '''.strip().format(jobid=jobid),
+        """.strip().format(
+            jobid=jobid
+        ),
         # stderr
-        '')
+        "",
+    )
+
 
 def sacct_done_timeout(jobid=123):
     return (
@@ -235,9 +265,13 @@ def sacct_done_timeout(jobid=123):
         """
 {jobid}|0:1|TIMEOUT|4|00:01:11|00:00:00|2014-12-11T17:10:23|2014-12-11T17:10:23|2014-12-11T17:11:34|||
 {jobid}.batch|0:15|CANCELLED|1|00:01:11|00:00:00|2014-12-11T17:10:23|2014-12-11T17:10:23|2014-12-11T17:11:34|0|0|
-        """.strip().format(jobid=jobid),
+        """.strip().format(
+            jobid=jobid
+        ),
         # stderr
-        "")
+        "",
+    )
+
 
 def sacct_done_relative_timestamps(jobid=123):
     # sample gotten from J.-G. Piccinali, CSCS using SLURM_TIME_FORMAT=relative
@@ -249,9 +283,12 @@ def sacct_done_relative_timestamps(jobid=123):
 {jobid}|0:0|COMPLETED|64|00:00:23|00:01.452|4 Sep 11:18|4 Sep 11:18|4 Sep 11:18|||
 {jobid}.batch|0:0|COMPLETED|1|00:00:23|00:01.452|4 Sep 11:18|4 Sep 11:18|\
 4 Sep 11:18|7884K|49184K|
-        """.strip().format(jobid=jobid),
+        """.strip().format(
+            jobid=jobid
+        ),
         # stderr
-        "")
+        "",
+    )
 
 
 def sacct_done_fractional_rusage(jobid=123):
@@ -273,9 +310,12 @@ def sacct_done_fractional_rusage(jobid=123):
 {jobid}.7|0:0|COMPLETED|1|00:07:10|05:49.074|2013-08-30T23:16:30|2013-08-30T23:16:30|2013-08-30T23:23:40|74364K|401592K|
 {jobid}.8|0:0|COMPLETED|1|00:07:06|05:44.432|2013-08-30T23:16:30|2013-08-30T23:16:30|2013-08-30T23:23:36|74404K|401688K|
 {jobid}.9|0:0|COMPLETED|1|00:07:04|05:45.962|2013-08-30T23:16:30|2013-08-30T23:16:30|2013-08-30T23:23:34|72.50M|401652K|
-        """.strip().format(jobid=jobid),
+        """.strip().format(
+            jobid=jobid
+        ),
         # stderr
-        "")
+        "",
+    )
 
 
 def sacct_almost_done(jobid=123):
@@ -288,9 +328,12 @@ def sacct_almost_done(jobid=123):
         """
 {jobid}|0:0|RUNNING|16|00:00:08|00:00.168|2016-03-31T09:33:25|2016-03-31T09:33:25|Unknown|||
 {jobid}.batch|0:0|COMPLETED|1|00:00:08|00:00.168|2016-03-31T09:33:25|2016-03-31T09:33:25|2016-03-31T09:33:33|22212K|67032K|
-        """.strip().format(jobid=jobid),
+        """.strip().format(
+            jobid=jobid
+        ),
         # stderr
-        "")
+        "",
+    )
 
 
 def sacct_done_ok2(jobid=123):
@@ -303,26 +346,29 @@ def sacct_done_ok2(jobid=123):
         """
 {jobid}|0:0|COMPLETED|16|00:00:08|00:00.168|2016-03-31T09:33:25|2016-03-31T09:33:25|2016-03-31T09:33:33|||
 {jobid}.batch|0:0|COMPLETED|1|00:00:08|00:00.168|2016-03-31T09:33:25|2016-03-31T09:33:25|2016-03-31T09:33:33|22212K|67032K|
-        """.strip().format(jobid=jobid),
+        """.strip().format(
+            jobid=jobid
+        ),
         # stderr
-        "")
+        "",
+    )
 
 
 State = gc3libs.Run.State
 
 
 class FakeApp(gc3libs.Application):
-
     def __init__(self):
         gc3libs.Application.__init__(
             self,
-            arguments=['/bin/hostname'],               # mandatory
-            inputs=[],                  # mandatory
-            outputs=[],                 # mandatory
-            output_dir="./fakedir",    # mandatory
+            arguments=["/bin/hostname"],  # mandatory
+            inputs=[],  # mandatory
+            outputs=[],  # mandatory
+            output_dir="./fakedir",  # mandatory
             stdout="stdout.txt",
             stderr="stderr.txt",
-            requested_cores=1,)
+            requested_cores=1,
+        )
 
 
 class TestBackendSlurm(object):
@@ -349,7 +395,7 @@ username=NONEXISTENT
     @pytest.fixture(autouse=True)
     def setUp(self):
         (fd, self.tmpfile) = tempfile.mkstemp()
-        f = os.fdopen(fd, 'w+')
+        f = os.fdopen(fd, "w+")
         f.write(TestBackendSlurm.CONF)
         f.close()
 
@@ -358,12 +404,12 @@ username=NONEXISTENT
 
         self.core = gc3libs.core.Core(self.cfg)
 
-        self.backend = self.core.get_backend('example')
+        self.backend = self.core.get_backend("example")
         self.backend.transport = FakeTransport()
         self.transport = self.backend.transport
         # basic responses
-        self.transport.expected_answer['squeue'] = squeue_notfound()
-        self.transport.expected_answer['scancel'] = scancel_notfound()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
+        self.transport.expected_answer["scancel"] = scancel_notfound()
 
         yield
 
@@ -372,63 +418,63 @@ username=NONEXISTENT
     def test_sbatch_submit_ok(self):
         """Test `squeue` output parsing with a job in PENDING state."""
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
         assert app.execution.state == State.SUBMITTED
 
     def test_sbatch_submit_failed(self):
         """Test `squeue` output parsing with a job in PENDING state."""
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_failed()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_failed()
         with pytest.raises(LRMSError):
             self.core.submit(app)
-        #assert_equal(app.execution.state, State.NEW)
+        # assert_equal(app.execution.state, State.NEW)
 
     def test_parse_squeue_output_pending(self):
         """Test `squeue` output parsing with a job in PENDING state."""
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
 
-        self.transport.expected_answer['squeue'] = squeue_pending()
+        self.transport.expected_answer["squeue"] = squeue_pending()
         self.core.update_job_state(app)
         assert app.execution.state == State.SUBMITTED
 
     def test_parse_squeue_output_pending_then_running(self):
         """Test `squeue` output parsing with a job in PENDING and then RUNNING state."""
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
 
-        self.transport.expected_answer['squeue'] = squeue_pending()
+        self.transport.expected_answer["squeue"] = squeue_pending()
         self.core.update_job_state(app)
         assert app.execution.state == State.SUBMITTED
 
-        self.transport.expected_answer['squeue'] = squeue_running()
+        self.transport.expected_answer["squeue"] = squeue_running()
         self.core.update_job_state(app)
         assert app.execution.state == State.RUNNING
 
     def test_parse_squeue_output_immediately_running(self):
         """Test `squeue` output parsing with a job that turns immediately to RUNNING state."""
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
 
-        self.transport.expected_answer['squeue'] = squeue_running()
+        self.transport.expected_answer["squeue"] = squeue_running()
         self.core.update_job_state(app)
         assert app.execution.state == State.RUNNING
 
     def test_job_termination1(self):
         """Test that job termination status is correctly reaped if `squeue` fails but `sacct` does not."""
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
 
-        self.transport.expected_answer['squeue'] = squeue_running()
+        self.transport.expected_answer["squeue"] = squeue_running()
         self.core.update_job_state(app)
 
-        self.transport.expected_answer['squeue'] = squeue_notfound()
-        self.transport.expected_answer['env'] = sacct_done_ok()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
+        self.transport.expected_answer["env"] = sacct_done_ok()
         self.core.update_job_state(app)
         assert app.execution.state == State.TERMINATING
 
@@ -437,14 +483,14 @@ username=NONEXISTENT
     def test_job_termination2(self):
         """Test that job termination status is correctly reaped if neither `squeue` nor `sacct` fails."""
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
 
-        self.transport.expected_answer['squeue'] = squeue_running()
+        self.transport.expected_answer["squeue"] = squeue_running()
         self.core.update_job_state(app)
 
-        self.transport.expected_answer['squeue'] = squeue_recently_completed()
-        self.transport.expected_answer['env'] = sacct_done_ok()
+        self.transport.expected_answer["squeue"] = squeue_recently_completed()
+        self.transport.expected_answer["env"] = sacct_done_ok()
         self.core.update_job_state(app)
         assert app.execution.state == State.TERMINATING
 
@@ -453,20 +499,20 @@ username=NONEXISTENT
     def test_job_termination3(self):
         """Test that no state update is performed if both `squeue` and `sacct` fail."""
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
 
-        self.transport.expected_answer['squeue'] = squeue_running()
+        self.transport.expected_answer["squeue"] = squeue_running()
         self.core.update_job_state(app)
 
         # if the second `sacct` fails, we should not do any update
-        self.transport.expected_answer['squeue'] = squeue_recently_completed()
-        self.transport.expected_answer['env'] = sacct_notfound()
+        self.transport.expected_answer["squeue"] = squeue_recently_completed()
+        self.transport.expected_answer["env"] = sacct_notfound()
         self.core.update_job_state(app)
         assert app.execution.state == State.RUNNING
 
-        self.transport.expected_answer['squeue'] = squeue_notfound()
-        self.transport.expected_answer['env'] = sacct_done_ok()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
+        self.transport.expected_answer["env"] = sacct_done_ok()
         self.core.update_job_state(app)
         assert app.execution.state == State.TERMINATING
 
@@ -477,34 +523,16 @@ username=NONEXISTENT
         assert job.cores == 1
         assert job.exitcode == 0
         assert job.signal == 0
-        assert job.duration == 8*minutes + 7*seconds
-        assert job.used_cpu_time == 5*minutes + 5.002*seconds
+        assert job.duration == 8 * minutes + 7 * seconds
+        assert job.used_cpu_time == 5 * minutes + 5.002 * seconds
         assert job.max_used_memory == 7889776 * kB
         # SLURM-specific values
         assert job.slurm_max_used_ram == 1612088 * kB
-        assert (job.slurm_submission_time ==
-                     datetime.datetime(year=2016,
-                                       month=2,
-                                       day=16,
-                                       hour=12,
-                                       minute=16,
-                                       second=33))
-        assert (job.slurm_start_time ==
-                     datetime.datetime(year=2016,
-                                       month=2,
-                                       day=16,
-                                       hour=14,
-                                       minute=24,
-                                       second=46))
-        assert (job.slurm_completion_time ==
-                     datetime.datetime(year=2016,
-                                       month=2,
-                                       day=16,
-                                       hour=14,
-                                       minute=32,
-                                       second=53))
+        assert job.slurm_submission_time == datetime.datetime(year=2016, month=2, day=16, hour=12, minute=16, second=33)
+        assert job.slurm_start_time == datetime.datetime(year=2016, month=2, day=16, hour=14, minute=24, second=46)
+        assert job.slurm_completion_time == datetime.datetime(year=2016, month=2, day=16, hour=14, minute=32, second=53)
 
-    @mock.patch('gc3libs.backends.batch.time')
+    @mock.patch("gc3libs.backends.batch.time")
     def test_accounting_delay1(self, mock_time):
         """
         Test that no state update is performed if both `squeue` and `sacct` fail repeatedly within the accounting delay.
@@ -512,29 +540,29 @@ username=NONEXISTENT
         mock_time.time.return_value = 0
 
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
 
-        self.transport.expected_answer['squeue'] = squeue_running()
+        self.transport.expected_answer["squeue"] = squeue_running()
         self.core.update_job_state(app)
         assert app.execution.state == State.RUNNING
 
         # fail repeatedly within the acct delay, no changes to `app.execution`
         for t in 0, 1, 2:
             mock_time.time.return_value = t
-            self.transport.expected_answer['squeue'] = squeue_notfound()
-            self.transport.expected_answer['env'] = sacct_notfound()
+            self.transport.expected_answer["squeue"] = squeue_notfound()
+            self.transport.expected_answer["env"] = sacct_notfound()
             self.core.update_job_state(app)
             assert app.execution.state == State.RUNNING
-            assert hasattr(app.execution, 'stat_failed_at')
+            assert hasattr(app.execution, "stat_failed_at")
             assert app.execution.stat_failed_at == 0
 
-        self.transport.expected_answer['squeue'] = squeue_notfound()
-        self.transport.expected_answer['env'] = sacct_done_ok()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
+        self.transport.expected_answer["env"] = sacct_done_ok()
         self.core.update_job_state(app)
         assert app.execution.state == State.TERMINATING
 
-    @mock.patch('gc3libs.backends.batch.time')
+    @mock.patch("gc3libs.backends.batch.time")
     def test_accounting_delay2(self, mock_time):
         """
         Test that an error is raised if both `squeue` and `sacct` fail repeatedly, exceeding the accounting delay.
@@ -542,30 +570,30 @@ username=NONEXISTENT
         mock_time.time.return_value = 0
 
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
 
-        self.transport.expected_answer['squeue'] = squeue_running()
+        self.transport.expected_answer["squeue"] = squeue_running()
         self.core.update_job_state(app)
         assert app.execution.state == State.RUNNING
 
         # fail first within the acct delay, no changes to `app.execution`
         mock_time.time.return_value = 0
-        self.transport.expected_answer['squeue'] = squeue_notfound()
-        self.transport.expected_answer['env'] = sacct_notfound()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
+        self.transport.expected_answer["env"] = sacct_notfound()
         self.core.update_job_state(app)
         assert app.execution.state == State.RUNNING
-        assert hasattr(app.execution, 'stat_failed_at')
+        assert hasattr(app.execution, "stat_failed_at")
         assert app.execution.stat_failed_at == 0
 
         # fail again, outside the accounting delay
         mock_time.time.return_value = 2000
-        self.transport.expected_answer['squeue'] = squeue_notfound()
-        self.transport.expected_answer['env'] = sacct_notfound()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
+        self.transport.expected_answer["env"] = sacct_notfound()
         self.core.update_job_state(app)
         assert app.execution.state == State.UNKNOWN
 
-    @mock.patch('gc3libs.backends.batch.time')
+    @mock.patch("gc3libs.backends.batch.time")
     def test_accounting_delay3(self, mock_time):
         """
         Test that no state update is performed if `squeue` and `sacct` disagree on the job status, within the "accounting delay" limit.
@@ -573,36 +601,36 @@ username=NONEXISTENT
         mock_time.time.return_value = 0
 
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
 
-        self.transport.expected_answer['squeue'] = squeue_running()
+        self.transport.expected_answer["squeue"] = squeue_running()
         self.core.update_job_state(app)
         assert app.execution.state == State.RUNNING
 
         # fail repeatedly within the acct delay, no changes to `app.execution`
         for t in 1, 2, 3:
             mock_time.time.return_value = t
-            self.transport.expected_answer['squeue'] = squeue_notfound()
-            self.transport.expected_answer['env'] = sacct_almost_done()
+            self.transport.expected_answer["squeue"] = squeue_notfound()
+            self.transport.expected_answer["env"] = sacct_almost_done()
             self.core.update_job_state(app)
             assert app.execution.state == State.RUNNING
-            assert hasattr(app.execution, 'stat_failed_at')
+            assert hasattr(app.execution, "stat_failed_at")
             assert app.execution.stat_failed_at == 1
 
-        self.transport.expected_answer['squeue'] = squeue_notfound()
-        self.transport.expected_answer['env'] = sacct_done_ok2()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
+        self.transport.expected_answer["env"] = sacct_done_ok2()
         self.core.update_job_state(app)
         assert app.execution.state == State.TERMINATING
 
     def test_parse_sacct_output_parallel(self):
         """Test `sacct` output with a successful parallel job."""
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
-        self.transport.expected_answer['squeue'] = squeue_notfound()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
         # self.transport.expected_answer['sacct'] = sacct_done_parallel()
-        self.transport.expected_answer['env'] = sacct_done_parallel()
+        self.transport.expected_answer["env"] = sacct_done_parallel()
         self.core.update_job_state(app)
         assert app.execution.state == State.TERMINATING
 
@@ -616,36 +644,18 @@ username=NONEXISTENT
         assert job.used_cpu_time == 1.452 * seconds
         # SLURM-specific values
         assert job.slurm_max_used_ram == 7884 * kB
-        assert (job.slurm_submission_time ==
-                     datetime.datetime(year=2012,
-                                       month=9,
-                                       day=4,
-                                       hour=11,
-                                       minute=18,
-                                       second=6))
-        assert (job.slurm_start_time ==
-                     datetime.datetime(year=2012,
-                                       month=9,
-                                       day=4,
-                                       hour=11,
-                                       minute=18,
-                                       second=24))
-        assert (job.slurm_completion_time ==
-                     datetime.datetime(year=2012,
-                                       month=9,
-                                       day=4,
-                                       hour=11,
-                                       minute=18,
-                                       second=47))
+        assert job.slurm_submission_time == datetime.datetime(year=2012, month=9, day=4, hour=11, minute=18, second=6)
+        assert job.slurm_start_time == datetime.datetime(year=2012, month=9, day=4, hour=11, minute=18, second=24)
+        assert job.slurm_completion_time == datetime.datetime(year=2012, month=9, day=4, hour=11, minute=18, second=47)
 
     def test_parse_sacct_output_bad_timestamps(self):
         """Test `sacct` output with out-of-order timestamps."""
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
-        self.transport.expected_answer['squeue'] = squeue_notfound()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
         # self.transport.expected_answer['sacct'] = sacct_done_bad_timestamps()
-        self.transport.expected_answer['env'] = sacct_done_bad_timestamps()
+        self.transport.expected_answer["env"] = sacct_done_bad_timestamps()
         self.core.update_job_state(app)
         assert app.execution.state == State.TERMINATING
 
@@ -658,35 +668,17 @@ username=NONEXISTENT
         assert job.used_cpu_time == 0 * seconds
         # SLURM-specific values
         assert job.slurm_max_used_ram == 0 * kB
-        assert (job.slurm_submission_time ==
-                     datetime.datetime(year=2012,
-                                       month=9,
-                                       day=24,
-                                       hour=10,
-                                       minute=47,
-                                       second=28))
-        assert (job.slurm_start_time ==
-                     datetime.datetime(year=2012,
-                                       month=9,
-                                       day=24,
-                                       hour=10,
-                                       minute=47,
-                                       second=29))
-        assert (job.slurm_completion_time ==
-                     datetime.datetime(year=2012,
-                                       month=9,
-                                       day=24,
-                                       hour=10,
-                                       minute=48,
-                                       second=34))
+        assert job.slurm_submission_time == datetime.datetime(year=2012, month=9, day=24, hour=10, minute=47, second=28)
+        assert job.slurm_start_time == datetime.datetime(year=2012, month=9, day=24, hour=10, minute=47, second=29)
+        assert job.slurm_completion_time == datetime.datetime(year=2012, month=9, day=24, hour=10, minute=48, second=34)
 
     def test_parse_sacct_output_fractional_rusage(self):
         """Test `sacct` output with fractional resource usage."""
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
-        self.transport.expected_answer['squeue'] = squeue_notfound()
-        self.transport.expected_answer['env'] = sacct_done_fractional_rusage()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
+        self.transport.expected_answer["env"] = sacct_done_fractional_rusage()
         self.core.update_job_state(app)
         assert app.execution.state == State.TERMINATING
 
@@ -699,112 +691,95 @@ username=NONEXISTENT
         assert job.used_cpu_time == 58 * minutes + 10.420 * seconds
         # SLURM-specific values
         assert job.slurm_max_used_ram == 74404 * kB
-        assert (job.slurm_submission_time ==
-                     datetime.datetime(year=2013,
-                                       month=8,
-                                       day=30,
-                                       hour=23,
-                                       minute=16,
-                                       second=22))
-        assert (job.slurm_start_time ==
-                     datetime.datetime(year=2013,
-                                       month=8,
-                                       day=30,
-                                       hour=23,
-                                       minute=16,
-                                       second=22))
-        assert (job.slurm_completion_time ==
-                     datetime.datetime(year=2013,
-                                       month=8,
-                                       day=30,
-                                       hour=23,
-                                       minute=23,
-                                       second=51))
+        assert job.slurm_submission_time == datetime.datetime(year=2013, month=8, day=30, hour=23, minute=16, second=22)
+        assert job.slurm_start_time == datetime.datetime(year=2013, month=8, day=30, hour=23, minute=16, second=22)
+        assert job.slurm_completion_time == datetime.datetime(year=2013, month=8, day=30, hour=23, minute=23, second=51)
 
     def test_parse_sacct_output_timeout(self):
         """Test `sacct` when job reaches its time limit"""
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
-        self.transport.expected_answer['squeue'] = squeue_notfound()
-        self.transport.expected_answer['env'] = sacct_done_timeout()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
+        self.transport.expected_answer["env"] = sacct_done_timeout()
         self.core.update_job_state(app)
         job = app.execution
 
-        assert job.state ==    State.TERMINATING
+        assert job.state == State.TERMINATING
         assert job.exitcode == os.EX_TEMPFAIL
-        assert job.signal ==   int(gc3libs.Run.Signals.RemoteKill)
+        assert job.signal == int(gc3libs.Run.Signals.RemoteKill)
 
     def test_parse_sacct_output_node_fail(self):
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
-        self.transport.expected_answer['squeue'] = squeue_notfound()
-        self.transport.expected_answer['env'] = sacct_done_node_fail()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
+        self.transport.expected_answer["env"] = sacct_done_node_fail()
         self.core.update_job_state(app)
         job = app.execution
 
-        assert job.state ==    State.TERMINATING
+        assert job.state == State.TERMINATING
         assert job.exitcode == os.EX_TEMPFAIL
-        assert job.signal ==   int(gc3libs.Run.Signals.RemoteError)
+        assert job.signal == int(gc3libs.Run.Signals.RemoteError)
 
     def test_parse_sacct_output_fail_early(self):
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
-        self.transport.expected_answer['squeue'] = squeue_notfound()
-        self.transport.expected_answer['env'] = sacct_done_fail_early()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
+        self.transport.expected_answer["env"] = sacct_done_fail_early()
         self.core.update_job_state(app)
         job = app.execution
 
-        assert job.state ==    State.TERMINATING
+        assert job.state == State.TERMINATING
         assert job.exitcode == 1
-        assert job.signal ==   0
+        assert job.signal == 0
 
     def test_parse_sacct_output_job_cancelled(self):
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
-        self.transport.expected_answer['squeue'] = squeue_notfound()
-        self.transport.expected_answer['env'] = sacct_done_cancelled()
+        self.transport.expected_answer["squeue"] = squeue_notfound()
+        self.transport.expected_answer["env"] = sacct_done_cancelled()
         self.core.update_job_state(app)
         job = app.execution
 
-        assert job.state ==    State.TERMINATING
+        assert job.state == State.TERMINATING
         assert job.exitcode == os.EX_TEMPFAIL
-        assert job.signal ==   int(gc3libs.Run.Signals.RemoteKill)
+        assert job.signal == int(gc3libs.Run.Signals.RemoteKill)
 
     def test_cancel_job1(self):
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
 
-        self.transport.expected_answer['scancel'] = scancel_success()
-        self.transport.expected_answer['env'] = sacct_done_cancelled()
+        self.transport.expected_answer["scancel"] = scancel_success()
+        self.transport.expected_answer["env"] = sacct_done_cancelled()
         self.core.kill(app)
         assert app.execution.state == State.TERMINATED
 
     def test_cancel_job2(self):
         app = FakeApp()
-        self.transport.expected_answer['sbatch'] = sbatch_submit_ok()
+        self.transport.expected_answer["sbatch"] = sbatch_submit_ok()
         self.core.submit(app)
         assert app.execution.state == State.SUBMITTED
 
-        self.transport.expected_answer['scancel'] = scancel_permission_denied()
+        self.transport.expected_answer["scancel"] = scancel_permission_denied()
         self.core.kill(app)
         assert app.execution.state == State.TERMINATED
 
     def test_get_command(self):
-        assert self.backend.sbatch == ['sbatch']
-        assert self.backend._sacct == 'sacct'
-        assert self.backend._scancel == 'scancel'
-        assert self.backend._squeue == 'squeue'
+        assert self.backend.sbatch == ["sbatch"]
+        assert self.backend._sacct == "sacct"
+        assert self.backend._scancel == "scancel"
+        assert self.backend._squeue == "squeue"
 
 
 def test_get_command_alternate():
     (fd, tmpfile) = tempfile.mkstemp()
-    f = os.fdopen(fd, 'w+')
-    f.write("""
+    f = os.fdopen(fd, "w+")
+    f.write(
+        """
 [auth/ssh]
 type=ssh
 username=NONEXISTENT
@@ -826,22 +801,23 @@ sbatch  = /usr/local/bin/sbatch --constraint=gpu
 sacct   = /usr/local/sbin/sacct
 scancel = /usr/local/bin/scancel # comments are ignored!
 squeue  = /usr/local/bin/squeue
-""")
+"""
+    )
     f.close()
 
     cfg = gc3libs.config.Configuration()
     cfg.merge_file(tmpfile)
     os.remove(tmpfile)
-    b = cfg.make_resources()['example']
+    b = cfg.make_resources()["example"]
 
-    assert b.sbatch == ['/usr/local/bin/sbatch', '--constraint=gpu']
-    assert b._sacct == '/usr/local/sbin/sacct'
-    assert b._scancel == '/usr/local/bin/scancel'
-    assert b._squeue == '/usr/local/bin/squeue'
+    assert b.sbatch == ["/usr/local/bin/sbatch", "--constraint=gpu"]
+    assert b._sacct == "/usr/local/sbin/sacct"
+    assert b._scancel == "/usr/local/bin/scancel"
+    assert b._squeue == "/usr/local/bin/squeue"
 
 
 def test_count_jobs():
-    squeue_stdout = '''474867^PENDING^first_user^21913^Priority^(Priority)
+    squeue_stdout = """474867^PENDING^first_user^21913^Priority^(Priority)
 474870^PENDING^first_user^21913^Priority^(Priority)
 475753^PENDING^first_user^21913^Resources^(Resources)
 475747^PENDING^first_user^21913^Resources^(Resources)
@@ -869,22 +845,21 @@ def test_count_jobs():
 475736^RUNNING^first_user^21913^None^nid0[0041,1512]
 475651^RUNNING^second_user^21239^None^nid00[026,217,867,924]
 475726^RUNNING^first_user^21913^None^nid00[742-743]
-'''
+"""
     # first user has 4 running jobs and 5 queued ones
-    R, Q, r, q = gc3libs.backends.slurm.count_jobs(squeue_stdout, 'first_user')
+    R, Q, r, q = gc3libs.backends.slurm.count_jobs(squeue_stdout, "first_user")
     assert R == 11
     assert Q == 5
     assert r == 4
     assert q == 5
     # second user has 6 running jobs and no queued ones
-    R, Q, r, q = gc3libs.backends.slurm.count_jobs(squeue_stdout,
-                                                   'second_user')
+    R, Q, r, q = gc3libs.backends.slurm.count_jobs(squeue_stdout, "second_user")
     assert R == 11
     assert Q == 5
     assert r == 6
     assert q == 0
     # third user has only 1 running job
-    R, Q, r, q = gc3libs.backends.slurm.count_jobs(squeue_stdout, 'third_user')
+    R, Q, r, q = gc3libs.backends.slurm.count_jobs(squeue_stdout, "third_user")
     assert R == 11
     assert Q == 5
     assert r == 1

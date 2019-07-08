@@ -19,18 +19,16 @@
 #
 
 # stdlib imports
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
-from builtins import object
+
 from abc import ABCMeta, abstractmethod
+from builtins import object, str
 
 # GC3Pie imports
 import gc3libs
-from gc3libs.url import Url
 from future.utils import with_metaclass
+from gc3libs.url import Url
 
-
-__docformat__ = 'reStructuredText'
+__docformat__ = "reStructuredText"
 
 
 class Store(with_metaclass(ABCMeta, object)):
@@ -101,8 +99,7 @@ class Store(with_metaclass(ABCMeta, object)):
         This is an optional method; classes that do not implement it
         should raise a `NotImplementedError` exception.
         """
-        raise NotImplementedError(
-            "Method `list` not implemented in this class.")
+        raise NotImplementedError("Method `list` not implemented in this class.")
 
     @abstractmethod
     def load(self, id_):
@@ -200,12 +197,9 @@ def register(scheme, constructor):
     """
     global _registered_store_ctors
     assert callable(constructor), (
-        "Registering non-callable constructor for scheme "
-        "'%s' in `gc3libs.persistence.register`"
-        % scheme)
-    gc3libs.log.debug(
-        "Registering scheme '%s' with the `gc3libs.persistence` registry.",
-        scheme)
+        "Registering non-callable constructor for scheme " "'%s' in `gc3libs.persistence.register`" % scheme
+    )
+    gc3libs.log.debug("Registering scheme '%s' with the `gc3libs.persistence` registry.", scheme)
     _registered_store_ctors[str(scheme)] = constructor
 
 
@@ -240,47 +234,45 @@ def make_store(uri, *args, **extra_args):
     # since SQLAlchemy allows URIs of the form `db+driver://...`
     # (e.g., `postresql+psycopg://...`) we need to examine the URI
     # scheme only up to the first `+`
-    scheme = uri.scheme.split('+')[0]
+    scheme = uri.scheme.split("+")[0]
 
     try:
         # hard-code schemes that are supported by GC3Pie itself
-        if uri.scheme == 'file':
+        if uri.scheme == "file":
             import gc3libs.persistence.filesystem
-            return gc3libs.persistence.filesystem.make_filesystemstore(
-                uri, *args, **extra_args)
+
+            return gc3libs.persistence.filesystem.make_filesystemstore(uri, *args, **extra_args)
         elif scheme in [
-                # DBs supported in SQLAlchemy core as of version 1.1,
-                # see: http://docs.sqlalchemy.org/en/latest/dialects/index.html
-                'firebird',
-                'mssql',
-                'mysql',
-                'oracle',
-                'postgresql',
-                'sqlite',
-                'sybase',
+            # DBs supported in SQLAlchemy core as of version 1.1,
+            # see: http://docs.sqlalchemy.org/en/latest/dialects/index.html
+            "firebird",
+            "mssql",
+            "mysql",
+            "oracle",
+            "postgresql",
+            "sqlite",
+            "sybase",
         ]:
             import gc3libs.persistence.sql
-            return gc3libs.persistence.sql.make_sqlstore(
-                uri, *args, **extra_args)
+
+            return gc3libs.persistence.sql.make_sqlstore(uri, *args, **extra_args)
         else:
             try:
-                return _registered_store_ctors[
-                    uri.scheme](uri, *args, **extra_args)
+                return _registered_store_ctors[uri.scheme](uri, *args, **extra_args)
             except KeyError:
                 gc3libs.log.error(
-                    "Unknown URL scheme '%s' in"
-                    " `gc3libs.persistence.make_store`:"
-                    " has never been registered.", uri.scheme)
+                    "Unknown URL scheme '%s' in" " `gc3libs.persistence.make_store`:" " has never been registered.",
+                    uri.scheme,
+                )
                 raise
     except Exception as err:
-        gc3libs.log.error(
-            "Error constructing store for URL '%s': %s: %s",
-            uri, err.__class__.__name__, err)
+        gc3libs.log.error("Error constructing store for URL '%s': %s: %s", uri, err.__class__.__name__, err)
         raise
+
 
 # main: run tests
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="store",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="store", optionflags=doctest.NORMALIZE_WHITESPACE)

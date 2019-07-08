@@ -33,44 +33,46 @@ Input parameters consists of:
 Options:
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import shutil
+import sys
+import tempfile
+import time
+
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, MiB, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2015-02-17:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gndn
+
     gndn.GndnScript().run()
 
-import os
-import sys
-import time
-import tempfile
 
-import shutil
 # import csv
 
-from pkg_resources import Requirement, resource_filename
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 DEFAULT_CORES = 4
-DEFAULT_MEMORY = Memory(7,GB)
-DEFAULT_WALLTIME = Duration(200,hours)
+DEFAULT_MEMORY = Memory(7, GB)
+DEFAULT_WALLTIME = Duration(200, hours)
 
 ## custom application class
 class GndnApplication(Application):
@@ -83,46 +85,50 @@ class GndnApplication(Application):
     A convenient wrapper script is provided to facilitate how the command file
     is executed on the remote end.
     """
-    application_name = 'gndn'
+
+    application_name = "gndn"
 
     def __init__(self, input_folder, **extra_args):
 
-        self.output_dir = extra_args['output_dir']
+        self.output_dir = extra_args["output_dir"]
         self.input_folder = input_folder
 
         inputs = dict()
         outputs = dict()
 
-        gndn_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gndn_wrapper.sh")
+        gndn_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gndn_wrapper.sh")
 
         inputs[gndn_wrapper_sh] = os.path.basename(gndn_wrapper_sh)
 
         inputs[input_folder] = "%s/" % os.path.basename(input_folder)
-        outputs[os.path.join(os.path.basename(input_folder),"results")] = "results/"
+        outputs[os.path.join(os.path.basename(input_folder), "results")] = "results/"
 
-        arguments = "./%s %s" % (inputs[gndn_wrapper_sh],inputs[input_folder])
+        arguments = "./%s %s" % (inputs[gndn_wrapper_sh], inputs[input_folder])
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gndn.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout="gndn.log",
             join=True,
-            executables = "./%s" % os.path.basename(input_folder),
-            **extra_args)
+            executables="./%s" % os.path.basename(input_folder),
+            **extra_args
+        )
 
     def terminated(self):
         """
         Move results into original results folder
         """
         gc3libs.log.info("Application terminated with exit code %s" % self.execution.exitcode)
-        for result in os.listdir(os.path.join(self.output_dir,"results/")):
-            shutil.move(os.path.join(self.output_dir,"results/",result),
-                        os.path.join(self.input_folder,"results",os.path.basename(result)))
+        for result in os.listdir(os.path.join(self.output_dir, "results/")):
+            shutil.move(
+                os.path.join(self.output_dir, "results/", result),
+                os.path.join(self.input_folder, "results", os.path.basename(result)),
+            )
         # Cleanup
-        os.removedirs(os.path.join(self.output_dir,"results/"))
+        os.removedirs(os.path.join(self.output_dir, "results/"))
+
 
 class GndnScript(SessionBasedScript):
     """
@@ -147,14 +153,14 @@ class GndnScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GndnApplication,
+            version=__version__,  # module version == script version
+            application=GndnApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GndnApplication,
-            )
+            stats_only_for=GndnApplication,
+        )
 
     def parse_args(self):
         """
@@ -164,8 +170,8 @@ class GndnScript(SessionBasedScript):
             if not os.path.isdir(folder_name):
                 gc3libs.log.error(
                     "Invalid input folder: {folder_name}."
-                    " Removing it from input list"
-                    .format(folder_name=folder_name))
+                    " Removing it from input list".format(folder_name=folder_name)
+                )
                 self.params.args.remove(folder_name)
 
     def new_tasks(self, extra):
@@ -181,14 +187,12 @@ class GndnScript(SessionBasedScript):
 
             extra_args = extra.copy()
 
-            extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', 'run_%s' % jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', 'run_%s' % jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', 'run_%s' % jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', 'run_%s' % jobname)
+            extra_args["output_dir"] = self.params.output
+            extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", "run_%s" % jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", "run_%s" % jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", "run_%s" % jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", "run_%s" % jobname)
 
-            tasks.append(GndnApplication(
-                os.path.abspath(input_folder),
-                **extra_args))
+            tasks.append(GndnApplication(os.path.abspath(input_folder), **extra_args))
 
         return tasks

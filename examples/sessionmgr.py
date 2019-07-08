@@ -23,7 +23,6 @@ can still connect to the XML-RPC interface and manage existing tasks.
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import (absolute_import, division, print_function)
 
 from gc3libs.cmdline import SessionBasedDaemon
 
@@ -35,11 +34,13 @@ class SessionManagerDaemon(SessionBasedDaemon):
     Load and progress all tasks from an existing session.
     Allow managing said tasks via the server's XML-RPC interface.
     """
-    version = '1.0'
+
+    version = "1.0"
 
 
 ## main: run server
 
 if "__main__" == __name__:
     from sessionmgr import SessionManagerDaemon
+
     SessionManagerDaemon().run()

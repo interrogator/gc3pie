@@ -18,20 +18,20 @@ Repeatedly execute a given command.
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-__author__ = 'Riccardo Murri <riccardo.murri@gmail.com>'
+__author__ = "Riccardo Murri <riccardo.murri@gmail.com>"
 # summary of user-visible changes
 __changelog__ = """
   2018-09-25:
     * Initial version.
 """
-__docformat__ = 'reStructuredText'
+__docformat__ = "reStructuredText"
 
 
 # Workaround for Issue 95: import this module and run it first
 # for details, see: https://github.com/uzh/gc3pie/issues/95
-if __name__ == '__main__':
-from __future__ import absolute_import
+if __name__ == "__main__":
     import repeat
+
     repeat.Script().run()
 
 
@@ -50,6 +50,7 @@ import gc3libs.utils
 
 ## the main class, implementing CLI functionality
 
+
 class Script(SessionBasedScript):
     # the docstring of this class is printed with `--help`
     """
@@ -57,18 +58,14 @@ class Script(SessionBasedScript):
     """
 
     def __init__(self):
-        SessionBasedScript.__init__(
-            self,
-            version = '1.0',
-        )
+        SessionBasedScript.__init__(self, version="1.0")
 
     def setup_options(self):
         """
         Add command-specific options
         to the general ones provided by `SessionBasedScript`.
         """
-        self.add_param("-n", "--times", type=int,
-                       help="Number of iterations.")
+        self.add_param("-n", "--times", type=int, help="Number of iterations.")
 
     def setup_args(self):
         """
@@ -78,22 +75,14 @@ class Script(SessionBasedScript):
         (optionally) additional ARGs.  They will be concatenated to
         form the actual command-line to run.
         """
-        self.add_param('command', help="Command to run")
-        self.add_param('args', nargs='*', metavar='ARG',
-                       help="Additional arguments for COMMAND")
+        self.add_param("command", help="Command to run")
+        self.add_param("args", nargs="*", metavar="ARG", help="Additional arguments for COMMAND")
 
     def new_tasks(self, extra):
         """
         Return list of tasks to be executed in a newly-created session.
         """
-        return [
-            RepeatingCommand(
-                self.params.times,
-                [self.params.command] + self.params.args,
-                **extra.copy()
-            ),
-        ]
-
+        return [RepeatingCommand(self.params.times, [self.params.command] + self.params.args, **extra.copy())]
 
 
 ## support classes
@@ -103,6 +92,7 @@ class Script(SessionBasedScript):
 # an application of the `self.params.executable` function.
 #
 # This is the crucial point:
+
 
 class RepeatingCommand(SequentialTaskCollection):
     """
@@ -129,7 +119,6 @@ class RepeatingCommand(SequentialTaskCollection):
         initial_task = _CommandLineApp(0, self.cmdline)
         SequentialTaskCollection.__init__(self, [initial_task], **extra_args)
 
-
     def next(self, iteration):
         """
         If there are more iterations to go, enqueue the corresponding jobs.
@@ -142,7 +131,7 @@ class RepeatingCommand(SequentialTaskCollection):
             self.execution.returncode = last_application.execution.returncode
             return Run.State.TERMINATED
         else:
-            self.add(_CommandLineApp(iteration+1, self.cmdline))
+            self.add(_CommandLineApp(iteration + 1, self.cmdline))
             return Run.State.RUNNING
 
 
@@ -162,12 +151,11 @@ class _CommandLineApp(Application):
 
     def __init__(self, iteration, exec_args, **extra_args):
         super(CommandLineApp, self).__init__(
-            arguments = exec_args,
-            inputs = [],  # no input file staged in
-            outputs = [],  # no output files collected
-            output_dir = os.path.join(
-                os.getcwd(), "repeat_run_{0}.d".format(iteration)),
-            stdout = "stdout.txt",
-            stderr = "stderr.txt",
+            arguments=exec_args,
+            inputs=[],  # no input file staged in
+            outputs=[],  # no output files collected
+            output_dir=os.path.join(os.getcwd(), "repeat_run_{0}.d".format(iteration)),
+            stdout="stdout.txt",
+            stderr="stderr.txt",
             **extra_args
         )

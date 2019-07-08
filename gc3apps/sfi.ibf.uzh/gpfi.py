@@ -32,44 +32,45 @@ Example:
 ...
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import shutil
+import sys
+import tempfile
+import time
+
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2016-04-20:
   * Initial version
 """
-__author__ = 'Tyanko Aleksiev <tyanko.aleksiev@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Tyanko Aleksiev <tyanko.aleksiev@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 if __name__ == "__main__":
     import gpfi
+
     gpfi.GpfiScript().run()
 
-import os
-import sys
-import time
-import tempfile
-
-import shutil
-
-from pkg_resources import Requirement, resource_filename
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 ## custom application class
 class GpfiApplication(Application):
     """
     Custom class to wrap the execution of the matlab script passed in src_dir.
     """
-    application_name = 'gpfi'
+
+    application_name = "gpfi"
 
     def __init__(self, parameter, model, **extra_args):
 
@@ -77,22 +78,22 @@ class GpfiApplication(Application):
         outputs = dict()
 
         # execution wrapper needs to be added anyway
-        gpfi_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gpfi.sh")
+        gpfi_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gpfi.sh")
         inputs[gpfi_wrapper_sh] = os.path.basename(gpfi_wrapper_sh)
         inputs[model] = os.path.basename(model)
 
-        _command = "%s %s" % (os.path.basename(gpfi_wrapper_sh), ' '.join(str(x) for x in parameter))
+        _command = "%s %s" % (os.path.basename(gpfi_wrapper_sh), " ".join(str(x) for x in parameter))
 
         Application.__init__(
             self,
-            arguments = _command,
-            inputs = inputs,
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'gpfi.log',
+            arguments=_command,
+            inputs=inputs,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout="gpfi.log",
             join=True,
-            executables = "./%s" % os.path.basename(gpfi_wrapper_sh),
-            **extra_args)
+            executables="./%s" % os.path.basename(gpfi_wrapper_sh),
+            **extra_args
+        )
 
 
 class GpfiScript(SessionBasedScript):
@@ -117,25 +118,23 @@ class GpfiScript(SessionBasedScript):
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__,
-            application = GpfiApplication,
-            stats_only_for = GpfiApplication,
-            )
+            self, version=__version__, application=GpfiApplication, stats_only_for=GpfiApplication
+        )
 
     def setup_args(self):
-        self.add_param('model', type=str, help="Location of the matlab scripts and related MAtlab functions. Default: None")
+        self.add_param(
+            "model", type=str, help="Location of the matlab scripts and related MAtlab functions. Default: None"
+        )
 
     def setup_args(self):
-        self.add_param('csv_input_file', type=str, help="Input .csv file")
+        self.add_param("csv_input_file", type=str, help="Input .csv file")
 
     def parse_args(self):
         """
         Check presence of input folder (should contains matlab scripts).
         path to command_file should also be valid.
         """
-        assert os.path.isfile(self.params.csv_input_file), \
-        "Input CSV file %s not found" % self.params.csv_input_file
+        assert os.path.isfile(self.params.csv_input_file), "Input CSV file %s not found" % self.params.csv_input_file
 
     def new_tasks(self, extra):
         """
@@ -144,26 +143,22 @@ class GpfiScript(SessionBasedScript):
         tasks = []
 
         for parameter in self._enumerate_csv(self.params.csv_input_file):
-            parameter_str = '.'.join(str(x) for x in parameter)
+            parameter_str = ".".join(str(x) for x in parameter)
             jobname = "gpfi-%s" % parameter_str
 
             extra_args = extra.copy()
 
-            extra_args['jobname'] = jobname
+            extra_args["jobname"] = jobname
 
-            extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', jobname)
+            extra_args["output_dir"] = self.params.output
+            extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", jobname)
 
-            self.log.debug("Creating Application for parameter : %s" %
-                           (parameter_str))
+            self.log.debug("Creating Application for parameter : %s" % (parameter_str))
 
-            tasks.append(GpfiApplication(
-                    parameter,
-                    self.param.model,
-                    **extra_args))
+            tasks.append(GpfiApplication(parameter, self.param.model, **extra_args))
 
         return tasks
 
@@ -171,7 +166,7 @@ class GpfiScript(SessionBasedScript):
         """
         For each line of the input .csv file return list of parameters
         """
-        csv_file = open(csv_input, 'rb')
+        csv_file = open(csv_input, "rb")
         csv_reader = csv.reader(csv_file)
         next(csv_reader, None)
         for row in reader:

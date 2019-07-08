@@ -35,43 +35,44 @@ http://www.icsi.berkeley.edu/~storn/DeMat.zip hosted on http://www.icsi.berkeley
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__author__ = "Benjamin Jonen <benjamin.jonen@bf.uzh.ch>"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import range
-__author__ = 'Benjamin Jonen <benjamin.jonen@bf.uzh.ch>'
-__docformat__ = 'reStructuredText'
-
 
 import logging
 import os
 import sys
 
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import range
+
 import numpy as np
 
-from gc3libs.optimizer import EvolutionaryAlgorithm
-from gc3libs.optimizer import draw_population, populate
+from gc3libs.optimizer import EvolutionaryAlgorithm, draw_population, populate
 from gc3libs.utils import Enum
+
+__docformat__ = "reStructuredText"
+
 
 # in code one can use:
 #  `strategies.DE_rand`
 # or:
 #  'DE_rand'
 strategies = Enum(
-    'DE_rand',
-    'DE_local_to_best',
-    'DE_best_with_jitter',
-    'DE_rand_with_per_vector_dither',
-    'DE_rand_with_per_generation_dither',
-    'DE_rand_either_or_algorithm'
+    "DE_rand",
+    "DE_local_to_best",
+    "DE_best_with_jitter",
+    "DE_rand_with_per_vector_dither",
+    "DE_rand_with_per_generation_dither",
+    "DE_rand_either_or_algorithm",
 )
 
 
 class DifferentialEvolutionAlgorithm(EvolutionaryAlgorithm):
 
-    '''Differential Evolution Algorithm class.
+    """Differential Evolution Algorithm class.
     :class:`DifferentialEvolutionAlgorithm` explicitly allows for an another
     process to control the optimization. Driver classes can be found
     in `gc3libs.optimizer.drivers.py`:mod:.
@@ -107,27 +108,34 @@ class DifferentialEvolutionAlgorithm(EvolutionaryAlgorithm):
                                            Choosing de_step_size = 0.3 is a good start here.
     6. ``'DE_rand_either_or_algorithm'``: Alternates between differential mutation and three-point- recombination.
 
-    '''
+    """
 
-    def __init__(self, initial_pop,
-                 # DE-specific parameters
-                 de_strategy='DE_rand', de_step_size=0.85, prob_crossover=1.0, exp_cross=False,
-                 # converge-related parameters
-                 itermax=100, dx_conv_crit=None, y_conv_crit=None,
-                 # misc
-                 in_domain=None, seed=None, logger=None, after_update_opt_state=[]):
+    def __init__(
+        self,
+        initial_pop,
+        # DE-specific parameters
+        de_strategy="DE_rand",
+        de_step_size=0.85,
+        prob_crossover=1.0,
+        exp_cross=False,
+        # converge-related parameters
+        itermax=100,
+        dx_conv_crit=None,
+        y_conv_crit=None,
+        # misc
+        in_domain=None,
+        seed=None,
+        logger=None,
+        after_update_opt_state=[],
+    ):
 
         # Check input variables
         assert 0.0 <= prob_crossover <= 1.0, "prob_crossover should be from interval [0,1]"
-        assert len(
-            initial_pop) >= 5, "DifferentialEvolution requires at least 5 vectors in the population!"
+        assert len(initial_pop) >= 5, "DifferentialEvolution requires at least 5 vectors in the population!"
 
         # initialize base class
         EvolutionaryAlgorithm.__init__(
-            self,
-            initial_pop,
-            itermax, dx_conv_crit, y_conv_crit,
-            logger, after_update_opt_state
+            self, initial_pop, itermax, dx_conv_crit, y_conv_crit, logger, after_update_opt_state
         )
         # save parameters
         self.de_step_size = de_step_size
@@ -147,20 +155,20 @@ class DifferentialEvolutionAlgorithm(EvolutionaryAlgorithm):
         return np.array([True] * self.pop_size)
 
     def select(self, new_pop, new_vals):
-        '''
+        """
         Perform a one-on-one battle by index, keeping the member
         with lowest corresponding value.
-        '''
+        """
         ix_superior = new_vals < self.vals
         self.pop[ix_superior, :] = new_pop[ix_superior, :].copy()
         self.vals[ix_superior] = new_vals[ix_superior].copy()
 
     def evolve(self):
-        '''
+        """
         Generates a new population fullfilling `in_domain`.
 
         :rtype: list of population members
-        '''
+        """
         return populate(
             create_fn=(
                 lambda: DifferentialEvolutionAlgorithm.evolve_fn(
@@ -170,18 +178,14 @@ class DifferentialEvolutionAlgorithm(EvolutionaryAlgorithm):
                     self.dim,
                     self.best_x,
                     self.de_strategy,
-                    self.exp_cross)),
-            in_domain=self.in_domain)
+                    self.exp_cross,
+                )
+            ),
+            in_domain=self.in_domain,
+        )
 
     @staticmethod
-    def evolve_fn(
-            population,
-            prob_crossover,
-            de_step_size,
-            dim,
-            best_iter,
-            de_strategy,
-            exp_cross):
+    def evolve_fn(population, prob_crossover, de_step_size, dim, best_iter, de_strategy, exp_cross):
         """
         Return new population, evolved according to `de_strategy`.
 
@@ -202,16 +206,11 @@ class DifferentialEvolutionAlgorithm(EvolutionaryAlgorithm):
         # index that leaves creates no shuffling.
         # index pointer array. e.g. [2, 1, 4, 3]
         ind = np.random.permutation(4) + 1
-        rot = np.arange(
-            0,
-            pop_size,
-            1)     # rotating index array (size pop_size)
-        rt = np.zeros(pop_size)            # another rotating index array
+        rot = np.arange(0, pop_size, 1)  # rotating index array (size pop_size)
+        rt = np.zeros(pop_size)  # another rotating index array
         # index arrays
-        a1 = np.random.permutation(pop_size)   # shuffle locations of vectors
-        a2 = a1[
-            (rot + ind[0]) %
-            pop_size]  # rotate vector locations by ind[0] positions
+        a1 = np.random.permutation(pop_size)  # shuffle locations of vectors
+        a2 = a1[(rot + ind[0]) % pop_size]  # rotate vector locations by ind[0] positions
         a3 = a2[(rot + ind[1]) % pop_size]
         a4 = a3[(rot + ind[2]) % pop_size]
         a5 = a4[(rot + ind[3]) % pop_size]
@@ -223,10 +222,10 @@ class DifferentialEvolutionAlgorithm(EvolutionaryAlgorithm):
         pm5 = population[a5, :]  # shuffled population matrix 5
 
         # "best member" matrix
-        bm = np.zeros((pop_size, dim))   # initialize FVr_bestmember  matrix
+        bm = np.zeros((pop_size, dim))  # initialize FVr_bestmember  matrix
         # population filled with the best member
         for k in range(pop_size):
-            bm[k, :] = best_iter                       # of the last iteration
+            bm[k, :] = best_iter  # of the last iteration
 
         # mask for intermediate population
         # all random numbers < prob_crossover are 1, 0 otherwise
@@ -253,60 +252,48 @@ class DifferentialEvolutionAlgorithm(EvolutionaryAlgorithm):
         # inverse mask to mui (mpo + mui == <vector of 1's>)
         mpo = mui < 0.5
 
-        if (de_strategy == 'DE_rand'):
-            #origin = pm3
-            ui = pm3 + de_step_size * (pm1 - pm2)   # differential variation
-            ui = population * mpo + ui * mui          # crossover
-        elif (de_strategy == 'DE_local_to_best'):
-            #origin = population
-            ui = population + de_step_size * \
-                (bm - population) + de_step_size * (pm1 - pm2)
+        if de_strategy == "DE_rand":
+            # origin = pm3
+            ui = pm3 + de_step_size * (pm1 - pm2)  # differential variation
+            ui = population * mpo + ui * mui  # crossover
+        elif de_strategy == "DE_local_to_best":
+            # origin = population
+            ui = population + de_step_size * (bm - population) + de_step_size * (pm1 - pm2)
             ui = population * mpo + ui * mui
-        elif (de_strategy == 'DE_best_with_jitter'):
-            #origin = bm
-            ui = bm + (pm1 - pm2) * ((1 - 0.9999) * \
-                       np.random.random_sample((pop_size, dim)) + de_step_size) 
+        elif de_strategy == "DE_best_with_jitter":
+            # origin = bm
+            ui = bm + (pm1 - pm2) * ((1 - 0.9999) * np.random.random_sample((pop_size, dim)) + de_step_size)
             ui = population * mpo + ui * mui
-        elif (de_strategy == 'DE_rand_with_per_vector_dither'):
-            #origin = pm3
-            f1 = (
-                (1 -
-                 de_step_size) *
-                np.random.random_sample(
-                    (pop_size,
-                     1)) +
-                de_step_size)
+        elif de_strategy == "DE_rand_with_per_vector_dither":
+            # origin = pm3
+            f1 = (1 - de_step_size) * np.random.random_sample((pop_size, 1)) + de_step_size
             for k in range(dim):
                 pm5[:, k] = f1
-            ui = pm3 + (pm1 - pm2) * pm5    # differential variation
-            ui = population * mpo + ui * mui     # crossover
-        elif (de_strategy == 'DE_rand_with_per_generation_dither'):
-            #origin = pm3
-            f1 = (
-                (1 -
-                 de_step_size) *
-                np.random.random_sample() +
-                de_step_size)
-            ui = pm3 + (pm1 - pm2) * f1         # differential variation
-            ui = population * mpo + ui * mui   # crossover
-        elif (de_strategy == 'DE_rand_either_or_algorithm'):
-            #origin = pm3
+            ui = pm3 + (pm1 - pm2) * pm5  # differential variation
+            ui = population * mpo + ui * mui  # crossover
+        elif de_strategy == "DE_rand_with_per_generation_dither":
+            # origin = pm3
+            f1 = (1 - de_step_size) * np.random.random_sample() + de_step_size
+            ui = pm3 + (pm1 - pm2) * f1  # differential variation
+            ui = population * mpo + ui * mui  # crossover
+        elif de_strategy == "DE_rand_either_or_algorithm":
+            # origin = pm3
             # Pmu = 0.5
-            if (np.random.random_sample() < 0.5):
+            if np.random.random_sample() < 0.5:
                 ui = pm3 + de_step_size * (pm1 - pm2)  # differential variation
             # use F-K-Rule: K = 0.5(F+1)
             else:
                 ui = pm3 + 0.5 * (de_step_size + 1.0) * (pm1 + pm2 - 2 * pm3)
-                ui = population * mpo + ui * mui     # crossover
+                ui = population * mpo + ui * mui  # crossover
 
         return ui
 
     # Adjustments for pickling
     def __getstate__(self):
         state = self.__dict__.copy()
-        if 'logger' in list(state.keys()):
-            del state['logger']
-#        return state
+        if "logger" in list(state.keys()):
+            del state["logger"]
+        #        return state
         return None
 
     def __setstate__(self, state):

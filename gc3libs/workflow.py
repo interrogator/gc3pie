@@ -21,25 +21,23 @@ can implement problem-specific job control policies.
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
-from builtins import range
-from builtins import object
-__docformat__ = 'reStructuredText'
 
 import itertools
 import os
 
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import object, range, str
 from collections import defaultdict
-from gc3libs.compat.toposort import toposort
 
-from gc3libs import Run, Task
 import gc3libs.exceptions
 import gc3libs.utils
+from gc3libs import Run, Task
+from gc3libs.compat.toposort import toposort
 
 
 class TaskCollection(Task):
@@ -75,11 +73,10 @@ class TaskCollection(Task):
             # this task collection
             itertools.repeat(self, 1),
             # iterator over non-collection subtasks
-            (task for task in self.tasks
-                if not isinstance(task, TaskCollection)),
+            (task for task in self.tasks if not isinstance(task, TaskCollection)),
             # recurse into collection subtasks
-            *(coll.iter_workflow() for coll in self.tasks
-                if isinstance(coll, TaskCollection)))
+            *(coll.iter_workflow() for coll in self.tasks if isinstance(coll, TaskCollection))
+        )
 
     def iter_tasks(self):
         """
@@ -103,13 +100,14 @@ class TaskCollection(Task):
             if self._changed:
                 return True
             for task in self.tasks:
-                if '_changed' in task:
+                if "_changed" in task:
                     if task._changed:
                         return True
             return False
 
         def fset(self, value):
             self._changed = value
+
         return locals()
 
     # manipulate the "controller" interface used to control the associated task
@@ -119,8 +117,8 @@ class TaskCollection(Task):
         associated with this task.
         """
         raise NotImplementedError(
-            "Called abstract method TaskCollection.attach() -"
-            " this should be overridden in derived classes.")
+            "Called abstract method TaskCollection.attach() -" " this should be overridden in derived classes."
+        )
 
     def detach(self):
         for task in self.tasks:
@@ -132,8 +130,8 @@ class TaskCollection(Task):
         Add a task to the collection.
         """
         raise NotImplementedError(
-            "Called abstract method TaskCollection.add() -"
-            " this should be overridden in derived classes.")
+            "Called abstract method TaskCollection.add() -" " this should be overridden in derived classes."
+        )
 
     def remove(self, task):
         """
@@ -147,8 +145,8 @@ class TaskCollection(Task):
 
     def submit(self, resubmit=False, targets=None, **extra_args):
         raise NotImplementedError(
-            "Called abstract method TaskCollection.submit() -"
-            " this should be overridden in derived classes.")
+            "Called abstract method TaskCollection.submit() -" " this should be overridden in derived classes."
+        )
 
     def update_state(self, **extra_args):
         """
@@ -156,16 +154,14 @@ class TaskCollection(Task):
         """
         for task in self.tasks:
             if task.execution.state not in [Run.State.NEW, Run.State.TERMINATED]:
-                gc3libs.log.debug(
-                    "Updating state of task %s in collection %s ...",
-                    task, self)
+                gc3libs.log.debug("Updating state of task %s in collection %s ...", task, self)
                 task.update_state(**extra_args)
 
     def kill(self, **extra_args):
         # XXX: provide default implementation that kills all jobs?
         raise NotImplementedError(
-            "Called abstract method TaskCollection.kill() -"
-            " this should be overridden in derived classes.")
+            "Called abstract method TaskCollection.kill() -" " this should be overridden in derived classes."
+        )
 
     def _get_download_dir(self, download_dir):
         """
@@ -190,27 +186,26 @@ class TaskCollection(Task):
                     " with no explicit download directory,"
                     " but object '%s' (%s) has no `output_dir`"
                     " attribute set either. Using `%s` as collection's"
-                    " base output directory."
-                    % (self, type(self), cwd))
+                    " base output directory." % (self, type(self), cwd)
+                )
                 return cwd
 
-    def fetch_output(self, output_dir=None,
-                     overwrite=False, changed_only=True, **extra_args):
+    def fetch_output(self, output_dir=None, overwrite=False, changed_only=True, **extra_args):
         # if `output_dir` is not None, it is interpreted as the base
         # directory where to download files; each task will get its
         # own subdir based on its `.persistent_id`
         coll_output_dir = self._get_download_dir(output_dir)
-        assert coll_output_dir is not None, \
-            ("Unknown collection output directory!"
-             " Task collection '%s' was not initialized with"
-             " an explicit `output_dir=...` setting,"
-             " but then `fetch_output()` was called without any"
-             " explicit `output_dir=...` argument."
-             % (self,))
+        assert coll_output_dir is not None, (
+            "Unknown collection output directory!"
+            " Task collection '%s' was not initialized with"
+            " an explicit `output_dir=...` setting,"
+            " but then `fetch_output()` was called without any"
+            " explicit `output_dir=...` argument." % (self,)
+        )
         for task in self.tasks:
             if task.execution.state != Run.State.TERMINATING:
                 continue
-            if 'output_dir' in task:
+            if "output_dir" in task:
                 task_output_dir = task.output_dir
             else:
                 task_output_dir = task.persistent_id
@@ -218,17 +213,9 @@ class TaskCollection(Task):
             # path is absolute, the first path is discarded and the
             # second one is returned unchanged
             task_output_dir = os.path.join(coll_output_dir, task_output_dir)
-            self._controller.fetch_output(
-                task,
-                task_output_dir,
-                overwrite,
-                changed_only,
-                **extra_args)
+            self._controller.fetch_output(task, task_output_dir, overwrite, changed_only, **extra_args)
         # NOTE: `all()` of an empty list comprehension is ``True``
-        all_tasks_terminated = all(
-            task.execution.state == Run.State.TERMINATED
-            for task in self.tasks
-        )
+        all_tasks_terminated = all(task.execution.state == Run.State.TERMINATED for task in self.tasks)
         if all_tasks_terminated:
             self.execution.state = Run.State.TERMINATED
         return coll_output_dir
@@ -248,9 +235,7 @@ class TaskCollection(Task):
         a generic collection of tasks.
         """
         # is there any sensible semantic here?
-        raise gc3libs.exceptions.InvalidOperation(
-            "Cannot `peek()` on a task collection.")
-
+        raise gc3libs.exceptions.InvalidOperation("Cannot `peek()` on a task collection.")
 
     def stats(self, only=None):
         """
@@ -277,14 +262,13 @@ class TaskCollection(Task):
             result[state] += 1
             if state == Run.State.TERMINATED:
                 if task.execution.returncode == 0:
-                    result['ok'] += 1
+                    result["ok"] += 1
                 else:
-                    result['failed'] += 1
+                    result["failed"] += 1
         if only:
-            result['total'] = len([task for task in self.tasks
-                                   if isinstance(task, only)])
+            result["total"] = len([task for task in self.tasks if isinstance(task, only)])
         else:
-            result['total'] = len(self.tasks)
+            result["total"] = len(self.tasks)
         return result
 
     def terminated(self):
@@ -298,9 +282,7 @@ class TaskCollection(Task):
         If no tasks were run, the exitcode is set to 0.
         """
         if self.tasks:
-            self.execution._exitcode = max(
-                task.execution._exitcode for task in self.tasks
-            )
+            self.execution._exitcode = max(task.execution._exitcode for task in self.tasks)
         else:
             # a sequence with no tasks terminates successfully
             self.execution._exitcode = 0
@@ -348,7 +330,7 @@ class SequentialTaskCollection(TaskCollection):
         """
         if self._current_task is not None:
             self.tasks[self._current_task].kill(**extra_args)
-            for i in range(self._current_task+1, len(self.tasks)):
+            for i in range(self._current_task + 1, len(self.tasks)):
                 self.tasks[i].execution.state = Run.State.TERMINATED
                 self.tasks[i].execution.returncode = (Run.Signals.Cancelled, -1)
         self.execution.state = Run.State.TERMINATED
@@ -387,14 +369,12 @@ class SequentialTaskCollection(TaskCollection):
         else:
             return Run.State.RUNNING
 
-
     def progress(self):
         assert self._attached
         task = self.stage()
         if task is not None:
             task.progress()
         super(SequentialTaskCollection, self).progress()
-
 
     def redo(self, from_stage=0, *args, **kwargs):
         """
@@ -407,10 +387,8 @@ class SequentialTaskCollection(TaskCollection):
         """
         nr_tasks = len(self.tasks)
         if nr_tasks > 0:
-            assert from_stage <= nr_tasks, (
-                "Cannot redo {0} from stage {1}:"
-                " only {2} stages in task list."
-                .format(self, from_stage, nr_tasks)
+            assert from_stage <= nr_tasks, "Cannot redo {0} from stage {1}:" " only {2} stages in task list.".format(
+                self, from_stage, nr_tasks
             )
             if from_stage < nr_tasks:
                 self._current_task = from_stage
@@ -418,15 +396,14 @@ class SequentialTaskCollection(TaskCollection):
                 if task is not None:
                     task.redo(*args, **kwargs)
                 # All other tasks should be put in NEW again
-                for i in range(from_stage+1, nr_tasks):
+                for i in range(from_stage + 1, nr_tasks):
                     self.tasks[i].redo(*args, **kwargs)
                 super(SequentialTaskCollection, self).redo(*args, **kwargs)
-            else:   # it's *continue* not *redo*
+            else:  # it's *continue* not *redo*
                 assert self.tasks[-1].execution.state == Run.State.TERMINATED
                 self.execution.state = Run.State.RUNNING
                 self._current_task = nr_tasks - 1
                 self.update_state()  # calls `next()`
-
 
     def submit(self, resubmit=False, targets=None, **extra_args):
         """
@@ -451,7 +428,6 @@ class SequentialTaskCollection(TaskCollection):
         self.changed = True
         return self.execution.state
 
-
     def stage(self):
         """
         Return the `Task` that is currently executing, or ``None``
@@ -462,7 +438,6 @@ class SequentialTaskCollection(TaskCollection):
         else:
             return self.tasks[self._current_task]
 
-
     def update_state(self, **extra_args):
         """
         Update state of the collection, based on the jobs' statuses.
@@ -470,8 +445,7 @@ class SequentialTaskCollection(TaskCollection):
         task = self.stage()
         if task is None:
             # state is either NEW or TERMINATED, no update
-            assert self.execution.state in [
-                Run.State.NEW, Run.State.TERMINATED]
+            assert self.execution.state in [Run.State.NEW, Run.State.TERMINATED]
             return self.execution.state
 
         # update state of current task
@@ -482,27 +456,19 @@ class SequentialTaskCollection(TaskCollection):
         # now set state based on the state of current task:
         #
         # 1. first task ever gets special treatment
-        if (self._current_task == 0
-            and task.execution.state in [
-                Run.State.NEW,
-                Run.State.SUBMITTED,
-            ]):
+        if self._current_task == 0 and task.execution.state in [Run.State.NEW, Run.State.SUBMITTED]:
             # avoid state flapping back to NEW if it's already SUBMITTED
             if self.execution.state == Run.State.NEW:
                 self.execution.state = task.execution.state
             return self.execution.state
 
         # 2. if current task is terminated, advance to next one
-        if (task.execution.state == Run.State.TERMINATED):
+        if task.execution.state == Run.State.TERMINATED:
             nxt = self.next(self._current_task)
             if nxt in Run.State:
                 self.execution.state = nxt
                 collection_state_already_set = True
-                if self.execution.state not in [
-                        Run.State.STOPPED,
-                        Run.State.TERMINATED,
-                        Run.State.TERMINATING,
-                ]:
+                if self.execution.state not in [Run.State.STOPPED, Run.State.TERMINATED, Run.State.TERMINATING]:
                     self._current_task += 1
             else:
                 # `nxt` must be a valid index into `self.tasks`
@@ -510,14 +476,10 @@ class SequentialTaskCollection(TaskCollection):
                 self._current_task = nxt
                 collection_state_already_set = False
             # submit next task, unless we're TERMINATED or STOPPED
-            if self.execution.state not in [
-                    Run.State.STOPPED,
-                    Run.State.TERMINATED,
-                    Run.State.TERMINATING,
-            ]:
+            if self.execution.state not in [Run.State.STOPPED, Run.State.TERMINATED, Run.State.TERMINATING]:
                 next_task = self.tasks[self._current_task]
                 next_task.attach(self._controller)
-                resubmit_task = (next_task.execution.state != Run.State.NEW)
+                resubmit_task = next_task.execution.state != Run.State.NEW
                 next_task.submit(resubmit=resubmit_task)
                 if not collection_state_already_set:
                     self.execution.state = Run.State.RUNNING
@@ -525,26 +487,25 @@ class SequentialTaskCollection(TaskCollection):
             return self.execution.state
 
         # 3. if task stopped, stop the sequence too
-        if (task.execution.state == Run.State.STOPPED):
+        if task.execution.state == Run.State.STOPPED:
             self.execution.state = Run.State.STOPPED
             return self.execution.state
 
         # 4. if task is running or terminating, keep on running
         if task.execution.state in [
-                Run.State.NEW,
-                Run.State.SUBMITTED,
-                Run.State.RUNNING,
-                Run.State.TERMINATING,
-                Run.State.UNKNOWN,
+            Run.State.NEW,
+            Run.State.SUBMITTED,
+            Run.State.RUNNING,
+            Run.State.TERMINATING,
+            Run.State.UNKNOWN,
         ]:
             self.execution.state = Run.State.RUNNING
             return self.execution.state
 
         # 5. this shouldn't happen!
         raise gc3libs.exceptions.InternalError(
-            "Unhandled task state `{0}`"
-            " in SequentialTaskCollection.update_state()"
-            .format(task.execution.state))
+            "Unhandled task state `{0}`" " in SequentialTaskCollection.update_state()".format(task.execution.state)
+        )
 
 
 class _OnError(object):
@@ -624,7 +585,7 @@ class _OnError(object):
         .. _`GitHub issue #512`: https://github.com/uzh/gc3pie/issues/512
         """
         self.execution.returncode = self.tasks[done].execution.returncode
-        if self.complete() and done == len(self.tasks)-1:
+        if self.complete() and done == len(self.tasks) - 1:
             return Run.State.TERMINATED
         else:
             if self.execution.returncode != 0:
@@ -662,6 +623,7 @@ class AbortOnError(_OnError):
 
     .. _`GitHub issue #512`: https://github.com/uzh/gc3pie/issues/512
     """
+
     _on_error_state = Run.State.TERMINATED
 
 
@@ -693,6 +655,7 @@ class StopOnError(_OnError):
 
     .. _`GitHub issue #512`: https://github.com/uzh/gc3pie/issues/512
     """
+
     _on_error_state = Run.State.STOPPED
 
 
@@ -723,8 +686,7 @@ class StagedTaskCollection(SequentialTaskCollection):
             first_stage = self.stage0()
             if isinstance(first_stage, Task):
                 # init parent class with the initial task
-                SequentialTaskCollection.__init__(
-                    self, [first_stage], **extra_args)
+                SequentialTaskCollection.__init__(self, [first_stage], **extra_args)
             elif isinstance(first_stage, (int, int, tuple)):
                 # init parent class with no tasks,
                 # and immediately set the exitcode
@@ -735,19 +697,17 @@ class StagedTaskCollection(SequentialTaskCollection):
                 raise AssertionError(
                     "Invalid return value from method `stage0()` of"
                     " `StagedTaskCollection` object %r:"
-                    " must return `Task` instance or integer exit code" % self)
+                    " must return `Task` instance or integer exit code" % self
+                )
         except AttributeError as ex:
-            raise AssertionError(
-                "Invalid `StagedTaskCollection` instance %r: %s"
-                % (self, str(ex)))
+            raise AssertionError("Invalid `StagedTaskCollection` instance %r: %s" % (self, str(ex)))
 
     def next(self, done):
         # get next stage (1); if none exists, log it and exit
         try:
             next_stage_fn = getattr(self, "stage%d" % (done + 1))
         except AttributeError:
-            gc3libs.log.debug("StagedTaskCollection '%s' has no stage%d,"
-                              " ending sequence now.", self, (done + 1))
+            gc3libs.log.debug("StagedTaskCollection '%s' has no stage%d," " ending sequence now.", self, (done + 1))
             self.execution.returncode = self.tasks[done].execution.returncode
             return Run.State.TERMINATED
         # get next stage (2); if we get an error here, something is wrong in
@@ -755,9 +715,7 @@ class StagedTaskCollection(SequentialTaskCollection):
         try:
             next_stage = next_stage_fn()
         except AttributeError as err:
-            raise AssertionError(
-                "Invalid `StagedTaskCollection` instance %r: %s"
-                % (self, str(err)))
+            raise AssertionError("Invalid `StagedTaskCollection` instance %r: %s" % (self, str(err)))
         # add next stage to the collection, or end graciously
         if isinstance(next_stage, Task):
             self.add(next_stage)
@@ -769,7 +727,8 @@ class StagedTaskCollection(SequentialTaskCollection):
             raise AssertionError(
                 "Invalid return value from method `stage%d()` of"
                 " `StagedTaskCollection` object %r: must return `Task`"
-                " instance or number" % (done + 1, self))
+                " instance or number" % (done + 1, self)
+            )
 
 
 class ParallelTaskCollection(TaskCollection):
@@ -801,12 +760,12 @@ class ParallelTaskCollection(TaskCollection):
         # go through "live" states in order of "importance" and set
         # the full collection state to the first one that has tasks
         for state in [
-                # special/error states of child task:
-                Run.State.STOPPED,
-                Run.State.UNKNOWN,
-                # normal course of action:
-                Run.State.RUNNING,
-                Run.State.SUBMITTED,
+            # special/error states of child task:
+            Run.State.STOPPED,
+            Run.State.UNKNOWN,
+            # normal course of action:
+            Run.State.RUNNING,
+            Run.State.SUBMITTED,
         ]:
             if stats[state] > 0:
                 return state
@@ -822,14 +781,14 @@ class ParallelTaskCollection(TaskCollection):
         if stats[Run.State.TERMINATED] > 0:
             return Run.State.TERMINATED
         if self.tasks:
-            gc3libs.log.error(
-                "BUG! Non-empty task collection %r,"
-                " yet `self.stats()` returned zero...", self)
+            gc3libs.log.error("BUG! Non-empty task collection %r," " yet `self.stats()` returned zero...", self)
         else:
             gc3libs.log.warning(
                 "update_state() called on empty task collection %s"
                 " -- this operation makes no sense,"
-                " setting collection state to `TERMINATED`", self)
+                " setting collection state to `TERMINATED`",
+                self,
+            )
         return Run.State.TERMINATED
 
     def add(self, task):
@@ -872,7 +831,6 @@ class ParallelTaskCollection(TaskCollection):
             task.progress()
         super(ParallelTaskCollection, self).progress()
 
-
     def redo(self, *args, **kwargs):
         """
         Reset collection and all included tasks to state ``NEW``.
@@ -886,7 +844,6 @@ class ParallelTaskCollection(TaskCollection):
             task.redo(*args, **kwargs)
         super(ParallelTaskCollection, self).redo(*args, **kwargs)
 
-
     def submit(self, resubmit=False, targets=None, **extra_args):
         """
         Start all tasks in the collection.
@@ -896,15 +853,13 @@ class ParallelTaskCollection(TaskCollection):
             try:
                 task.submit(resubmit, targets, **extra_args)
                 one_submitted = True
-            except (gc3libs.exceptions.ResourceNotReady,
-                    gc3libs.exceptions.MaximumCapacityReached):
+            except (gc3libs.exceptions.ResourceNotReady, gc3libs.exceptions.MaximumCapacityReached):
                 if one_submitted:
                     # stop submitting tasks
                     break
                 else:
                     raise
         self.execution.state = self._state()
-
 
     def terminated(self):
         """
@@ -915,7 +870,6 @@ class ParallelTaskCollection(TaskCollection):
             if task.execution.returncode != 0:
                 self.execution.exitcode = os.EX_SOFTWARE
 
-
     def update_state(self, **extra_args):
         """
         Update state of all tasks in the collection.
@@ -925,7 +879,6 @@ class ParallelTaskCollection(TaskCollection):
 
 
 class ChunkedParameterSweep(ParallelTaskCollection):
-
     def __init__(self, min_value, max_value, step, chunk_size, **extra_args):
         """
         Like `ParallelTaskCollection`, but generate a sequence of jobs
@@ -952,7 +905,8 @@ class ChunkedParameterSweep(ParallelTaskCollection):
         """
         raise NotImplementedError(
             "Abstract method `ChunkedParameterSweep.new_task()` called -"
-            " this should have been defined in a derived class.")
+            " this should have been defined in a derived class."
+        )
 
     # this is called at every cycle
     def update_state(self, **extra_args):
@@ -974,10 +928,13 @@ class ChunkedParameterSweep(ParallelTaskCollection):
         #                       self._controller.max_in_flight))
         #     self.chunk_size =  self._controller.
         # XXX: shall we als could jobs in Run.State.STOPPED ?
-        num_running = len([task for task in self.tasks if
-                           task.execution.state in [Run.State.NEW,
-                                                    Run.State.SUBMITTED,
-                                                    Run.State.RUNNING]])
+        num_running = len(
+            [
+                task
+                for task in self.tasks
+                if task.execution.state in [Run.State.NEW, Run.State.SUBMITTED, Run.State.RUNNING]
+            ]
+        )
         # Run.State.UNKNOWN ]])
         # add more jobs if we're close to the end
         # XXX: why using 2*self.chunk_size as treshold ?
@@ -986,8 +943,7 @@ class ChunkedParameterSweep(ParallelTaskCollection):
         # if num_running < 2*self.chunk_size and self._floor < self.max_value:
         if 2 * num_running < self.chunk_size and self._floor < self.max_value:
             # generate more tasks
-            top = min(
-                self._floor + (self.chunk_size * self.step), self.max_value)
+            top = min(self._floor + (self.chunk_size * self.step), self.max_value)
             for param in range(self._floor, top, self.step):
                 self.add(self.new_task(param, **extra_args))
             self._floor = top
@@ -1040,14 +996,13 @@ class RetryableTask(Task):
 
         def fset(self, value):
             self._changed = value
+
         return locals()
 
     def __getattr__(self, name):
         """Proxy public attributes of the wrapped task."""
-        if name.startswith('_'):
-            raise AttributeError(
-                "'%s' object has no attribute '%s'"
-                % (self.__class__.__name__, name))
+        if name.startswith("_"):
+            raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
         return getattr(self.task, name)
 
     def retry(self):
@@ -1063,10 +1018,9 @@ class RetryableTask(Task):
         Override this method in subclasses to implement a different
         policy.
         """
-        if (self.task.execution.returncode != 0
-            and ((self.max_retries > 0
-                  and self.retried < self.max_retries)
-                 or self.max_retries == 0)):
+        if self.task.execution.returncode != 0 and (
+            (self.max_retries > 0 and self.retried < self.max_retries) or self.max_retries == 0
+        ):
             return True
         else:
             return False
@@ -1122,19 +1076,14 @@ class RetryableTask(Task):
         elif own_state == Run.State.NEW:
             if task_state == Run.State.NEW:
                 return Run.State.NEW
-            elif task_state in [Run.State.SUBMITTED,
-                                Run.State.RUNNING,
-                                Run.State.STOPPED,
-                                Run.State.UNKNOWN]:
+            elif task_state in [Run.State.SUBMITTED, Run.State.RUNNING, Run.State.STOPPED, Run.State.UNKNOWN]:
                 return task_state
             else:
                 return Run.State.RUNNING
         elif own_state == Run.State.SUBMITTED:
             if task_state in [Run.State.NEW, Run.State.SUBMITTED]:
                 return Run.State.SUBMITTED
-            elif task_state in [Run.State.RUNNING,
-                                Run.State.TERMINATING,
-                                Run.State.TERMINATED]:
+            elif task_state in [Run.State.RUNNING, Run.State.TERMINATING, Run.State.TERMINATED]:
                 return Run.State.RUNNING
             else:
                 return task_state
@@ -1148,19 +1097,19 @@ class RetryableTask(Task):
             assert task_state == Run.State.TERMINATED
             return Run.State.TERMINATED
         elif own_state in [Run.State.STOPPED, Run.State.UNKNOWN]:
-            if task_state in [Run.State.NEW,
-                              Run.State.SUBMITTED,
-                              Run.State.RUNNING,
-                              Run.State.TERMINATING,
-                              Run.State.TERMINATED]:
+            if task_state in [
+                Run.State.NEW,
+                Run.State.SUBMITTED,
+                Run.State.RUNNING,
+                Run.State.TERMINATING,
+                Run.State.TERMINATED,
+            ]:
                 return Run.State.RUNNING
             else:
                 return own_state
         else:
             # should not happen!
-            raise AssertionError(
-                "Unhandled own state '%s' in RetryableTask._recompute_state()",
-                own_state)
+            raise AssertionError("Unhandled own state '%s' in RetryableTask._recompute_state()", own_state)
 
     def update_state(self):
         """
@@ -1171,8 +1120,7 @@ class RetryableTask(Task):
         if self.task.execution.state not in [Run.State.NEW, Run.State.TERMINATED]:
             self.task.update_state()
         own_state_new = self._recompute_state()
-        if (self.task.execution.state == Run.State.TERMINATED
-                and own_state_old != Run.State.TERMINATED):
+        if self.task.execution.state == Run.State.TERMINATED and own_state_old != Run.State.TERMINATED:
             self.execution.returncode = self.task.execution.returncode
             if self.retry():
                 self.retried += 1
@@ -1228,8 +1176,9 @@ class DependentTaskCollection(SequentialTaskCollection):
         **Note:** tasks can only be added to a
         `DependentTaskCollection` while it's in state ``NEW``.
         """
-        assert (self.execution.state == Run.State.NEW), \
-            "Can only add tasks to a DependentTaskCollection while it's in state `NEW`"
+        assert (
+            self.execution.state == Run.State.NEW
+        ), "Can only add tasks to a DependentTaskCollection while it's in state `NEW`"
         # collect all task dependencies
         task_dependencies = self._deps[task]
         task_dependencies.update(after)
@@ -1240,9 +1189,9 @@ class DependentTaskCollection(SequentialTaskCollection):
 
     def submit(self, resubmit=False, targets=None, **extra_args):
         if self.execution.state == Run.State.NEW:
-            extras = {'would_output': self.would_output}
-            if 'output_dir' in self:
-                extras['output_dir'] = self.output_dir
+            extras = {"would_output": self.would_output}
+            if "output_dir" in self:
+                extras["output_dir"] = self.output_dir
             # create DAG from dependency information
             sorted_and_grouped_tasks = toposort(self._deps)
             for batch in sorted_and_grouped_tasks:
@@ -1255,5 +1204,5 @@ class DependentTaskCollection(SequentialTaskCollection):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="dag",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="dag", optionflags=doctest.NORMALIZE_WHITESPACE)

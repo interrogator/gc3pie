@@ -25,7 +25,21 @@ It uses the generic `gc3libs.cmdline.SessionBasedScript` framework.
 See the output of ``smd_projections --help`` for program usage instructions.
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import posix
+import tarfile
+
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+
+# gc3 library imports
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
@@ -33,34 +47,24 @@ __changelog__ = """
   2014-02-27:
   * Initial release, forked off the ``gstructure`` sources.
 """
-__author__ = 'Tyanko Aleksiev <tyanko.aleksiev@chem.uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Tyanko Aleksiev <tyanko.aleksiev@chem.uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gsmd_projections
+
     gsmd_projections.GSMD_ProjectionsScript().run()
 
-from pkg_resources import Requirement, resource_filename
-import os
-import posix
-import tarfile
-
-# gc3 library imports
-import gc3libs.utils
-import gc3libs
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 ## custom application class
 
+
 class GSMD_ProjectionsApplication(Application):
 
-    application_name = 'gsmd_projections'
+    application_name = "gsmd_projections"
 
     def __init__(self, **extra_args):
         """
@@ -68,53 +72,59 @@ class GSMD_ProjectionsApplication(Application):
         """
         files_to_send = []
 
-        smd_projections_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/smd_projections_wrapper.sh")
+        smd_projections_wrapper_sh = resource_filename(
+            Requirement.parse("gc3pie"), "gc3libs/etc/smd_projections_wrapper.sh"
+        )
 
-        basename_input_tar = os.path.basename(extra_args['input_tar'])
-        files_to_send.append((smd_projections_wrapper_sh,os.path.basename(smd_projections_wrapper_sh)))
-        files_to_send.append((extra_args['input_tar'],basename_input_tar))
-
+        basename_input_tar = os.path.basename(extra_args["input_tar"])
+        files_to_send.append((smd_projections_wrapper_sh, os.path.basename(smd_projections_wrapper_sh)))
+        files_to_send.append((extra_args["input_tar"], basename_input_tar))
 
         cmd = "./smd_projections_wrapper.sh -d"
 
-        if 'calibration' in extra_args:
+        if "calibration" in extra_args:
             cmd += " -b "
-            files_to_send.append((extra_args['calibration'],'calibration.tar'))
+            files_to_send.append((extra_args["calibration"], "calibration.tar"))
 
         cmd += " %s " % basename_input_tar
 
-        cmd += " %s " % basename_input_tar.split('.')[0]
+        cmd += " %s " % basename_input_tar.split(".")[0]
 
-        extra_args['requested_memory'] = 6*GB
+        extra_args["requested_memory"] = 6 * GB
 
-        self.output_dir = basename_input_tar.split('.')[0] + "_output"
-        extra_args['output_dir'] = self.output_dir
+        self.output_dir = basename_input_tar.split(".")[0] + "_output"
+        extra_args["output_dir"] = self.output_dir
 
         Application.__init__(
             self,
             # arguments should mimic the command line interfaca of the command to be
             # executed on the remote end
-            arguments = cmd,
-            inputs = files_to_send,
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'smd_projections.log',
+            arguments=cmd,
+            inputs=files_to_send,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout="smd_projections.log",
             join=True,
-            **extra_args)
+            **extra_args
+        )
+
 
 class GSMD_ProjectionsTask(RetryableTask, gc3libs.utils.Struct):
     """
     Run ``smd_projections`` on a given simulation directory until completion.
     """
+
     def __init__(self, **extra_args):
         RetryableTask.__init__(
             self,
             # actual computational job
             GSMD_ProjectionsApplication(**extra_args),
             # keyword arguments
-            **extra_args)
+            **extra_args
+        )
+
 
 ## main script class
+
 
 class GSMD_ProjectionsScript(SessionBasedScript):
     """
@@ -138,30 +148,32 @@ newly-created jobs so that this limit is never exceeded.
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GSMD_ProjectionsTask,
+            version=__version__,  # module version == script version
+            application=GSMD_ProjectionsTask,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GSMD_ProjectionsTask,
-            )
-
+            stats_only_for=GSMD_ProjectionsTask,
+        )
 
     def setup_options(self):
 
-        self.add_param("-b", "--calibration", metavar="CALIBRATION_DIR",
-                       dest="calibration_dir", help="Use a different calibration directory.")
+        self.add_param(
+            "-b",
+            "--calibration",
+            metavar="CALIBRATION_DIR",
+            dest="calibration_dir",
+            help="Use a different calibration directory.",
+        )
 
     def setup_args(self):
 
-        self.add_param('input_source', type=str,
-                       help="Projections input directory")
+        self.add_param("input_source", type=str, help="Projections input directory")
 
     def parse_args(self):
 
         self.params.input_source = os.path.abspath(self.params.input_source)
-
 
     def new_tasks(self, extra):
 
@@ -179,9 +191,8 @@ newly-created jobs so that this limit is never exceeded.
             if os.path.isfile(input_tar_file):
                 try:
                     os.remove(input_tar_file)
-                except OSError, x:
-                    gc3libs.log.error("Failed removing '%s': %s: %s",
-                                      input_tar_file, x.__class__, x.message)
+                except OSError as x:
+                    gc3libs.log.error("Failed removing '%s': %s: %s", input_tar_file, x.__class__, x.message)
                     pass
             tar = tarfile.open(input_tar_file, "w:gz", dereference=True)
             tar.add(projection_dir)
@@ -189,7 +200,6 @@ newly-created jobs so that this limit is never exceeded.
             input_tars.append(tar)
 
         os.chdir(cwd)
-
 
         # Create an archive of the calibration directory
         if os.path.isdir(self.params.calibration_dir):
@@ -199,30 +209,27 @@ newly-created jobs so that this limit is never exceeded.
             if os.path.isfile(calibration_tar_file):
                 try:
                     os.remove(calibration_tar_file)
-                except OSError, x:
-                    gc3libs.log.error("Failed removing '%s': %s: %s",
-                                      calibration_tar_file, x.__class__, x.message)
+                except OSError as x:
+                    gc3libs.log.error("Failed removing '%s': %s: %s", calibration_tar_file, x.__class__, x.message)
                     pass
 
             tar = tarfile.open(calibration_tar_file, "w:gz", dereference=True)
             tar.add(self.params.calibration_dir)
             tar.close()
 
-            extra_args['calibration'] = calibration_tar_file
+            extra_args["calibration"] = calibration_tar_file
 
         for input_tar in input_tars:
 
             jobname = "%s" % input_tar
 
-            extra_args['jobname'] = jobname
+            extra_args["jobname"] = jobname
 
-            extra_args['input_tar'] = self.params.input_source + "/" + os.path.basename(input_tar.name)
+            extra_args["input_tar"] = self.params.input_source + "/" + os.path.basename(input_tar.name)
 
             self.log.info("Creating Task for input file: %s" % input_tar.name)
 
-            tasks.append(GSMD_ProjectionsTask(
-                **extra_args
-                ))
+            tasks.append(GSMD_ProjectionsTask(**extra_args))
 
         return tasks
 
@@ -231,4 +238,4 @@ newly-created jobs so that this limit is never exceeded.
         Return a list of all the directories in the input folder.
         """
 
-        return [ infile for infile in os.listdir(input_folder) if os.path.isdir(os.path.join(input_folder,infile)) ]
+        return [infile for infile in os.listdir(input_folder) if os.path.isdir(os.path.join(input_folder, infile))]

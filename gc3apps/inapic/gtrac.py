@@ -32,158 +32,153 @@ __changelog__ = """
   2016-07-05:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
+# todo: indented whole file below here again...
 if __name__ == "__main__":
-from __future__ import absolute_import, print_function
+
+    import os
+
+    from pkg_resources import Requirement, resource_filename
+
+    import gc3libs
+    import gc3libs.exceptions
+    import gc3libs.utils
+    from gc3libs import Application
+    from gc3libs.cmdline import SessionBasedScript
+    from gc3libs.quantity import GB, MB, Memory
+
+    # todo: unindented this...
     import gtrac
+
     gtrac.GtracScript().run()
 
-import os
-import sys
-import time
-import tempfile
-import re
+    # import csv
 
-import shutil
-# import csv
+    DEFAULT_CORES = 1
+    DEFAULT_MEMORY = Memory(3000, MB)
 
-from pkg_resources import Requirement, resource_filename
+    DEFAULT_REMOTE_INPUT_FOLDER = "./"
+    DEFAULT_REMOTE_OUTPUT_FOLDER = "./output"
+    DMRIC_PATTERN = "dmrirc"
+    DEFAULT_TRAC_COMMAND = "trac-all -prep -c {dmrirc} -debug"
 
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
+    # custom application class
+    class GtracApplication(Application):
+        """
+        """
 
-DEFAULT_CORES = 1
-DEFAULT_MEMORY = Memory(3000,MB)
+        application_name = "gtrac"
 
-DEFAULT_REMOTE_INPUT_FOLDER="./"
-DEFAULT_REMOTE_OUTPUT_FOLDER="./output"
-DMRIC_PATTERN = "dmrirc"
-DEFAULT_TRAC_COMMAND="trac-all -prep -c {dmrirc} -debug"
+        def __init__(self, subject, subject_folder, dmrirc, **extra_args):
 
-## custom application class
-class GtracApplication(Application):
-    """
-    """
-    application_name = 'gtrac'
-    
-    def __init__(self, subject, subject_folder, dmrirc, **extra_args):
+            self.output_dir = extra_args["output_dir"]
 
-        self.output_dir = extra_args['output_dir']
+            inputs = dict()
 
-        inputs = dict()
-        outputs = dict()
+            inputs[subject_folder] = DEFAULT_REMOTE_INPUT_FOLDER
 
-        inputs[subject_folder] = DEFAULT_REMOTE_INPUT_FOLDER
+            # arguments = "trac-all -prep -c %s -debug" % dmrirc
+            # arguments = DEFAULT_TRAC_COMMAND.format(dmrirc=dmrirc)
 
-        # arguments = "trac-all -prep -c %s -debug" % dmrirc
-        # arguments = DEFAULT_TRAC_COMMAND.format(dmrirc=dmrirc)
+            wrapper = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gtrac_wrapper.py")
+            inputs[wrapper] = os.path.basename(wrapper)
 
-        wrapper = resource_filename(Requirement.parse("gc3pie"),
-                                    "gc3libs/etc/gtrac_wrapper.py")
-        inputs[wrapper] = os.path.basename(wrapper)
+            arguments = "./%s %s" % (inputs[wrapper], dmrirc)
 
-        arguments = "./%s %s" % (inputs[wrapper],
-                                 dmrirc)
+            if extra_args["requested_memory"] < DEFAULT_MEMORY:
+                gc3libs.log.warning(
+                    "GtracApplication for subject %s running with memory allocation "
+                    "'%d GB' lower than suggested one: '%d GB',"
+                    % (subject, extra_args["requested_memory"].amount(unit=GB), DEFAULT_MEMORY.amount(unit=GB))
+                )
 
-        if extra_args['requested_memory'] < DEFAULT_MEMORY:
-            gc3libs.log.warning("GtracApplication for subject %s running with memory allocation " \
-                                "'%d GB' lower than suggested one: '%d GB'," % (subject,
-                                                                                extra_args['requested_memory'].amount(unit=GB),
-                                                                                DEFAULT_MEMORY.amount(unit=GB)))
-
-        Application.__init__(
-            self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = [DEFAULT_REMOTE_OUTPUT_FOLDER],
-            stdout = 'gtrac.log',
-            join=True,
-            **extra_args)        
-
-class GtracScript(SessionBasedScript):
-    """
-    
-    The ``gtrac`` command keeps a record of jobs (submitted, executed
-    and pending) in a session file (set name with the ``-s`` option); at
-    each invocation of the command, the status of all recorded jobs is
-    updated, output from finished jobs is collected, and a summary table
-    of all known jobs is printed.
-    
-    Options can specify a maximum number of jobs that should be in
-    'SUBMITTED' or 'RUNNING' state; ``gtrac`` will delay submission of
-    newly-created jobs so that this limit is never exceeded.
-    """
-
-    def __init__(self):
-        SessionBasedScript.__init__(
-            self,
-            version = __version__, # module version == script version
-            application = GtracApplication, 
-            # only display stats for the top-level policy objects
-            # (which correspond to the processed files) omit counting
-            # actual applications because their number varies over
-            # time as checkpointing and re-submission takes place.
-            stats_only_for = GtracApplication,
+            Application.__init__(
+                self,
+                arguments=arguments,
+                inputs=inputs,
+                outputs=[DEFAULT_REMOTE_OUTPUT_FOLDER],
+                stdout="gtrac.log",
+                join=True,
+                **extra_args
             )
- 
-    def setup_args(self):
 
-        self.add_param('input_data', type=str,
-                       help="Root location of input data. "
-                       "Note: expected folder structure: "
-                       " 1 subfodler for each subject. "
-                       " In each subject folder, " 
-                       " 1 subfolder for each TimePoint. "
-                       " Each TimePoint folder should contain 2 input "
-                       "NFTI files.")
-
-    def new_tasks(self, extra):
+    class GtracScript(SessionBasedScript):
         """
-        For each input folder, create an instance of GtracApplication
-        """
-        tasks = []
+        The ``gtrac`` command keeps a record of jobs (submitted, executed
+        and pending) in a session file (set name with the ``-s`` option); at
+        each invocation of the command, the status of all recorded jobs is
+        updated, output from finished jobs is collected, and a summary table
+        of all known jobs is printed.
 
-        for (subject_folder,subject_name, dmric) in self.get_input_subject_folder(self.params.input_data):
-        
-            # extract root folder name to be used as jobname
-            extra_args = extra.copy()
-            extra_args['jobname'] = subject_name
-
-            extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', 
-                                                                        'run_%s' % subject_name)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', 
-                                                                        'run_%s' % subject_name)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', 
-                                                                        'run_%s' % subject_name)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', 
-                                                                        'run_%s' % subject_name)
-            
-            tasks.append(GtracApplication(
-                subject_name,
-                os.path.join(self.params.input_data,subject_folder),
-                dmric,
-                **extra_args))
-            
-        return tasks
-
-    def get_input_subject_folder(self, input_folder):
-        """
-        Check and validate input subfolders
+        Options can specify a maximum number of jobs that should be in
+        'SUBMITTED' or 'RUNNING' state; ``gtrac`` will delay submission of
+        newly-created jobs so that this limit is never exceeded.
         """
 
-        for r,d,f in os.walk(input_folder):
-            for infile in f:
-                if infile.startswith(DMRIC_PATTERN):
-                    yield (os.path.abspath(r),os.path.basename(r),infile)
-        
+        def __init__(self):
+            SessionBasedScript.__init__(
+                self,
+                # todo: what __version__
+                version=__version__,  # module version == script version
+                application=GtracApplication,
+                # only display stats for the top-level policy objects
+                # (which correspond to the processed files) omit counting
+                # actual applications because their number varies over
+                # time as checkpointing and re-submission takes place.
+                stats_only_for=GtracApplication,
+            )
+
+        def setup_args(self):
+
+            self.add_param(
+                "input_data",
+                type=str,
+                help="Root location of input data. "
+                "Note: expected folder structure: "
+                " 1 subfodler for each subject. "
+                " In each subject folder, "
+                " 1 subfolder for each TimePoint. "
+                " Each TimePoint folder should contain 2 input "
+                "NFTI files.",
+            )
+
+        def new_tasks(self, extra):
+            """
+            For each input folder, create an instance of GtracApplication
+            """
+            tasks = []
+
+            for (subject_folder, subject_name, dmric) in self.get_input_subject_folder(self.params.input_data):
+
+                # extract root folder name to be used as jobname
+                extra_args = extra.copy()
+                extra_args["jobname"] = subject_name
+
+                extra_args["output_dir"] = self.params.output
+                extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", "run_%s" % subject_name)
+                extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", "run_%s" % subject_name)
+                extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", "run_%s" % subject_name)
+                extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", "run_%s" % subject_name)
+
+                tasks.append(
+                    GtracApplication(
+                        subject_name, os.path.join(self.params.input_data, subject_folder), dmric, **extra_args
+                    )
+                )
+
+            return tasks
+
+        def get_input_subject_folder(self, input_folder):
+            """
+            Check and validate input subfolders
+            """
+
+            for r, d, f in os.walk(input_folder):
+                for infile in f:
+                    if infile.startswith(DMRIC_PATTERN):
+                        yield (os.path.abspath(r), os.path.basename(r), infile)

@@ -31,55 +31,58 @@ Input parameters consists of:
 Options:
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import re
+import shutil
+import sys
+import tempfile
+import time
+
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, MiB, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2015-02-17:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gfsurfer
+
     gfsurfer.GfsurferScript().run()
 
-import os
-import sys
-import time
-import tempfile
-import re
 
-import shutil
 # import csv
 
-from pkg_resources import Requirement, resource_filename
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 DEFAULT_CORES = 1
-DEFAULT_MEMORY = Memory(3000,MB)
+DEFAULT_MEMORY = Memory(3000, MB)
 
-DEFAULT_REMOTE_OUTPUT_FOLDER="./output/"
+DEFAULT_REMOTE_OUTPUT_FOLDER = "./output/"
 
-INPUT_LIST_PATTERNS = [".nii",".nii.tgz",".nii.gz",".nii.tar.gz"]
-FREESURFER_STEPS = ['cross','long']
+INPUT_LIST_PATTERNS = [".nii", ".nii.tgz", ".nii.gz", ".nii.tar.gz"]
+FREESURFER_STEPS = ["cross", "long"]
 
 ## custom application class
 class GfsurferApplication(Application):
     """
     """
-    application_name = 'gfsurfer'
+
+    application_name = "gfsurfer"
 
     def __init__(self, subject_name, input_nifti, freesurfer_steps, **extra_args):
 
@@ -88,26 +91,29 @@ class GfsurferApplication(Application):
         inputs = dict()
         outputs = dict()
 
-        gfsurfer_wrapper = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gfsurfer_wrapper.py")
+        gfsurfer_wrapper = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gfsurfer_wrapper.py")
         inputs[gfsurfer_wrapper] = os.path.basename(gfsurfer_wrapper)
         inputs[input_nifti] = os.path.basename(input_nifti)
         outputs[output_dir] = output_dir
 
-        arguments = "./%s %s %s %s" % (inputs[gfsurfer_wrapper],
-                                       subject_name,
-                                       os.path.basename(input_nifti),
-                                       DEFAULT_REMOTE_OUTPUT_FOLDER)
+        arguments = "./%s %s %s %s" % (
+            inputs[gfsurfer_wrapper],
+            subject_name,
+            os.path.basename(input_nifti),
+            DEFAULT_REMOTE_OUTPUT_FOLDER,
+        )
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gfsurfer.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout="gfsurfer.log",
             join=True,
-            executables = [os.path.basename(gfsurfer_wrapper)],
-            **extra_args)
+            executables=[os.path.basename(gfsurfer_wrapper)],
+            **extra_args
+        )
+
 
 class GfsurferScript(SessionBasedScript):
     """
@@ -126,28 +132,36 @@ class GfsurferScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GfsurferApplication,
+            version=__version__,  # module version == script version
+            application=GfsurferApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GfsurferApplication,
-            )
+            stats_only_for=GfsurferApplication,
+        )
 
     def setup_args(self):
-        self.add_param('input_data', type=str,
-                       help="Root localtion of input data. "
-                       "Note: expected folder structure: "
-                       " - input files in case of cross sectional runs. "
-                       " - subdirectories with input files for more TP in case of longitudinal ")
+        self.add_param(
+            "input_data",
+            type=str,
+            help="Root localtion of input data. "
+            "Note: expected folder structure: "
+            " - input files in case of cross sectional runs. "
+            " - subdirectories with input files for more TP in case of longitudinal ",
+        )
 
-        self.add_param("-P", "--pipeline", metavar="STRING", type=str,
-                       dest="pipeline",
-                       default="cross",
-                       help="Comma separated list of Freesurfer steps to be "
-                       " executed on each valid input file. "
-                       " Valid values: %s." % FREESURFER_STEPS)
+        self.add_param(
+            "-P",
+            "--pipeline",
+            metavar="STRING",
+            type=str,
+            dest="pipeline",
+            default="cross",
+            help="Comma separated list of Freesurfer steps to be "
+            " executed on each valid input file. "
+            " Valid values: %s." % FREESURFER_STEPS,
+        )
 
     def parse_args(self):
         try:
@@ -155,7 +169,7 @@ class GfsurferScript(SessionBasedScript):
         except AssertionError as ex:
             raise OSError(ex.message)
 
-        self.freesurfer_pipeline = [ step for step in self.params.pipeline if step in FREESURFER_STEPS ]
+        self.freesurfer_pipeline = [step for step in self.params.pipeline if step in FREESURFER_STEPS]
         gc3libs.log.debug("Accepted following Freesurfer steps: %s" % self.freesurfer_pipeline)
 
     def new_tasks(self, extra):
@@ -164,30 +178,32 @@ class GfsurferScript(SessionBasedScript):
         """
         tasks = []
 
-        for input_nifti in [ nifti for nifti in os.listdir(self.params.input_data) if
-                             any(nifti.endswith(pattern) for pattern in INPUT_LIST_PATTERNS) ]:
+        for input_nifti in [
+            nifti
+            for nifti in os.listdir(self.params.input_data)
+            if any(nifti.endswith(pattern) for pattern in INPUT_LIST_PATTERNS)
+        ]:
 
             # filename example: 0103645_anat.nii.gz
             # extract root folder name to be used as jobname
             subject_name = input_nifti.split(".")[0]
 
             extra_args = extra.copy()
-            extra_args['jobname'] = subject_name
+            extra_args["jobname"] = subject_name
 
-            extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                        'run_%s' % subject_name)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION',
-                                                                        'run_%s' % subject_name)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE',
-                                                                        'run_%s' % subject_name)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME',
-                                                                        'run_%s' % subject_name)
+            extra_args["output_dir"] = self.params.output
+            extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", "run_%s" % subject_name)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", "run_%s" % subject_name)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", "run_%s" % subject_name)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", "run_%s" % subject_name)
 
-            tasks.append(GfsurferApplication(
-                subject_name,
-                os.path.join(self.params.input_data,input_nifti),
-                self.freesurfer_pipeline,
-                **extra_args))
+            tasks.append(
+                GfsurferApplication(
+                    subject_name,
+                    os.path.join(self.params.input_data, input_nifti),
+                    self.freesurfer_pipeline,
+                    **extra_args
+                )
+            )
 
         return tasks

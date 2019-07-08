@@ -13,22 +13,20 @@ Interface to different resource management systems for the GC3Libs.
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
+
+#
+# You should have received a copy of the GNU Lesser General Public License
 from builtins import str
-__docformat__ = 'reStructuredText'
-
-
 from functools import wraps
 
 import gc3libs
 import gc3libs.exceptions
-from gc3libs.quantity import Memory
-from gc3libs.quantity import Duration
 import gc3libs.utils
+from gc3libs.quantity import Duration, Memory
 
 
 class LRMS(gc3libs.utils.Struct):
@@ -105,37 +103,42 @@ class LRMS(gc3libs.utils.Struct):
 
     """
 
-    def __init__(self, name,
-                 architecture, max_cores, max_cores_per_job,
-                 max_memory_per_core, max_walltime, auth=None,
-                 # additional arguments can set instance attributes
-                 **extra_args):
+    def __init__(
+        self,
+        name,
+        architecture,
+        max_cores,
+        max_cores_per_job,
+        max_memory_per_core,
+        max_walltime,
+        auth=None,
+        # additional arguments can set instance attributes
+        **extra_args
+    ):
         gc3libs.utils.Struct.__init__(self, **extra_args)
 
         self.name = str(name)
         self.updated = False
 
         if len(architecture) == 0:
-            raise gc3libs.exceptions.InvalidType(
-                "Empty value list for mandatory attribute 'architecture'")
+            raise gc3libs.exceptions.InvalidType("Empty value list for mandatory attribute 'architecture'")
         self.architecture = architecture
 
         self.max_cores = int(max_cores)
         self.max_cores_per_job = int(max_cores_per_job)
-        assert isinstance(max_memory_per_core, Memory), \
-            ("Expected `Memory` value for `max_memory_per_core`, "
-             "got %s instead." % (type(max_memory_per_core),))
+        assert isinstance(
+            max_memory_per_core, Memory
+        ), "Expected `Memory` value for `max_memory_per_core`, " "got %s instead." % (type(max_memory_per_core),)
         self.max_memory_per_core = max_memory_per_core
-        assert isinstance(max_walltime, Duration), \
-            ("Expected `Duration` value for `max_walltime`, got %s instead."
-             % (type(max_walltime),))
+        assert isinstance(max_walltime, Duration), "Expected `Duration` value for `max_walltime`, got %s instead." % (
+            type(max_walltime),
+        )
         self.max_walltime = max_walltime
 
         # see `authenticated` below
         self._auth_fn = auth
 
-        gc3libs.log.info(
-            "Computational resource '%s' initialized successfully.", self.name)
+        gc3libs.log.info("Computational resource '%s' initialized successfully.", self.name)
 
     @staticmethod
     def authenticated(fn):
@@ -146,6 +149,7 @@ class LRMS(gc3libs.utils.Struct):
         `get` method of the authentication object (configured with the
         `auth` parameter to the class constructor).
         """
+
         @wraps(fn)
         def wrapper(self, *args, **kwargs):
             if self._auth_fn is not None:
@@ -156,14 +160,14 @@ class LRMS(gc3libs.utils.Struct):
                     # object cannot be instanciated, there is not much
                     # we can do...
                     gc3libs.log.warning(
-                        "Problems initializing authentication backend"
-                        " for resource '%s': %s.", self.name, err)
+                        "Problems initializing authentication backend" " for resource '%s': %s.", self.name, err
+                    )
                     gc3libs.log.error(
-                        "Resource '%s' will be disabled"
-                        " because of authentication problems.",
-                        self.name)
+                        "Resource '%s' will be disabled" " because of authentication problems.", self.name
+                    )
                     self.enabled = False
             return fn(self, *args, **kwargs)
+
         return wrapper
 
     def cancel_job(self, app):
@@ -173,8 +177,8 @@ class LRMS(gc3libs.utils.Struct):
         it.
         """
         raise NotImplementedError(
-            "Abstract method `LRMS.cancel_job()` called "
-            "- this should have been defined in a derived class.")
+            "Abstract method `LRMS.cancel_job()` called " "- this should have been defined in a derived class."
+        )
 
     def free(self, app):
         """
@@ -187,8 +191,8 @@ class LRMS(gc3libs.utils.Struct):
         likely be the cause of errors later on.  Be cautious.
         """
         raise NotImplementedError(
-            "Abstract method `LRMS.free()` called "
-            "- this should have been defined in a derived class.")
+            "Abstract method `LRMS.free()` called " "- this should have been defined in a derived class."
+        )
 
     def get_resource_status(self):
         """
@@ -196,11 +200,10 @@ class LRMS(gc3libs.utils.Struct):
         instance in-place.  Return updated `Resource` object.
         """
         raise NotImplementedError(
-            "Abstract method `LRMS.get_resource_status()` called "
-            "- this should have been defined in a derived class.")
+            "Abstract method `LRMS.get_resource_status()` called " "- this should have been defined in a derived class."
+        )
 
-    def get_results(self, job, download_dir,
-                    overwrite=False, changed_only=True):
+    def get_results(self, job, download_dir, overwrite=False, changed_only=True):
         """
         Retrieve job output files into local directory `download_dir`.
 
@@ -236,8 +239,8 @@ class LRMS(gc3libs.utils.Struct):
           size than the destination.
         """
         raise NotImplementedError(
-            "Abstract method `LRMS.get_results()` called "
-            "- this should have been defined in a derived class.")
+            "Abstract method `LRMS.get_results()` called " "- this should have been defined in a derived class."
+        )
 
     def update_job_state(self, app):
         """
@@ -246,8 +249,8 @@ class LRMS(gc3libs.utils.Struct):
         corresponding `Run.State`; see `Run.State` for more details.
         """
         raise NotImplementedError(
-            "Abstract method `LRMS.update_state()` called "
-            "- this should have been defined in a derived class.")
+            "Abstract method `LRMS.update_state()` called " "- this should have been defined in a derived class."
+        )
 
     def submit_job(self, application, job):
         """
@@ -267,8 +270,8 @@ class LRMS(gc3libs.utils.Struct):
              is necessary for this LRMS to perform further operations on it.
         """
         raise NotImplementedError(
-            "Abstract method `LRMS.submit_job()` called "
-            "- this should have been defined in a derived class.")
+            "Abstract method `LRMS.submit_job()` called " "- this should have been defined in a derived class."
+        )
 
     def peek(self, app, remote_filename, local_file, offset=0, size=None):
         """
@@ -294,8 +297,8 @@ class LRMS(gc3libs.utils.Struct):
         Any exception raised by operations will be re-raised to the caller.
         """
         raise NotImplementedError(
-            "Abstract method `LRMS.peek()` called "
-            "- this should have been defined in a derived class.")
+            "Abstract method `LRMS.peek()` called " "- this should have been defined in a derived class."
+        )
 
     def validate_data(self, data_file_list=None):
         """
@@ -305,8 +308,8 @@ class LRMS(gc3libs.utils.Struct):
         Return False otherwise.
         """
         raise NotImplementedError(
-            "Abstract method 'LRMS.validate_data()' called "
-            "- this should have been defined in a derived class.")
+            "Abstract method 'LRMS.validate_data()' called " "- this should have been defined in a derived class."
+        )
 
     def close(self):
         """
@@ -314,13 +317,13 @@ class LRMS(gc3libs.utils.Struct):
         e.g. transport
         """
         raise NotImplementedError(
-            "Abstract method 'LRMS.close()' called "
-            "- this should have been defined in a derived class.")
+            "Abstract method 'LRMS.close()' called " "- this should have been defined in a derived class."
+        )
 
 
 # main: run tests
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="__init__",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="__init__", optionflags=doctest.NORMALIZE_WHITESPACE)

@@ -18,20 +18,19 @@ Test class `ParallelTaskCollection`:class:.
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-__docformat__ = 'reStructuredText'
+
+from gc3libs import Run, Task
+from gc3libs.testing.helpers import SimpleParallelTaskCollection, SuccessfulApp, UnsuccessfulApp, temporary_core
+from gc3libs.workflow import ParallelTaskCollection
+
+__docformat__ = "reStructuredText"
 
 
 ## imports
 
-from gc3libs import Run, Task
-from gc3libs.workflow import ParallelTaskCollection
-
-
-from gc3libs.testing.helpers import SimpleParallelTaskCollection, SuccessfulApp, UnsuccessfulApp, temporary_core
-
 
 ## tests
+
 
 def test_ParallelTaskCollection_progress():
     with temporary_core(max_cores=10) as core:
@@ -76,4 +75,5 @@ def test_empty_ParallelTaskCollection_progress():
 
 if "__main__" == __name__:
     import pytest
+
     pytest.main(["-v", __file__])

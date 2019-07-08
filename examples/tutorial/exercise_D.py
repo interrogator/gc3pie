@@ -28,10 +28,9 @@ pattern
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #
-__docformat__ = 'reStructuredText'
+__docformat__ = "reStructuredText"
 
 
-from __future__ import absolute_import
 import gc3libs
 import gc3libs.cmdline
 
@@ -48,43 +47,37 @@ class ProcessFilesInParallel(gc3libs.cmdline.SessionBasedScript):
 
     and it will execute command `COMMAND` for each file matching
     `PATTERN` into the directory `DIRECTORY`.
-    
+
     """
-    version = '0.1'
+
+    version = "0.1"
 
     def setup_options(self):
-        self.add_param('--command', required=True,
-                       help="Command to execute on each input file.")
-        self.add_param('--directory', required=True,
-                       help="Directory containing the input files.")
-        self.add_param('--pattern', required=True,
-                       help="Pattern that input files inside `DIRECTORY` must match.")
+        self.add_param("--command", required=True, help="Command to execute on each input file.")
+        self.add_param("--directory", required=True, help="Directory containing the input files.")
+        self.add_param("--pattern", required=True, help="Pattern that input files inside `DIRECTORY` must match.")
 
     def new_tasks(self, extra):
-        input_files = self._search_for_input_files(
-            self.params.directory,
-            pattern=self.params.pattern)
+        input_files = self._search_for_input_files(self.params.directory, pattern=self.params.pattern)
 
         if not input_files:
-            print "No input files matching `%s` in directory `%s`" % (
-                self.params.pattern, self.params.directory)
-            return 
+            print("No input files matching `%s` in directory `%s`" % (self.params.pattern, self.params.directory))
+            return
 
         for ifile in input_files:
             kw = extra.copy()
-            kw['stdout'] = 'stdout.txt'
+            kw["stdout"] = "stdout.txt"
             yield (
-                "File:%s" % ifile.replace('/', '_'),
+                "File:%s" % ifile.replace("/", "_"),
                 gc3libs.Application,
-                [[self.params.command, ifile],
-                 [ifile],
-                 [],
-                 ],
-                kw)
-                
-        
+                [[self.params.command, ifile], [ifile], []],
+                kw,
+            )
+
+
 ## main: run tests
 
 if "__main__" == __name__:
     from exercise_D import ProcessFilesInParallel
+
     ProcessFilesInParallel().run()

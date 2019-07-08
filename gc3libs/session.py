@@ -13,23 +13,23 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
-__docformat__ = 'reStructuredText'
-
 
 # stdlib imports
 import atexit
 import csv
 import itertools
 import os
-import sys
 import shutil
+import sys
 import tempfile
+
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import str
 
 # GC3Pie imports
 import gc3libs
@@ -130,15 +130,13 @@ class Session(list):
 
     """
 
-    INDEX_FILENAME = 'session_ids.txt'
+    INDEX_FILENAME = "session_ids.txt"
     STORE_URL_FILENAME = "store.url"
-    TIMESTAMP_FILES = {'start': 'created',
-                       'end': 'finished'}
+    TIMESTAMP_FILES = {"start": "created", "end": "finished"}
 
-    DEFAULT_JOBS_DIR = 'jobs'
+    DEFAULT_JOBS_DIR = "jobs"
 
-    def __init__(self, path, create=True, store_or_url=None,
-                 load=True, task_ids=None, **extra_args):
+    def __init__(self, path, create=True, store_or_url=None, load=True, task_ids=None, **extra_args):
         """
         First argument `path` is the path to the session directory.
 
@@ -190,24 +188,20 @@ class Session(list):
                 if err.errno == os.errno.ENOENT:
                     # only create session if no task IDs were given
                     if create and not task_ids:
-                        gc3libs.log.debug(
-                            "Assuming session is incomplete or corrupted,"
-                            " creating it again.")
+                        gc3libs.log.debug("Assuming session is incomplete or corrupted," " creating it again.")
                         self._create_session(store_or_url, **extra_args)
                     else:
                         raise gc3libs.exceptions.InvalidArgument(
-                            "Directory '%s' does not contain a valid session" %
-                            self.path)
+                            "Directory '%s' does not contain a valid session" % self.path
+                        )
                 else:
                     raise
         else:
-            assert not task_ids, (
-                "Creating a new session with non-empty `task_ids` makes no sense!")
+            assert not task_ids, "Creating a new session with non-empty `task_ids` makes no sense!"
             if create:
                 self._create_session(store_or_url, **extra_args)
             else:
-                raise gc3libs.exceptions.InvalidArgument(
-                    "Session directory '%s' not found" % self.path)
+                raise gc3libs.exceptions.InvalidArgument("Session directory '%s' not found" % self.path)
 
     def _create_session(self, store_or_url, **extra_args):
         if isinstance(store_or_url, gc3libs.persistence.store.Store):
@@ -225,10 +219,8 @@ class Session(list):
         self._save_index_file()
 
         # Save the current command line on ``created`` file.
-        with open(os.path.join(
-                self.path,
-                self.TIMESTAMP_FILES['start']), 'w') as fd:
-            fd.write(' '.join(sys.argv) + '\n')
+        with open(os.path.join(self.path, self.TIMESTAMP_FILES["start"]), "w") as fd:
+            fd.write(" ".join(sys.argv) + "\n")
 
         self.set_start_timestamp()
 
@@ -250,17 +242,12 @@ class Session(list):
         else:
             store_filename = os.path.join(self.path, self.STORE_URL_FILENAME)
             try:
-                self.store_url = \
-                    gc3libs.utils.read_contents(store_filename).strip()
-                gc3libs.log.debug(
-                    "Loading session from URL %s ...", self.store_url)
+                self.store_url = gc3libs.utils.read_contents(store_filename).strip()
+                gc3libs.log.debug("Loading session from URL %s ...", self.store_url)
             except (OSError, IOError) as err:
-                gc3libs.log.error(
-                    "Unable to load session tasks from file `%s`: %s",
-                    store_filename, err)
+                gc3libs.log.error("Unable to load session tasks from file `%s`: %s", store_filename, err)
                 raise
-            self.store = gc3libs.persistence.make_store(
-                self.store_url, **extra_args)
+            self.store = gc3libs.persistence.make_store(self.store_url, **extra_args)
 
         if task_ids is None:
             idx_filename = os.path.join(self.path, self.INDEX_FILENAME)
@@ -268,20 +255,17 @@ class Session(list):
                 with open(idx_filename) as idx_file:
                     task_ids = idx_file.read().split()
             except (OSError, IOError) as err:
-                gc3libs.log.error(
-                    "Unable to load session index from file `%s`: %s",
-                    idx_filename, err)
+                gc3libs.log.error("Unable to load session index from file `%s`: %s", idx_filename, err)
                 raise
 
         try:
-            start_file = os.path.join(
-                self.path, self.TIMESTAMP_FILES['start'])
+            start_file = os.path.join(self.path, self.TIMESTAMP_FILES["start"])
             self.created = os.stat(start_file).st_mtime
         except OSError:
             # FIXME: should we also set `self.created` to the current timestamp?
             gc3libs.log.warning(
-                "Unable to recover starting time from existing session:"
-                " file `%s` is missing.", start_file)
+                "Unable to recover starting time from existing session:" " file `%s` is missing.", start_file
+            )
 
         self.tasks = self.load_many(task_ids, flush=False)
 
@@ -373,9 +357,7 @@ class Session(list):
             try:
                 self.store.remove(id_to_remove)
             except Exception as err:
-                gc3libs.log.warning(
-                    "Error removing task id `%s` from the store: %s",
-                    err)
+                gc3libs.log.warning("Error removing task id `%s` from the store: %s", err)
 
     def remove(self, task_id, flush=True):
         """
@@ -394,9 +376,7 @@ class Session(list):
     def iter_workflow(self):
         task_collections = [x for x in list(self.tasks.values()) if isinstance(x, TaskCollection)]
         proper_tasks = set(self.tasks.values()).difference(task_collections)
-        return itertools.chain(
-            *([proper_tasks]
-              + [x.iter_workflow() for x in task_collections]))
+        return itertools.chain(*([proper_tasks] + [x.iter_workflow() for x in task_collections]))
 
     def list_ids(self):
         """
@@ -451,20 +431,19 @@ class Session(list):
                 tasks[task_id] = self.load(task_id, add, flush)
             except Exception as err:
                 if gc3libs.error_ignored(
-                        # context:
-                        # - module
-                        'session',
-                        # - class
-                        'Session',
-                        # - method
-                        'load',
-                        # - actual error class
-                        err.__class__.__name__,
-                        # - additional keywords
-                        'persistence',
+                    # context:
+                    # - module
+                    "session",
+                    # - class
+                    "Session",
+                    # - method
+                    "load",
+                    # - actual error class
+                    err.__class__.__name__,
+                    # - additional keywords
+                    "persistence",
                 ):
-                    gc3libs.log.warning(
-                        "Ignoring error from loading '%s': %s", task_id, err)
+                    gc3libs.log.warning("Ignoring error from loading '%s': %s", task_id, err)
                 else:
                     # propagate exception back to caller
                     raise
@@ -517,10 +496,10 @@ class Session(list):
         Save job IDs to the default session index.
         """
         idx_filename = os.path.join(self.path, self.INDEX_FILENAME)
-        with open(idx_filename, 'w') as idx_fd:
+        with open(idx_filename, "w") as idx_fd:
             for task_id in self.tasks:
                 idx_fd.write(str(task_id))
-                idx_fd.write('\n')
+                idx_fd.write("\n")
 
     def _save_store_url_file(self):
         """
@@ -543,7 +522,7 @@ class Session(list):
         It returns the value used for `time`
         """
         filename = os.path.join(self.path, filename)
-        open(filename, 'a').close()
+        open(filename, "a").close()
         if time is None:
             os.utime(filename, None)
         else:
@@ -556,7 +535,7 @@ class Session(list):
         creation/modification time will be used to know when the
         session has sarted.
         """
-        self.created = self._touch_file(self.TIMESTAMP_FILES['start'], time)
+        self.created = self._touch_file(self.TIMESTAMP_FILES["start"], time)
 
     def set_end_timestamp(self, time=None):
         """
@@ -568,7 +547,7 @@ class Session(list):
         finished, so this method should be called by a
         `SessionBasedScript`:class: class.
         """
-        self.finished = self._touch_file(self.TIMESTAMP_FILES['end'], time)
+        self.finished = self._touch_file(self.TIMESTAMP_FILES["end"], time)
 
 
 class TemporarySession(Session):
@@ -605,28 +584,27 @@ class TemporarySession(Session):
 
     def __init__(self, store_or_url, task_ids=None, delete=True, **extra_args):
         # make temporary session dir
-        path = tempfile.mkdtemp(
-            prefix='gc3pie.TemporarySession.',
-            suffix='.d')
+        path = tempfile.mkdtemp(prefix="gc3pie.TemporarySession.", suffix=".d")
         # ensure temp directory is deleted
         if delete:
+
             def cleanup():
                 if os.path.exists(path):
                     shutil.rmtree(path)
+
             atexit.register(cleanup)
         # init `Session` class
-        extra_args.setdefault('create', True)
-        extra_args.setdefault('load', False)
-        super(TemporarySession, self).__init__(
-            path, store_or_url=store_or_url, **extra_args)
+        extra_args.setdefault("create", True)
+        extra_args.setdefault("load", False)
+        super(TemporarySession, self).__init__(path, store_or_url=store_or_url, **extra_args)
         # populate index
         if task_ids is None:
             try:
                 task_ids = self.store.list()
             except NotImplementedError:
                 raise RuntimeError(
-                    "Cannot create temporary session:"
-                    " Task store `{0}` does not support listing all task IDs.")
+                    "Cannot create temporary session:" " Task store `{0}` does not support listing all task IDs."
+                )
         self.tasks = self.load_many(task_ids, flush=True)
         self._save_index_file()
         # use url as the session name
@@ -637,5 +615,5 @@ class TemporarySession(Session):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="filesystem",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="filesystem", optionflags=doctest.NORMALIZE_WHITESPACE)

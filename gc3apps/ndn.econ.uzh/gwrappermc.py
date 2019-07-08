@@ -47,47 +47,48 @@ This would trigger the re-run of the whole workflow only
 for lines between 3000 and 7500
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import shutil
+import sys
+import tempfile
+import time
+
+import pandas
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2013-07-03:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gwrappermc
+
     gwrappermc.GwrappermcScript().run()
 
-import os
-import sys
-import time
-import tempfile
-
-import shutil
-import pandas
-
-from pkg_resources import Requirement, resource_filename
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 ## custom application class
 class GwrappermcApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
-    application_name = 'adimat'
+
+    application_name = "adimat"
 
     def __init__(self, input_file, **extra_args):
 
@@ -99,27 +100,27 @@ class GwrappermcApplication(Application):
         # arguments = "./MCSpecs ./input.csv"
         # $ arguments = "matlab -nodesktop -nodisplay -nosplash -r \'Main_loop input.csv results; quit()\'"
 
-        gwrappermc_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gwrappermc_wrapper.sh")
+        gwrappermc_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gwrappermc_wrapper.sh")
 
         inputs[gwrappermc_wrapper_sh] = os.path.basename(gwrappermc_wrapper_sh)
 
         arguments = "./%s " % inputs[gwrappermc_wrapper_sh]
-        if 'main_loop_folder' in extra_args:
-            inputs[extra_args['main_loop_folder']] = './data/'
+        if "main_loop_folder" in extra_args:
+            inputs[extra_args["main_loop_folder"]] = "./data/"
             arguments += "-m ./data "
-        arguments += " -i %s " % extra_args['index_chunk']
+        arguments += " -i %s " % extra_args["index_chunk"]
         arguments += "input.csv results"
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = ['results/'],
-            stdout = 'gwrappermc.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=["results/"],
+            stdout="gwrappermc.log",
             join=True,
-            executables = "./%s " % inputs[gwrappermc_wrapper_sh],
-            **extra_args)
+            executables="./%s " % inputs[gwrappermc_wrapper_sh],
+            **extra_args
+        )
 
 
 class GwrappermcScript(SessionBasedScript):
@@ -146,33 +147,49 @@ class GwrappermcScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GwrappermcApplication,
+            version=__version__,  # module version == script version
+            application=GwrappermcApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GwrappermcApplication,
-            )
+            stats_only_for=GwrappermcApplication,
+        )
 
     def setup_options(self):
-        self.add_param("-k", "--chunk", metavar="INT", type=int,
-                       dest="chunk_size", default=2,
-                       help="How to split the edges input data set.")
+        self.add_param(
+            "-k",
+            "--chunk",
+            metavar="INT",
+            type=int,
+            dest="chunk_size",
+            default=2,
+            help="How to split the edges input data set.",
+        )
 
-        self.add_param("-d", "--data", metavar="PATH", type=str,
-                       dest="main_loop", default=None,
-                       help="Location of the Main_Loop.m script and "
-                       "related MAtlab functions. Default: None")
+        self.add_param(
+            "-d",
+            "--data",
+            metavar="PATH",
+            type=str,
+            dest="main_loop",
+            default=None,
+            help="Location of the Main_Loop.m script and " "related MAtlab functions. Default: None",
+        )
 
-        self.add_param("-R", "--result-file", metavar="STRING", type=str,
-                       dest="merged_result", default="result.csv",
-                       help="Name of merged result file. Default: result.csv")
+        self.add_param(
+            "-R",
+            "--result-file",
+            metavar="STRING",
+            type=str,
+            dest="merged_result",
+            default="result.csv",
+            help="Name of merged result file. Default: result.csv",
+        )
 
     def setup_args(self):
 
-        self.add_param('csv_input_file', type=str,
-                       help="Input .csv file")
+        self.add_param("csv_input_file", type=str, help="Input .csv file")
 
     def parse_args(self):
         """
@@ -185,20 +202,17 @@ class GwrappermcScript(SessionBasedScript):
         try:
             assert os.path.isfile(self.params.csv_input_file)
         except ValueError:
-            raise gc3libs.exceptions.InvalidUsage(
-                "Input CSV file %s not found" % self.params.csv_input_file)
+            raise gc3libs.exceptions.InvalidUsage("Input CSV file %s not found" % self.params.csv_input_file)
 
         # Verify that 'self.params.chunk_size' is int
         try:
             assert int(self.params.chunk_size)
         except ValueError:
-            raise gc3libs.exceptions.InvalidUsage(
-                "-k option accepts only numbers")
+            raise gc3libs.exceptions.InvalidUsage("-k option accepts only numbers")
 
             if self.params.main_loop:
                 if not os.path.isdir(self.params.main_loop):
-                    raise gc3libs.exceptions.InvalidUsage(
-                        "Main_Loop.m location %s not found" % self.params.main_loop)
+                    raise gc3libs.exceptions.InvalidUsage("Main_Loop.m location %s not found" % self.params.main_loop)
 
     def new_tasks(self, extra):
         """
@@ -207,32 +221,32 @@ class GwrappermcScript(SessionBasedScript):
         """
         tasks = []
 
-        for (input_file, index_chunk) in self._generate_chunked_files_and_list(self.params.csv_input_file,
-                                                                              self.params.chunk_size):
+        for (input_file, index_chunk) in self._generate_chunked_files_and_list(
+            self.params.csv_input_file, self.params.chunk_size
+        ):
             jobname = "gwrappermc-%s" % (str(index_chunk))
 
             extra_args = extra.copy()
 
-            extra_args['index_chunk'] = str(index_chunk)
-            extra_args['chunk_size'] = int(self.params.chunk_size)
+            extra_args["index_chunk"] = str(index_chunk)
+            extra_args["chunk_size"] = int(self.params.chunk_size)
 
-            extra_args['jobname'] = jobname
+            extra_args["jobname"] = jobname
 
-            extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', jobname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', jobname)
+            extra_args["output_dir"] = self.params.output
+            extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", jobname)
+            extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", jobname)
 
             if self.params.main_loop:
-                extra_args['main_loop_folder'] = self.params.main_loop
+                extra_args["main_loop_folder"] = self.params.main_loop
 
-            self.log.debug("Creating Application for index : %d - %d" %
-                           (index_chunk, (index_chunk + self.params.chunk_size)))
+            self.log.debug(
+                "Creating Application for index : %d - %d" % (index_chunk, (index_chunk + self.params.chunk_size))
+            )
 
-            tasks.append(GwrappermcApplication(
-                    input_file,
-                    **extra_args))
+            tasks.append(GwrappermcApplication(input_file, **extra_args))
 
         return tasks
 
@@ -249,18 +263,16 @@ class GwrappermcScript(SessionBasedScript):
         result_columns = dict()
 
         try:
-            fout=open(merged_csv,"w+")
+            fout = open(merged_csv, "w+")
             for task in self.session:
-                if isinstance(task,GwrappermcApplication) and task.execution.returncode == 0:
+                if isinstance(task, GwrappermcApplication) and task.execution.returncode == 0:
                     # get index reference
                     # index = task.index_chunk
                     # chunk_size = task.chunk_size
 
-                    for index in range(int(task.index_chunk)+1, int(task.index_chunk) + int(task.chunk_size) + 1):
+                    for index in range(int(task.index_chunk) + 1, int(task.index_chunk) + int(task.chunk_size) + 1):
 
-                        result_file = os.path.join(task.output_dir,
-                                                   "%s_%d.csv" % (output_file_name_prefix,
-                                                                  index))
+                        result_file = os.path.join(task.output_dir, "%s_%d.csv" % (output_file_name_prefix, index))
                         if os.path.isfile(result_file):
                             data = pandas.read_csv(result_file, header=None)
                             result_columns[index] = data
@@ -269,14 +281,11 @@ class GwrappermcScript(SessionBasedScript):
                 result.to_csv("result.csv", header=False, index=False)
             else:
                 gc3libs.log.warning("No results found")
-        except OSError, osx:
-            gc3libs.log.critical("Failed while merging result files. " +
-                                 "Error %s" % str(osx))
+        except OSError as osx:
+            gc3libs.log.critical("Failed while merging result files. " + "Error %s" % str(osx))
             raise
         finally:
             fout.close()
-
-
 
     def _generate_chunked_files_and_list(self, file_to_chunk, chunk_size=2):
         """
@@ -289,22 +298,24 @@ class GwrappermcScript(SessionBasedScript):
         """
 
         chunk = []
-        chunk_files_dir = os.path.join(self.session.path,"tmp")
+        chunk_files_dir = os.path.join(self.session.path, "tmp")
 
         # creating 'chunk_files_dir'
-        if not(os.path.isdir(chunk_files_dir)):
+        if not (os.path.isdir(chunk_files_dir)):
             try:
                 os.mkdir(chunk_files_dir)
-            except OSError, osx:
-                gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
-                                  "Error %s." % str(osx) +
-                                  "Using default '/tmp'")
+            except OSError as osx:
+                gc3libs.log.error(
+                    "Failed while creating tmp folder %s. " % chunk_files_dir
+                    + "Error %s." % str(osx)
+                    + "Using default '/tmp'"
+                )
                 chunk_files_dir = "/tmp"
 
         cc = pandas.read_csv(file_to_chunk, header=None)
         for index in range(0, len(cc.columns), chunk_size):
-            filename = "%s/chunk_%s.csv" % (chunk_files_dir,index)
-            cc.to_csv(filename ,columns=range(index,index+chunk_size), header=False, index=False)
-            chunk.append((filename,index))
+            filename = "%s/chunk_%s.csv" % (chunk_files_dir, index)
+            cc.to_csv(filename, columns=range(index, index + chunk_size), header=False, index=False)
+            chunk.append((filename, index))
 
         return chunk

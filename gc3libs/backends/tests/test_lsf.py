@@ -13,24 +13,25 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import object
-__docformat__ = 'reStructuredText'
 
 import datetime
 import os
 import shutil
 import tempfile
 
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import object
+
 import gc3libs
-import gc3libs.core
 import gc3libs.config
+import gc3libs.core
 from gc3libs.backends.lsf import LsfLrms
-from gc3libs.quantity import Duration, hours, Memory, GB
+from gc3libs.quantity import GB, Duration, Memory, hours
 
 _datetime_date = None
 
@@ -42,13 +43,13 @@ def setUpModule():
     parsing independent from the testing date."""
     # save the original `datetime.date` to restore it in `tearDownModule()`
     import datetime
+
     global _datetime_date
     _datetime_date = datetime.date
     # mock features of `datetime.date.today()` that are actually used
     # in `LsfLrms._parse_date()`
 
     class MockDate(object):
-
         def __init__(self, real):
             self.__date = real
 
@@ -57,13 +58,14 @@ def setUpModule():
 
         def __call__(self, *args, **kwargs):
             return self.__date(*args, **kwargs)
+
     datetime.date = MockDate(datetime.date)
 
     class Today(object):
-
         def __init__(self):
             self.year = 2012
             self.month = 12
+
     datetime.date.today = Today
 
 
@@ -71,6 +73,7 @@ def tearDownModule():
     # restore the original `datetime.date`
     global _datetime_date
     import datetime
+
     datetime.date = _datetime_date
     for fname in files_to_remove:
         if os.path.isdir(fname):
@@ -82,8 +85,9 @@ def tearDownModule():
 def test_get_command():
     (fd, tmpfile) = tempfile.mkstemp()
     files_to_remove.append(tmpfile)
-    f = os.fdopen(fd, 'w+')
-    f.write("""
+    f = os.fdopen(fd, "w+")
+    f.write(
+        """
 [auth/ssh]
 type=ssh
 username=NONEXISTENT
@@ -106,31 +110,34 @@ bjobs = /usr/local/bin/bjobs
 lshosts = /usr/local/sbin/lshosts # comments are ignored!
 
 lsf_continuation_line_prefix_length = 12
-""")
+"""
+    )
     f.close()
 
     cfg = gc3libs.config.Configuration()
     cfg.merge_file(tmpfile)
-    b = cfg.make_resources()['example']
+    b = cfg.make_resources()["example"]
 
-    assert b.bsub == ['/usr/local/bin/bsub', '-R', 'lustre']
+    assert b.bsub == ["/usr/local/bin/bsub", "-R", "lustre"]
 
-    assert b._bjobs == '/usr/local/bin/bjobs'
-    assert b._lshosts == '/usr/local/sbin/lshosts'
+    assert b._bjobs == "/usr/local/bin/bjobs"
+    assert b._lshosts == "/usr/local/sbin/lshosts"
 
-    assert b._CONTINUATION_LINE_START == 12 * ' '
+    assert b._CONTINUATION_LINE_START == 12 * " "
 
 
 def test_bjobs_output_done1():
-    lsf = LsfLrms(name='test',
-                  architecture=gc3libs.Run.Arch.X86_64,
-                  max_cores=1,
-                  max_cores_per_job=1,
-                  max_memory_per_core=1 * GB,
-                  max_walltime=1 * hours,
-                  auth=None,  # ignored if `transport` is `local`
-                  frontend='localhost',
-                  transport='local')
+    lsf = LsfLrms(
+        name="test",
+        architecture=gc3libs.Run.Arch.X86_64,
+        max_cores=1,
+        max_cores_per_job=1,
+        max_memory_per_core=1 * GB,
+        max_walltime=1 * hours,
+        auth=None,  # ignored if `transport` is `local`
+        frontend="localhost",
+        transport="local",
+    )
     bjobs_output = """
 Job <131851>, Job Name <ChromaExtractShort>, User <wwolski>, Project <default>,
                      Status <DONE>, Queue <pub.8h>, Job Priority <50>, Command
@@ -168,21 +175,23 @@ Tue Jul 24 10:05:45: Done successfully. The CPU time used is 2.1 seconds.
  loadSched 4000.0      -       -       -       -       -       -
  loadStop      -       -       -       -       -       -       -
 """
-    jobstatus = lsf._parse_stat_output(bjobs_output, '')
+    jobstatus = lsf._parse_stat_output(bjobs_output, "")
     assert jobstatus.state == gc3libs.Run.State.TERMINATING
     assert jobstatus.termstatus == (0, 0)
 
 
 def test_bjobs_output_for_accounting():
-    lsf = LsfLrms(name='test',
-                  architecture=gc3libs.Run.Arch.X86_64,
-                  max_cores=1,
-                  max_cores_per_job=1,
-                  max_memory_per_core=1 * GB,
-                  max_walltime=1 * hours,
-                  auth=None,  # ignored if `transport` is `local`
-                  frontend='localhost',
-                  transport='local')
+    lsf = LsfLrms(
+        name="test",
+        architecture=gc3libs.Run.Arch.X86_64,
+        max_cores=1,
+        max_cores_per_job=1,
+        max_memory_per_core=1 * GB,
+        max_walltime=1 * hours,
+        auth=None,  # ignored if `transport` is `local`
+        frontend="localhost",
+        transport="local",
+    )
     bjobs_output = """
 Job <131851>, Job Name <ChromaExtractShort>, User <wwolski>, Project <default>,
                      Status <DONE>, Queue <pub.8h>, Job Priority <50>, Command
@@ -222,23 +231,26 @@ Tue Jul 24 10:05:45: Done successfully. The CPU time used is 2.1 seconds.
 """
 
     # Also parse the output of jobs to get accounting information
-    acct = lsf._parse_acct_output(bjobs_output, '')
-    assert acct['duration'] == Duration('86s')
-    assert acct['used_cpu_time'] == Duration('2.1s')
-    assert acct['max_used_memory'] == Memory('41MB')
+    acct = lsf._parse_acct_output(bjobs_output, "")
+    assert acct["duration"] == Duration("86s")
+    assert acct["used_cpu_time"] == Duration("2.1s")
+    assert acct["max_used_memory"] == Memory("41MB")
 
 
 def test_bjobs_output_done2():
-    lsf = LsfLrms(name='test',
-                  architecture=gc3libs.Run.Arch.X86_64,
-                  max_cores=1,
-                  max_cores_per_job=1,
-                  max_memory_per_core=1 * GB,
-                  max_walltime=1 * hours,
-                  auth=None,  # ignored if `transport` is `local`
-                  frontend='localhost',
-                  transport='local')
-    jobstatus = lsf._parse_stat_output("""
+    lsf = LsfLrms(
+        name="test",
+        architecture=gc3libs.Run.Arch.X86_64,
+        max_cores=1,
+        max_cores_per_job=1,
+        max_memory_per_core=1 * GB,
+        max_walltime=1 * hours,
+        auth=None,  # ignored if `transport` is `local`
+        frontend="localhost",
+        transport="local",
+    )
+    jobstatus = lsf._parse_stat_output(
+        """
 Job <726659>, Job Name <Application>, User <wwolski>, Project <default>, Status
                       <DONE>, Queue <pub.8h>, Job Priority <50>, Command <FileM
                      erger -in /IMSB/users/wwolski/gc3pieScripts/split_napedro_
@@ -335,23 +347,27 @@ Mon Jul 30 15:12:56: Done successfully. The CPU time used is 1.7 seconds.
  loadSched20000.0      -       -       -       -       -       -
  loadStop      -       -       -       -       -       -       -
 """,
-    # STDERR
-    '')
+        # STDERR
+        "",
+    )
     assert jobstatus.state == gc3libs.Run.State.TERMINATING
     assert jobstatus.termstatus == (0, 0)
 
 
 def test_bjobs_output_done3():
-    lsf = LsfLrms(name='test',
-                  architecture=gc3libs.Run.Arch.X86_64,
-                  max_cores=1,
-                  max_cores_per_job=1,
-                  max_memory_per_core=1 * GB,
-                  max_walltime=1 * hours,
-                  auth=None,  # ignored if `transport` is `local`
-                  frontend='localhost',
-                  transport='local')
-    jobstatus = lsf._parse_stat_output("""
+    lsf = LsfLrms(
+        name="test",
+        architecture=gc3libs.Run.Arch.X86_64,
+        max_cores=1,
+        max_cores_per_job=1,
+        max_memory_per_core=1 * GB,
+        max_walltime=1 * hours,
+        auth=None,  # ignored if `transport` is `local`
+        frontend="localhost",
+        transport="local",
+    )
+    jobstatus = lsf._parse_stat_output(
+        """
 Job <2073>, Job Name <GRunApplication.0>, User <markmon>, Project <default>, St
                           atus <EXIT>, Queue <normal>, Command <sh -c inputfile
                           .txt>
@@ -380,43 +396,50 @@ Mon Aug  4 12:28:51 2014: Completed <exit>.
  Combined: select[type == local] order[r15s:pg] rusage[mem=2000.00]
  Effective: select[type == local] order[r15s:pg] rusage[mem=2000.00]
     """,
-    # STDERR
-    '')
+        # STDERR
+        "",
+    )
     assert jobstatus.state == gc3libs.Run.State.TERMINATING
     assert jobstatus.termstatus == (0, 127)
 
 
 def test_bjobs_output_done_long_ago():
     """Test parsing `bjobs -l` output for a job that was removed from `mbatchd` core memory"""
-    lsf = LsfLrms(name='test',
-                  architecture=gc3libs.Run.Arch.X86_64,
-                  max_cores=1,
-                  max_cores_per_job=1,
-                  max_memory_per_core=1 * GB,
-                  max_walltime=1 * hours,
-                  auth=None,  # ignored if `transport` is `local`
-                  frontend='localhost',
-                  transport='local')
+    lsf = LsfLrms(
+        name="test",
+        architecture=gc3libs.Run.Arch.X86_64,
+        max_cores=1,
+        max_cores_per_job=1,
+        max_memory_per_core=1 * GB,
+        max_walltime=1 * hours,
+        auth=None,  # ignored if `transport` is `local`
+        frontend="localhost",
+        transport="local",
+    )
     jobstatus = lsf._parse_stat_output(
         # empty STDOUT
-        '',
+        "",
         # STDERR
-        'Job <943186> is not found')
+        "Job <943186> is not found",
+    )
     assert jobstatus.state == gc3libs.Run.State.TERMINATING
     assert jobstatus.termstatus == None
 
 
 def test_bjobs_output_exit_nonzero():
-    lsf = LsfLrms(name='test',
-                  architecture=gc3libs.Run.Arch.X86_64,
-                  max_cores=1,
-                  max_cores_per_job=1,
-                  max_memory_per_core=1 * GB,
-                  max_walltime=1 * hours,
-                  auth=None,  # ignored if `transport` is `local`
-                  frontend='localhost',
-                  transport='local')
-    jobstatus = lsf._parse_stat_output("""
+    lsf = LsfLrms(
+        name="test",
+        architecture=gc3libs.Run.Arch.X86_64,
+        max_cores=1,
+        max_cores_per_job=1,
+        max_memory_per_core=1 * GB,
+        max_walltime=1 * hours,
+        auth=None,  # ignored if `transport` is `local`
+        frontend="localhost",
+        transport="local",
+    )
+    jobstatus = lsf._parse_stat_output(
+        """
 Job <132286>, User <wwolski>, Project <default>, Status <EXIT>, Queue <pub.1h>,
                      Job Priority <50>, Command <./x.sh>, Share group charged <
                      /lsf_biol_all/lsf_biol_other/wwolski>
@@ -439,24 +462,28 @@ Tue Jul 24 10:26:53: Completed <exit>.
  loadSched20000.0      -       -       -       -       -       -
  loadStop      -       -       -       -       -       -       -
     """,
-    # STDERR
-    '')
+        # STDERR
+        "",
+    )
     assert jobstatus.state == gc3libs.Run.State.TERMINATING
     assert jobstatus.termstatus == (0, 42)
 
 
 def test_bjobs_incorrect_prefix_length():
-    lsf = LsfLrms(name='test',
-                  architecture=gc3libs.Run.Arch.X86_64,
-                  max_cores=1,
-                  max_cores_per_job=1,
-                  max_memory_per_core=1 * GB,
-                  max_walltime=1 * hours,
-                  auth=None,  # ignored if `transport` is `local`
-                  frontend='localhost',
-                  transport='local',
-                  lsf_continuation_line_prefix_length=7)
-    stat_result = lsf._parse_stat_output("""
+    lsf = LsfLrms(
+        name="test",
+        architecture=gc3libs.Run.Arch.X86_64,
+        max_cores=1,
+        max_cores_per_job=1,
+        max_memory_per_core=1 * GB,
+        max_walltime=1 * hours,
+        auth=None,  # ignored if `transport` is `local`
+        frontend="localhost",
+        transport="local",
+        lsf_continuation_line_prefix_length=7,
+    )
+    stat_result = lsf._parse_stat_output(
+        """
 Job <2073>, Job Name <GRunApplication.0>, User <markmon>, Project <default>, St
                           atus <EXIT>, Queue <normal>, Command <sh -c inputfile
                           .txt>
@@ -485,24 +512,28 @@ Mon Aug  4 12:28:51 2014: Completed <exit>.
  Combined: select[type == local] order[r15s:pg] rusage[mem=2000.00]
  Effective: select[type == local] order[r15s:pg] rusage[mem=2000.00]
 """,
-    # STDERR
-    '')
+        # STDERR
+        "",
+    )
     assert stat_result.state == gc3libs.Run.State.UNKNOWN
     assert stat_result.termstatus == None
 
 
 def test_bjobs_correct_explicit_prefix_length():
-    lsf = LsfLrms(name='test',
-                  architecture=gc3libs.Run.Arch.X86_64,
-                  max_cores=1,
-                  max_cores_per_job=1,
-                  max_memory_per_core=1 * GB,
-                  max_walltime=1 * hours,
-                  auth=None,  # ignored if `transport` is `local`
-                  frontend='localhost',
-                  transport='local',
-                  lsf_continuation_line_prefix_length=26)
-    stat_result = lsf._parse_stat_output("""
+    lsf = LsfLrms(
+        name="test",
+        architecture=gc3libs.Run.Arch.X86_64,
+        max_cores=1,
+        max_cores_per_job=1,
+        max_memory_per_core=1 * GB,
+        max_walltime=1 * hours,
+        auth=None,  # ignored if `transport` is `local`
+        frontend="localhost",
+        transport="local",
+        lsf_continuation_line_prefix_length=26,
+    )
+    stat_result = lsf._parse_stat_output(
+        """
 Job <2073>, Job Name <GRunApplication.0>, User <markmon>, Project <default>, St
                           atus <EXIT>, Queue <normal>, Command <sh -c inputfile
                           .txt>
@@ -531,8 +562,9 @@ Mon Aug  4 12:28:51 2014: Completed <exit>.
  Combined: select[type == local] order[r15s:pg] rusage[mem=2000.00]
  Effective: select[type == local] order[r15s:pg] rusage[mem=2000.00]
 """,
-    # STDERR
-    '')
+        # STDERR
+        "",
+    )
     assert stat_result.state == gc3libs.Run.State.TERMINATING
     assert stat_result.termstatus == (0, 127)
 
@@ -540,17 +572,20 @@ Mon Aug  4 12:28:51 2014: Completed <exit>.
 def test_bacct_done0():
     """Test parsing accounting information of a <sleep 300> job."""
     # gotten with `bacct -l "jobid"`
-    lsf = LsfLrms(name='test',
-                  architecture=gc3libs.Run.Arch.X86_64,
-                  max_cores=1,
-                  max_cores_per_job=1,
-                  max_memory_per_core=1 * GB,
-                  max_walltime=1 * hours,
-                  auth=None,  # ignored if `transport` is `local`
-                  frontend='localhost',
-                  transport='local',
-                  bacct='bacct')
-    acct = lsf._parse_acct_output("""
+    lsf = LsfLrms(
+        name="test",
+        architecture=gc3libs.Run.Arch.X86_64,
+        max_cores=1,
+        max_cores_per_job=1,
+        max_memory_per_core=1 * GB,
+        max_walltime=1 * hours,
+        auth=None,  # ignored if `transport` is `local`
+        frontend="localhost",
+        transport="local",
+        bacct="bacct",
+    )
+    acct = lsf._parse_acct_output(
+        """
 Accounting information about jobs that are:
   - submitted by all users.
   - accounted on all projects.
@@ -587,34 +622,35 @@ SUMMARY:      ( time unit: second )
  Maximum hog factor of a job:  0.00      Minimum hog factor of a job:  0.00
 
     """,
-    # STDERR
-    '')
-    assert acct['duration'] == Duration('67s')
-    assert acct['used_cpu_time'] == Duration('0.08s')
-    assert acct['max_used_memory'] == Memory('227MB')
+        # STDERR
+        "",
+    )
+    assert acct["duration"] == Duration("67s")
+    assert acct["used_cpu_time"] == Duration("0.08s")
+    assert acct["max_used_memory"] == Memory("227MB")
     # timestamps
     year = datetime.date.today().year
-    assert (acct['lsf_submission_time'] ==
-                 datetime.datetime(year, 10, 8, 17, 7, 54))
-    assert (acct['lsf_start_time'] ==
-                 datetime.datetime(year, 10, 8, 17, 8, 44))
-    assert (acct['lsf_completion_time'] ==
-                 datetime.datetime(year, 10, 8, 17, 9, 51))
+    assert acct["lsf_submission_time"] == datetime.datetime(year, 10, 8, 17, 7, 54)
+    assert acct["lsf_start_time"] == datetime.datetime(year, 10, 8, 17, 8, 44)
+    assert acct["lsf_completion_time"] == datetime.datetime(year, 10, 8, 17, 9, 51)
 
 
 def test_bacct_done1():
     """Test parsing `bacct -l` output for a not-so-trivial job."""
-    lsf = LsfLrms(name='test',
-                  architecture=gc3libs.Run.Arch.X86_64,
-                  max_cores=1,
-                  max_cores_per_job=1,
-                  max_memory_per_core=1 * GB,
-                  max_walltime=1 * hours,
-                  auth=None,  # ignored if `transport` is `local`
-                  frontend='localhost',
-                  transport='local',
-                  bacct='bacct')
-    acct = lsf._parse_acct_output("""
+    lsf = LsfLrms(
+        name="test",
+        architecture=gc3libs.Run.Arch.X86_64,
+        max_cores=1,
+        max_cores_per_job=1,
+        max_memory_per_core=1 * GB,
+        max_walltime=1 * hours,
+        auth=None,  # ignored if `transport` is `local`
+        frontend="localhost",
+        transport="local",
+        bacct="bacct",
+    )
+    acct = lsf._parse_acct_output(
+        """
 Accounting information about jobs that are:
   - submitted by all users.
   - accounted on all projects.
@@ -650,34 +686,35 @@ SUMMARY:      ( time unit: second )
  Average hog factor of a job:  0.00 ( cpu time / turnaround time )
  Maximum hog factor of a job:  0.00      Minimum hog factor of a job:  0.00
     """,
-    # STDERR
-    '')
-    assert acct['duration'] == Duration('6s')
-    assert acct['used_cpu_time'] == Duration('0.04s')
-    assert acct['max_used_memory'] == Memory('37MB')
+        # STDERR
+        "",
+    )
+    assert acct["duration"] == Duration("6s")
+    assert acct["used_cpu_time"] == Duration("0.04s")
+    assert acct["max_used_memory"] == Memory("37MB")
     # timestamps
     year = datetime.date.today().year
-    assert (acct['lsf_submission_time'] ==
-                 datetime.datetime(year, 10, 8, 17, 8, 54))
-    assert (acct['lsf_start_time'] ==
-                 datetime.datetime(year, 10, 8, 17, 10, 1))
-    assert (acct['lsf_completion_time'] ==
-                 datetime.datetime(year, 10, 8, 17, 10, 7))
+    assert acct["lsf_submission_time"] == datetime.datetime(year, 10, 8, 17, 8, 54)
+    assert acct["lsf_start_time"] == datetime.datetime(year, 10, 8, 17, 10, 1)
+    assert acct["lsf_completion_time"] == datetime.datetime(year, 10, 8, 17, 10, 7)
 
 
 def test_bacct_killed():
     """Test parsing `bacct -l` output for a canceled job."""
-    lsf = LsfLrms(name='test',
-                  architecture=gc3libs.Run.Arch.X86_64,
-                  max_cores=1,
-                  max_cores_per_job=1,
-                  max_memory_per_core=1 * GB,
-                  max_walltime=1 * hours,
-                  auth=None,  # ignored if `transport` is `local`
-                  frontend='localhost',
-                  transport='local',
-                  bacct='bacct')
-    acct = lsf._parse_acct_output("""
+    lsf = LsfLrms(
+        name="test",
+        architecture=gc3libs.Run.Arch.X86_64,
+        max_cores=1,
+        max_cores_per_job=1,
+        max_memory_per_core=1 * GB,
+        max_walltime=1 * hours,
+        auth=None,  # ignored if `transport` is `local`
+        frontend="localhost",
+        transport="local",
+        bacct="bacct",
+    )
+    acct = lsf._parse_acct_output(
+        """
 Accounting information about jobs that are:
   - submitted by all users.
   - accounted on all projects.
@@ -713,19 +750,17 @@ SUMMARY:      ( time unit: second )
  Average hog factor of a job:  0.00 ( cpu time / turnaround time )
  Maximum hog factor of a job:  0.00      Minimum hog factor of a job:  0.00
 """,
-    # STDERR
-    '')
-    assert acct['duration'] == Duration('55s')
-    assert acct['used_cpu_time'] == Duration('0.04s')
-    assert acct['max_used_memory'] == Memory('35MB')
+        # STDERR
+        "",
+    )
+    assert acct["duration"] == Duration("55s")
+    assert acct["used_cpu_time"] == Duration("0.04s")
+    assert acct["max_used_memory"] == Memory("35MB")
     # timestamps
     year = datetime.date.today().year
-    assert (acct['lsf_submission_time'] ==
-                 datetime.datetime(year, 10, 5, 17, 49, 35))
-    assert (acct['lsf_start_time'] ==
-                 datetime.datetime(year, 10, 5, 17, 50, 35))
-    assert (acct['lsf_completion_time'] ==
-                 datetime.datetime(year, 10, 5, 17, 51, 30))
+    assert acct["lsf_submission_time"] == datetime.datetime(year, 10, 5, 17, 49, 35)
+    assert acct["lsf_start_time"] == datetime.datetime(year, 10, 5, 17, 50, 35)
+    assert acct["lsf_completion_time"] == datetime.datetime(year, 10, 5, 17, 51, 30)
 
 
 # LSF incorporates resource usage information in a job's output;
@@ -768,4 +803,5 @@ SUMMARY:      ( time unit: second )
 
 if __name__ == "__main__":
     import pytest
+
     pytest.main(["-v", __file__])

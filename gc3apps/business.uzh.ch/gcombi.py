@@ -25,37 +25,37 @@ It uses the generic `gc3libs.cmdline.SessionBasedScript` framework.
 See the output of ``gcombi.py --help`` for program usage instructions.
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import shutil
+import sys
+import tempfile
+import time
+
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2016-04-20:
   * Initial version
 """
-__author__ = 'Tyanko Aleksiev <tyanko.aleksiev@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Tyanko Aleksiev <tyanko.aleksiev@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 if __name__ == "__main__":
     import gcombi
+
     gcombi.GCombiScript().run()
 
-import os
-import sys
-import time
-import tempfile
-
-import shutil
-
-from pkg_resources import Requirement, resource_filename
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 ## custom application class
 class GCombiApplication(Application):
@@ -78,7 +78,8 @@ class GCombiApplication(Application):
     ~21000 cpu hours. More than 4GB are needed for single execution so at least a 2cpu-8ram-hpc flavor
     has to be used.
     """
-    application_name = 'gcombi'
+
+    application_name = "gcombi"
 
     def __init__(self, input_phenotype, input_chromosom, **extra_args):
 
@@ -89,23 +90,27 @@ class GCombiApplication(Application):
         outputs[output_dir] = output_dir
 
         # execution wrapper needs to be added anyway
-        gcombi_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gcombi.sh")
+        gcombi_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gcombi.sh")
         inputs[gcombi_wrapper_sh] = os.path.basename(gcombi_wrapper_sh)
         inputs[input_phenotype] = os.path.basename(input_phenotype)
         inputs[input_chromosom] = os.path.basename(input_chromosom)
 
-        command = "./%s ./%s ./%s" % (os.path.basename(gcombi_wrapper_sh), os.path.basename(input_phenotype), os.path.basename(input_chromosom))
+        command = "./%s ./%s ./%s" % (
+            os.path.basename(gcombi_wrapper_sh),
+            os.path.basename(input_phenotype),
+            os.path.basename(input_chromosom),
+        )
 
         Application.__init__(
             self,
-            arguments = command,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gcombi.log',
+            arguments=command,
+            inputs=inputs,
+            outputs=outputs,
+            stdout="gcombi.log",
             join=True,
-            executables = "./%s" % os.path.basename(gcombi_wrapper_sh),
-            **extra_args)
+            executables="./%s" % os.path.basename(gcombi_wrapper_sh),
+            **extra_args
+        )
 
 
 class GCombiScript(SessionBasedScript):
@@ -127,15 +132,14 @@ class GCombiScript(SessionBasedScript):
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__,
-            application = GCombiApplication,
-            stats_only_for = GCombiApplication,
-            )
+            self, version=__version__, application=GCombiApplication, stats_only_for=GCombiApplication
+        )
 
     def setup_args(self):
-        self.add_param('phenotypes_dir', type=str, help="Specify the directory containing the phenotypes")
-        self.add_param('chromosomes_dir', type=str, help="Specify the directory containing the cromosomes for that phenotype")
+        self.add_param("phenotypes_dir", type=str, help="Specify the directory containing the phenotypes")
+        self.add_param(
+            "chromosomes_dir", type=str, help="Specify the directory containing the cromosomes for that phenotype"
+        )
 
     def parse_args(self):
         """
@@ -147,7 +151,30 @@ class GCombiScript(SessionBasedScript):
         """
         """
         tasks = []
-        allchromosoms = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22']
+        allchromosoms = [
+            "01",
+            "02",
+            "03",
+            "04",
+            "05",
+            "06",
+            "07",
+            "08",
+            "09",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18",
+            "19",
+            "20",
+            "21",
+            "22",
+        ]
 
         for phenotype in os.listdir(self.params.phenotypes_dir):
             jobname = phenotype.split(".")[0]
@@ -155,23 +182,22 @@ class GCombiScript(SessionBasedScript):
 
             for chromosom in os.listdir(self.params.chromosomes_dir):
                 chromosom_input_file = self.params.chromosomes_dir + os.path.basename(chromosom)
-                jobname = "gcombi-%s-%s" % (os.path.basename(phenotype).split(".")[0], os.path.basename(chromosom).split(".")[0])
+                jobname = "gcombi-%s-%s" % (
+                    os.path.basename(phenotype).split(".")[0],
+                    os.path.basename(chromosom).split(".")[0],
+                )
 
                 extra_args = extra.copy()
 
-                extra_args['jobname'] = jobname
+                extra_args["jobname"] = jobname
 
-                extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', jobname)
-                extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', jobname)
-                extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', jobname)
-                extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', jobname)
+                extra_args["output_dir"] = extra_args["output_dir"].replace("NAME", jobname)
+                extra_args["output_dir"] = extra_args["output_dir"].replace("SESSION", jobname)
+                extra_args["output_dir"] = extra_args["output_dir"].replace("DATE", jobname)
+                extra_args["output_dir"] = extra_args["output_dir"].replace("TIME", jobname)
 
-                self.log.debug("Creating Application for parameters : %s %s" %
-                               (phenotype, chromosom))
+                self.log.debug("Creating Application for parameters : %s %s" % (phenotype, chromosom))
 
-                tasks.append(GCombiApplication(
-                    phenotype_input_file,
-                    chromosom_input_file,
-                    **extra_args))
+                tasks.append(GCombiApplication(phenotype_input_file, chromosom_input_file, **extra_args))
 
         return tasks

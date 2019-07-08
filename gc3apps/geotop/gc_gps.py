@@ -34,37 +34,36 @@ Input parameters consists of:
 
 """
 
-from __future__ import absolute_import, print_function
+
+import os
+import shutil
+import sys
+import tempfile
+import time
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
 
 # summary of user-visible changes
 __changelog__ = """
   2013-01-24:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gc_gps
+
     gc_gps.GcgpsScript().run()
-
-import os
-import sys
-import time
-import tempfile
-
-import shutil
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 
 ## custom application class
@@ -72,42 +71,45 @@ class GcgpsApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
-    application_name = 'gc_gps'
+
+    application_name = "gc_gps"
 
     def __init__(self, command, src_dir, result_dir, input_dir, **extra_args):
 
-
         # setup output references
         self.result_dir = result_dir
-        self.output_dir = extra_args['output_dir']
+        self.output_dir = extra_args["output_dir"]
 
         # extract from command relevant parameters to build output filename
         command_args = _parse_command(command)
         if not command_args:
             outputs = gc3libs.ANY_OUTPUT
         else:
-            self.output_file_name = "pos-%s_rates_MC%s_snr%s_h%s_sd_o%s.Rdata" \
-                % (command_args['pos'],
-                   command_args['realizations'],
-                   command_args['snr'], command_args['mast.h'],
-                   command_args['sd.mast.o'])
+            self.output_file_name = "pos-%s_rates_MC%s_snr%s_h%s_sd_o%s.Rdata" % (
+                command_args["pos"],
+                command_args["realizations"],
+                command_args["snr"],
+                command_args["mast.h"],
+                command_args["sd.mast.o"],
+            )
 
             self.local_output_file = os.path.join(self.output_dir, self.output_file_name)
             self.local_result_output_file = os.path.join(self.result_dir, self.output_file_name)
-            outputs = ['./out/screen.out', ('./out/pos.output', self.output_file_name)]
+            outputs = ["./out/screen.out", ("./out/pos.output", self.output_file_name)]
 
         # setup input references
-        inputs = [ (os.path.join(src_dir,v),os.path.join("./src",v))
-                   for v in os.listdir(src_dir)
-                   if not os.path.isdir(os.path.join(src_dir,v)) ]
+        inputs = [
+            (os.path.join(src_dir, v), os.path.join("./src", v))
+            for v in os.listdir(src_dir)
+            if not os.path.isdir(os.path.join(src_dir, v))
+        ]
 
         if input_dir:
             # take everything from input_dir/
             # XXX: N.B. NOT recursively
             for elem in os.listdir(input_dir):
-                if os.path.isfile(os.path.join(input_dir,elem)):
-                    inputs.append((os.path.join(input_dir, elem),
-                                   os.path.join('./in',elem)))
+                if os.path.isfile(os.path.join(input_dir, elem)):
+                    inputs.append((os.path.join(input_dir, elem), os.path.join("./in", elem)))
 
         # prepare execution script from command
         execution_script = """
@@ -146,41 +148,44 @@ echo Program terminated with exit code $RET
 
 mv out/pos* out/pos.output
 exit $RET
-        """ % (command, command)
+        """ % (
+            command,
+            command,
+        )
 
         try:
             # create script file
-            (handle, self.tmp_filename) = tempfile.mkstemp(prefix='gc3pie-gc_gps', suffix=extra_args['jobname'])
+            (handle, self.tmp_filename) = tempfile.mkstemp(prefix="gc3pie-gc_gps", suffix=extra_args["jobname"])
 
             # XXX: use NamedTemporaryFile instead with 'delete' = False
 
-            fd = open(self.tmp_filename,'w')
+            fd = open(self.tmp_filename, "w")
             fd.write(execution_script)
             fd.close()
-            os.chmod(fd.name,0o777)
-        except Exception, ex:
-            gc3libs.log.debug("Error creating execution script" +
-                              "Error type: %s." % type(ex) +
-                              "Message: %s"  %ex.message)
+            os.chmod(fd.name, 0o777)
+        except Exception as ex:
+            gc3libs.log.debug(
+                "Error creating execution script" + "Error type: %s." % type(ex) + "Message: %s" % ex.message
+            )
             raise
 
-        inputs.append((fd.name,'gc_gps.sh'))
-
+        inputs.append((fd.name, "gc_gps.sh"))
 
         Application.__init__(
             self,
-            arguments = ['./gc_gps.sh'],
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gc_gps.log',
+            arguments=["./gc_gps.sh"],
+            inputs=inputs,
+            outputs=outputs,
+            stdout="gc_gps.log",
             join=True,
-            **extra_args)
+            **extra_args
+        )
 
     def fetch_output_error(self, ex):
         # Ignore errors if `pos.output` file has not been created by
         # the application.
         if isinstance(ex, gc3libs.exceptions.CopyError):
-            if os.path.basename(ex.source) == 'pos.output':
+            if os.path.basename(ex.source) == "pos.output":
                 return None
         return ex
 
@@ -191,38 +196,40 @@ exit $RET
         # Cleanup tmp file
         try:
             os.remove(self.tmp_filename)
-        except Exception, ex:
-            gc3libs.log.error("Failed removing temporary file %s. " % self.tmp_filename +
-                              "Error type %s. Message %s" % (type(ex), str(ex)))
+        except Exception as ex:
+            gc3libs.log.error(
+                "Failed removing temporary file %s. " % self.tmp_filename
+                + "Error type %s. Message %s" % (type(ex), str(ex))
+            )
 
         if not self.local_output_file:
             # outputs = gc3libs.ANY_OUTPUT
             for path in os.path.listdir(self.output_dir):
-                if os.path.isfile(path) and path.startswith('pos'):
+                if os.path.isfile(path) and path.startswith("pos"):
                     # We assume this is the output file to retrieve
                     self.local_output_file = path
-                    self.local_result_output_file = os.path.join(self.result_dir,path)
+                    self.local_result_output_file = os.path.join(self.result_dir, path)
 
         # copy output file `pos*` in result_dir
         if not os.path.isfile(self.local_output_file):
-            gc3libs.log.error("Output file %s not found"
-                              % self.local_output_file)
+            gc3libs.log.error("Output file %s not found" % self.local_output_file)
             self.execution.returncode = (0, 100)
         else:
             try:
-                shutil.move(self.local_output_file,
-                            self.local_result_output_file)
-            except Exception, ex:
-                gc3libs.log.error("Failed while transferring output file " +
-                                  "%s " % self.local_output_file +
-                                  "to result folder %s. " % self.result_dir +
-                                  "Error type %s. Message %s. "
-                                  % (type(ex),str(ex)))
+                shutil.move(self.local_output_file, self.local_result_output_file)
+            except Exception as ex:
+                gc3libs.log.error(
+                    "Failed while transferring output file "
+                    + "%s " % self.local_output_file
+                    + "to result folder %s. " % self.result_dir
+                    + "Error type %s. Message %s. " % (type(ex), str(ex))
+                )
 
                 self.execution.returncode = (0, 100)
 
+
 def _parse_command(command):
-        """
+    """
         Parse a command like the following:
         "R CMD BATCH --no-save --no-restore '--args pos=5 realizations=700
          snr=1 mast.h=0.5 sd.mast.o=0' ./src/processit.R ./out/screen.out"
@@ -230,35 +237,32 @@ def _parse_command(command):
         {'pos': '5', 'realizations': '700', 'snr': '1',
          'mast.h': '0.5', 'sd.mast.o': '0' }
         """
-        try:
-            # filter out the part before and after the arguments
-            args = command.split("'")[1]
+    try:
+        # filter out the part before and after the arguments
+        args = command.split("'")[1]
 
-            # split and ignore '--args'
-            args = args.split()[1:]
+        # split and ignore '--args'
+        args = args.split()[1:]
 
-            # return a dictionary from "pos=5 realizations=700 snr=1
-            # mast.h=0.5 sd.mast.o=0"
-            # return { k:v for k,v in [ v.split('=') for v in args ] }
-            return dict( (k,v) for k,v in [ v.split('=') for v in args ])
-        except Exception, ex:
-            gc3libs.log.error("Failed while parsing command: %s. " % command +
-                              "Type: %s. Message: %s" % (type(ex),str(ex)))
-            return None
+        # return a dictionary from "pos=5 realizations=700 snr=1
+        # mast.h=0.5 sd.mast.o=0"
+        # return { k:v for k,v in [ v.split('=') for v in args ] }
+        return dict((k, v) for k, v in [v.split("=") for v in args])
+    except Exception as ex:
+        gc3libs.log.error(
+            "Failed while parsing command: %s. " % command + "Type: %s. Message: %s" % (type(ex), str(ex))
+        )
+        return None
+
 
 class GcgpsTask(RetryableTask):
     def __init__(self, command, src_dir, result_dir, input_dir, **extra_args):
         RetryableTask.__init__(
             self,
             # actual computational job
-            GcgpsApplication(
-                command,
-                src_dir,
-                result_dir,
-                input_dir,
-                **extra_args),
+            GcgpsApplication(command, src_dir, result_dir, input_dir, **extra_args),
             **extra_args
-            )
+        )
 
     def retry(self):
         """
@@ -296,27 +300,30 @@ newly-created jobs so that this limit is never exceeded.
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GcgpsApplication,
+            version=__version__,  # module version == script version
+            application=GcgpsApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GcgpsApplication,
-            )
+            stats_only_for=GcgpsApplication,
+        )
 
     def setup_options(self):
-        self.add_param("-i", "--input", metavar="PATH", #type=executable_file,
-                       dest="input_dir", default=None,
-                       help="Path to the input data folder.")
+        self.add_param(
+            "-i",
+            "--input",
+            metavar="PATH",  # type=executable_file,
+            dest="input_dir",
+            default=None,
+            help="Path to the input data folder.",
+        )
 
     def setup_args(self):
 
-        self.add_param('command_file', type=str,
-                       help="Command file full path name")
+        self.add_param("command_file", type=str, help="Command file full path name")
 
-        self.add_param('R_source_folder', type=str,
-                       help="Path to folder containing scripts to be executed.")
+        self.add_param("R_source_folder", type=str, help="Path to folder containing scripts to be executed.")
 
     def parse_args(self):
         """
@@ -328,23 +335,18 @@ newly-created jobs so that this limit is never exceeded.
         # XXX: make them position independent
         if not os.path.isdir(self.params.R_source_folder):
             raise gc3libs.exceptions.InvalidUsage(
-                "Invalid path to R scripts folder: '%s'. Path not found"
-                % self.params.R_source_folder)
+                "Invalid path to R scripts folder: '%s'. Path not found" % self.params.R_source_folder
+            )
         # XXX: shall we check/validate the content ( presence of valid R scripts ) ?
 
         self.log.info("source dir: %s" % self.params.R_source_folder)
 
         if not os.path.exists(self.params.command_file):
-            raise gc3libs.exceptions.InvalidUsage(
-                "gc_gps command file '%s' does not exist;"
-                % self.params.command_file)
-        gc3libs.utils.test_file(self.params.command_file, os.R_OK,
-                                gc3libs.exceptions.InvalidUsage)
+            raise gc3libs.exceptions.InvalidUsage("gc_gps command file '%s' does not exist;" % self.params.command_file)
+        gc3libs.utils.test_file(self.params.command_file, os.R_OK, gc3libs.exceptions.InvalidUsage)
 
         if self.params.input_dir and not os.path.isdir(self.params.input_dir):
-            raise gc3libs.exceptions.InvalidUsage(
-                "Input folder '%s' does not exists"
-                % self.params.input_dir)
+            raise gc3libs.exceptions.InvalidUsage("Input folder '%s' does not exists" % self.params.input_dir)
 
         self.log.info("Command file: %s" % self.params.command_file)
         self.log.info("R source dir: %s" % self.params.R_source_folder)
@@ -374,38 +376,47 @@ newly-created jobs so that this limit is never exceeded.
                 cmd_args = _parse_command(command)
 
                 # setting jobname
-                jobname = "gc_gps-%s%s%s%s%s" % (cmd_args['pos'],
-                                                 cmd_args['realizations'],
-                                                 cmd_args['snr'],
-                                                 cmd_args['mast.h'],
-                                                 cmd_args['sd.mast.o'])
+                jobname = "gc_gps-%s%s%s%s%s" % (
+                    cmd_args["pos"],
+                    cmd_args["realizations"],
+                    cmd_args["snr"],
+                    cmd_args["mast.h"],
+                    cmd_args["sd.mast.o"],
+                )
 
                 extra_args = extra.copy()
-                extra_args['jobname'] = jobname
+                extra_args["jobname"] = jobname
                 # FIXME: ignore SessionBasedScript feature of customizing
                 # output folder
-                extra_args['output_dir'] = self.params.output
+                extra_args["output_dir"] = self.params.output
 
-                extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', os.path.join('.computation',jobname))
-                extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', os.path.join('.computation',jobname))
-                extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', os.path.join('.computation',jobname))
-                extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', os.path.join('.computation',jobname))
+                extra_args["output_dir"] = extra_args["output_dir"].replace(
+                    "NAME", os.path.join(".computation", jobname)
+                )
+                extra_args["output_dir"] = extra_args["output_dir"].replace(
+                    "SESSION", os.path.join(".computation", jobname)
+                )
+                extra_args["output_dir"] = extra_args["output_dir"].replace(
+                    "DATE", os.path.join(".computation", jobname)
+                )
+                extra_args["output_dir"] = extra_args["output_dir"].replace(
+                    "TIME", os.path.join(".computation", jobname)
+                )
 
                 self.log.debug("Creating Task for command: %s" % command)
 
-                tasks.append(GcgpsTask(
-                        command,
-                        self.params.R_source_folder,
-                        self.result_dir,
-                        self.params.input_dir,
-                        **extra_args))
+                tasks.append(
+                    GcgpsTask(
+                        command, self.params.R_source_folder, self.result_dir, self.params.input_dir, **extra_args
+                    )
+                )
 
-        except IOError, ioe:
-            self.log.error("Error while reading command file " +
-                           "%s." % self.params.command_file +
-                           "Message: %s" % ioe.message)
-        except Exception, ex:
-            self.log.error("Unexpected error. Error type: %s, Message: %s" % (type(ex),str(ex)))
+        except IOError as ioe:
+            self.log.error(
+                "Error while reading command file " + "%s." % self.params.command_file + "Message: %s" % ioe.message
+            )
+        except Exception as ex:
+            self.log.error("Unexpected error. Error type: %s, Message: %s" % (type(ex), str(ex)))
 
         finally:
             fd.close()

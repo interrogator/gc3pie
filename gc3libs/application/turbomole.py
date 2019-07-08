@@ -18,16 +18,17 @@ Specialized support for TURBOMOLE.
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-__docformat__ = 'reStructuredText'
 
+import os
+import os.path
+
+from pkg_resources import Requirement, resource_filename
 
 import gc3libs
 import gc3libs.application
 from gc3libs.exceptions import *
-import os
-import os.path
-from pkg_resources import Requirement, resource_filename
+
+__docformat__ = "reStructuredText"
 
 
 class TurbomoleApplication(gc3libs.Application):
@@ -45,41 +46,33 @@ class TurbomoleApplication(gc3libs.Application):
     :param others: Path(s) to additional input files.
     """
 
-    application_name = 'turbomole'
+    application_name = "turbomole"
 
     def __init__(self, program, control, *others, **extra_args):
-        src_wrapper_sh = resource_filename(
-            Requirement.parse("gc3pie"), "gc3libs/etc/turbomole.sh")
+        src_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/turbomole.sh")
 
-        inputs = {
-            src_wrapper_sh: 'turbomole.sh',
-            control: 'control',
-        }
+        inputs = {src_wrapper_sh: "turbomole.sh", control: "control"}
         for path in others:
             inputs[path] = os.path.basename(path)
 
         self.program = program
 
         # set defaults for keyword arguments
-        extra_args.setdefault('join', True)
-        extra_args.setdefault('stdout', program + '.log')
-        extra_args.setdefault('output_dir', None)
+        extra_args.setdefault("join", True)
+        extra_args.setdefault("stdout", program + ".log")
+        extra_args.setdefault("output_dir", None)
 
         gc3libs.Application.__init__(
-            self,
-            arguments=["./turbomole.sh", program],
-            inputs=inputs,
-            outputs=gc3libs.ANY_OUTPUT,
-            **extra_args
+            self, arguments=["./turbomole.sh", program], inputs=inputs, outputs=gc3libs.ANY_OUTPUT, **extra_args
         )
 
     def terminated(self):
-        output_filename = os.path.join(self.output_dir, self.program + '.out')
+        output_filename = os.path.join(self.output_dir, self.program + ".out")
         if not os.path.exists(output_filename):
             self.execution.exitcode = 1  # FAIL
             return
         ok = self.program + " ended normally\n"
-        output_file = open(output_filename, 'r')
+        output_file = open(output_filename, "r")
         output_file.seek(-len(ok), os.SEEK_END)
         if ok != output_file.read():
             self.execution.exitcode = 1  # FAIL
@@ -109,42 +102,33 @@ class TurbomoleDefineApplication(gc3libs.Application):
     :param others: Path(s) to additional input files.
     """
 
-    application_name = 'turbomole_define'
+    application_name = "turbomole_define"
 
     def __init__(self, program, define_in, coord, *others, **extra_args):
-        src_wrapper_sh = resource_filename(
-            Requirement.parse("gc3pie"), "gc3libs/etc/turbomole.sh")
+        src_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/turbomole.sh")
 
-        inputs = {
-            src_wrapper_sh: 'turbomole.sh',
-            define_in: 'define.in',
-            coord: 'coord',
-        }
+        inputs = {src_wrapper_sh: "turbomole.sh", define_in: "define.in", coord: "coord"}
         for path in others:
             inputs[path] = os.path.basename(path)
 
         self.program = program
 
         # set defaults for keyword arguments
-        extra_args.setdefault('join', True)
-        extra_args.setdefault('stdout', program + '.log')
-        extra_args.setdefault('output_dir', None)
+        extra_args.setdefault("join", True)
+        extra_args.setdefault("stdout", program + ".log")
+        extra_args.setdefault("output_dir", None)
 
         gc3libs.Application.__init__(
-            self,
-            arguments=["./turbomole.sh", program],
-            inputs=inputs,
-            outputs=gc3libs.ANY_OUTPUT,
-            **extra_args
+            self, arguments=["./turbomole.sh", program], inputs=inputs, outputs=gc3libs.ANY_OUTPUT, **extra_args
         )
 
     def terminated(self):
-        output_filename = os.path.join(self.output_dir, self.program + '.out')
+        output_filename = os.path.join(self.output_dir, self.program + ".out")
         if not os.path.exists(output_filename):
             self.execution.exitcode = 1  # FAIL
             return
         ok = self.program + " ended normally\n"
-        output_file = open(output_filename, 'r')
+        output_file = open(output_filename, "r")
         output_file.seek(-len(ok), os.SEEK_END)
         if ok != output_file.read():
             self.execution.exitcode = 1  # FAIL
@@ -157,5 +141,5 @@ class TurbomoleDefineApplication(gc3libs.Application):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="square",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="square", optionflags=doctest.NORMALIZE_WHITESPACE)

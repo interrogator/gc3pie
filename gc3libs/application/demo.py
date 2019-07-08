@@ -14,17 +14,18 @@ Specialized support for computational jobs running simple demo.
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = "reStructuredText"
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
-__docformat__ = 'reStructuredText'
-
 
 import os
 import os.path
+
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import str
+
 from pkg_resources import Requirement, resource_filename
 
 import gc3libs
@@ -40,7 +41,7 @@ class Square(gc3libs.Application):
     writes an output containing the square of each of them
     """
 
-    application_name = 'demo'
+    application_name = "demo"
 
     def __init__(self, x):
         # src_square_sh = resource_filename(Requirement.parse("gc3utils"),
@@ -55,30 +56,27 @@ class Square(gc3libs.Application):
         # extra_args.setdefault('stdout', 'stdout.txt')
         # extra_args.setdefault('stderr', 'stderr.txt')
 
-        gc3libs.Application.__init__(self,
-                                     arguments=[
-                                         "/usr/bin/expr",
-                                         str(x),
-                                         "*",
-                                         str(x)],
-                                     inputs=[],
-                                     outputs=[],
-                                     output_dir=None,
-                                     stdout="stdout.txt",
-                                     stderr="stderr.txt",
-                                     # set computational requirements. XXX this
-                                     # is mandatory, thus probably should
-                                     # become part of the Application's
-                                     # signature
-                                     requested_memory=1 * GB,
-                                     requested_cores=1,
-                                     requested_walltime=1 * hours,
-                                     )
+        gc3libs.Application.__init__(
+            self,
+            arguments=["/usr/bin/expr", str(x), "*", str(x)],
+            inputs=[],
+            outputs=[],
+            output_dir=None,
+            stdout="stdout.txt",
+            stderr="stderr.txt",
+            # set computational requirements. XXX this
+            # is mandatory, thus probably should
+            # become part of the Application's
+            # signature
+            requested_memory=1 * GB,
+            requested_cores=1,
+            requested_walltime=1 * hours,
+        )
 
 
 # main: run tests
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="square",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="square", optionflags=doctest.NORMALIZE_WHITESPACE)

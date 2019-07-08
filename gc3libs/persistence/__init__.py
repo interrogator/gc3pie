@@ -48,9 +48,6 @@ the trick!
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from __future__ import absolute_import, print_function, unicode_literals
-__docformat__ = 'reStructuredText'
-
 
 # Export the "public API" towards other modules, so that
 # one can do ``import gc3libs.persistence`` and load whatever
@@ -58,14 +55,16 @@ __docformat__ = 'reStructuredText'
 # this package should be considered "internal use only".
 from .filesystem import FilesystemStore
 from .idfactory import IdFactory, JobIdFactory
-from .store import make_store, Persistable
+from .store import Persistable, make_store
 
-__all__ = ['make_store', 'Persistable', 'IdFactory',
-           'JobIdFactory', 'FilesystemStore']
+__docformat__ = "reStructuredText"
+
+
+__all__ = ["make_store", "Persistable", "IdFactory", "JobIdFactory", "FilesystemStore"]
 
 # main: run tests
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="persistence",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="persistence", optionflags=doctest.NORMALIZE_WHITESPACE)

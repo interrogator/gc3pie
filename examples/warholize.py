@@ -109,7 +109,6 @@
 #
 # Let's start importing it, among with the main `gc3libs` module::
 
-from __future__ import absolute_import
 import gc3libs
 from gc3libs.cmdline import SessionBasedScript
 import os
@@ -117,55 +116,61 @@ import os
 # and then, we create a class which inherits from it (in GC3Pie, most of
 # the customization are done by inheriting from a more generic class)::
 
+
 class WarholizeScript(SessionBasedScript):
     """
     Demo script to create a "warholized" version of an image.
     """
-    version='1.0.2'
 
-# Please note that you must either write a small docstring for that
-# class, or add a `description` attribute.
-#
-# The way we want to use our script is straightforward::
+    version = "1.0.2"
 
-# $  warholize.py inputfile [inputfiles ...]
-#
-# and this will create a directory ``Warholized.<inputfile>`` in which
-# there will be a file called ``warhol_<inputfile>`` containing the
-# desired warholized image (and a lot of temporary files, at least for now).
-#
-# But we may want to add some optional argument to the script, in order
-# to decide how many colorized pictures the warholized image will be
-# made of, or if we want to resize the image. `SessionBasedScript` uses
-# the `PyCLI`_ module which is in turn a wrapper around standard
-# `argparse` (or `optparse`) python modules. To customize the script you
-# can define a `setup_options` method and put in there some calls to
-# `SessionBasedScript.add_param()`, which is inherited from
-# `cli.app.CommandLineApp`::
+    # Please note that you must either write a small docstring for that
+    # class, or add a `description` attribute.
+    #
+    # The way we want to use our script is straightforward::
+
+    # $  warholize.py inputfile [inputfiles ...]
+    #
+    # and this will create a directory ``Warholized.<inputfile>`` in which
+    # there will be a file called ``warhol_<inputfile>`` containing the
+    # desired warholized image (and a lot of temporary files, at least for now).
+    #
+    # But we may want to add some optional argument to the script, in order
+    # to decide how many colorized pictures the warholized image will be
+    # made of, or if we want to resize the image. `SessionBasedScript` uses
+    # the `PyCLI`_ module which is in turn a wrapper around standard
+    # `argparse` (or `optparse`) python modules. To customize the script you
+    # can define a `setup_options` method and put in there some calls to
+    # `SessionBasedScript.add_param()`, which is inherited from
+    # `cli.app.CommandLineApp`::
 
     def setup_options(self):
-        self.add_param('--copies', default=4, type=int,
-                       help=("Number of colored tiles, defaults to 4."
-                             " It has to be a square number!"))
-        self.add_param('--size', default=None,
-                       help="Size of the resulting image. "
-                       "Please note that the resulting image will be a bit "
-                       "bigger than this value because of the tile. For "
-                       "instance, if you run with --size 480x480 and N "
-                       "copies, the resulting image will be "
-                       "480+5*2*(sqrt(N)) = 510 pixels wide."
-                       "")
-        self.add_param('-n', '--num-colors', default=3, type=int,
-                       help="Number of colors to use. Default: 3")
+        self.add_param(
+            "--copies",
+            default=4,
+            type=int,
+            help=("Number of colored tiles, defaults to 4." " It has to be a square number!"),
+        )
+        self.add_param(
+            "--size",
+            default=None,
+            help="Size of the resulting image. "
+            "Please note that the resulting image will be a bit "
+            "bigger than this value because of the tile. For "
+            "instance, if you run with --size 480x480 and N "
+            "copies, the resulting image will be "
+            "480+5*2*(sqrt(N)) = 510 pixels wide."
+            "",
+        )
+        self.add_param("-n", "--num-colors", default=3, type=int, help="Number of colors to use. Default: 3")
 
-
-# The *heart* of the script is, however, the `new_tasks` method, which
-# will be called to create the initial tasks of the scripts. In our
-# case it will be something like::
+    # The *heart* of the script is, however, the `new_tasks` method, which
+    # will be called to create the initial tasks of the scripts. In our
+    # case it will be something like::
 
     def new_tasks(self, extra):
         if self.params.size:
-            extra['size'] = self.params.size
+            extra["size"] = self.params.size
         tasks = []
         for (i, input_file) in enumerate(self.params.args):
             if not os.path.isfile(input_file):
@@ -173,16 +178,16 @@ class WarholizeScript(SessionBasedScript):
                 continue
             gc3libs.log.info("Creating sequential task for processing file `%s`", input_file)
             extra_args = extra.copy()
-            extra_args['output_dir'] = os.path.join(
-                extra_args.get('output_dir', os.getcwd()),
-                'Warholized.' + os.path.basename(input_file)
-            ).replace('/NAME/', '/')  ## yes, it's a bug
-            tasks.append(WarholizeWorkflow(input_file,
-                                           self.params.copies,
-                                           self.params.num_colors, **extra_args))
+            extra_args["output_dir"] = os.path.join(
+                extra_args.get("output_dir", os.getcwd()), "Warholized." + os.path.basename(input_file)
+            ).replace(
+                "/NAME/", "/"
+            )  ## yes, it's a bug
+            tasks.append(WarholizeWorkflow(input_file, self.params.copies, self.params.num_colors, **extra_args))
         if not tasks:
             raise gc3libs.exceptions.InvalidUsage("Missing or invalid image file.")
         return [ParallelTaskCollection(tasks, **extra)]
+
 
 # `new_tasks` must return a list of tasks.  In GC3Pie, a *task* is
 # either a single application or a complex workflow, and rapresents an
@@ -218,84 +223,97 @@ from gc3libs.workflow import SequentialTaskCollection, ParallelTaskCollection
 import math
 from gc3libs import Run
 
+
 class WarholizeWorkflow(SequentialTaskCollection):
     """
     Main workflow.
     """
 
-    def __init__(self, input_image,  copies, ncolors,
-                 size=None, **extra_args):
+    def __init__(self, input_image, copies, ncolors, size=None, **extra_args):
         """XXX do we need input_image and output_image? I guess so?"""
         self.input_image = input_image
         self.output_image = "warhol_%s" % os.path.basename(input_image)
         self.resize = False
 
         gc3libs.log.info(
-            "Producing a warholized version of input file %s "
-            "and store it in %s" % (input_image, self.output_image))
-
+            "Producing a warholized version of input file %s " "and store it in %s" % (input_image, self.output_image)
+        )
 
         if size:
-            x, y = size.split('x', 2)
+            x, y = size.split("x", 2)
             rows = math.sqrt(copies)
             self.resize = "%dx%d" % (int(x) / rows, int(y) / rows)
 
-        self.output_dir = os.path.relpath(extra_args.get('output_dir'))
+        self.output_dir = os.path.relpath(extra_args.get("output_dir"))
 
         self.ncolors = ncolors
         self.copies = copies
 
         # Check that copies is a perfect square
         if math.sqrt(self.copies) != int(math.sqrt(self.copies)):
-            raise gc3libs.exceptions.InvalidArgument(
-                "`copies` argument must be a perfect square.")
+            raise gc3libs.exceptions.InvalidArgument("`copies` argument must be a perfect square.")
 
-        self.jobname = extra_args.get('jobname', 'WarholizedWorkflow')
+        self.jobname = extra_args.get("jobname", "WarholizedWorkflow")
 
         self.grayscaled_image = "grayscaled_%s" % os.path.basename(self.input_image)
 
-# This is just parsing of the arguments. The last lines, instead,
-# create the initial tasks that will be submitted. By now, we can submit
-# only the first one, `GrayScaleConvertApplication`, which will produce
-# a grayscale image from the input file::
+        # This is just parsing of the arguments. The last lines, instead,
+        # create the initial tasks that will be submitted. By now, we can submit
+        # only the first one, `GrayScaleConvertApplication`, which will produce
+        # a grayscale image from the input file::
         self.extra_args = extra_args.copy()
-        self.extra_args.pop('output_dir')
+        self.extra_args.pop("output_dir")
         self.tasks = [
             GrayScaleConvertApplication(
-                self.input_image, self.grayscaled_image, self.output_dir,
-                self.output_dir, resize=self.resize, **self.extra_args),
-            ]
+                self.input_image,
+                self.grayscaled_image,
+                self.output_dir,
+                self.output_dir,
+                resize=self.resize,
+                **self.extra_args
+            )
+        ]
 
         SequentialTaskCollection.__init__(self, self.tasks)
 
-# Finally, we to call the parent's constructor.
-#
-# This will create the initial task list, but we have to run also step 2
-# and 3. This is done by creating a `next` method. This method will be
-# called after all the tasks in `self.tasks` are finished. We cannot
-# create all the jobs at once because we don't have all the needed input
-# files yet.
-#
-# The `next` method will look like::
+    # Finally, we to call the parent's constructor.
+    #
+    # This will create the initial task list, but we have to run also step 2
+    # and 3. This is done by creating a `next` method. This method will be
+    # called after all the tasks in `self.tasks` are finished. We cannot
+    # create all the jobs at once because we don't have all the needed input
+    # files yet.
+    #
+    # The `next` method will look like::
 
     def next(self, iteration):
         last = self.tasks[-1]
 
         if iteration == 0:
-            self.add(TricolorizeMultipleImages(
-                os.path.join(self.output_dir, self.grayscaled_image),
-                self.copies, self.ncolors,
-                self.output_dir, **self.extra_args))
+            self.add(
+                TricolorizeMultipleImages(
+                    os.path.join(self.output_dir, self.grayscaled_image),
+                    self.copies,
+                    self.ncolors,
+                    self.output_dir,
+                    **self.extra_args
+                )
+            )
             return Run.State.RUNNING
         elif iteration == 1:
-            self.add(MergeImagesApplication(
-                os.path.join(self.output_dir, self.grayscaled_image),
-                last.warhol_dir,
-                self.output_image, **self.extra_args))
+            self.add(
+                MergeImagesApplication(
+                    os.path.join(self.output_dir, self.grayscaled_image),
+                    last.warhol_dir,
+                    self.output_image,
+                    **self.extra_args
+                )
+            )
             return Run.State.RUNNING
         else:
             self.execution.returncode = last.execution.returncode
             return Run.State.TERMINATED
+
 
 # At each iteration, we call `self.add()` to add an instance of a
 # task-like class (`gc3libs.Application`,
@@ -316,25 +334,26 @@ class WarholizeWorkflow(SequentialTaskCollection):
 # create a generic *cached* application which wraps
 # `gc3libs.Application`::
 
+
 class ApplicationWithCachedResults(gc3libs.Application):
     """
     Just like `gc3libs.Application`, but do not run at all
     if the expected result is already present on the filesystem.
     """
+
     def __init__(self, arguments, inputs, outputs, **extra_args):
         gc3libs.Application.__init__(self, arguments, inputs, outputs, **extra_args)
 
         # check if all the output files are already available
         all_outputs_available = True
         for output in self.outputs.values():
-            if not os.path.exists(
-                os.path.join(self.output_dir, output.path)):
+            if not os.path.exists(os.path.join(self.output_dir, output.path)):
                 all_outputs_available = False
         if all_outputs_available:
             # skip execution altogether
             gc3libs.log.info(
-                "All output files are already available:"
-                " assuming last run was correct and skipping new one.")
+                "All output files are already available:" " assuming last run was correct and skipping new one."
+            )
             self.execution.state = Run.State.TERMINATED
             self.execution.returncode = (0, 0)
 
@@ -344,63 +363,57 @@ class ApplicationWithCachedResults(gc3libs.Application):
 # An useful function to copy files
 from gc3libs.utils import copyfile
 
+
 class GrayScaleConvertApplication(ApplicationWithCachedResults):
     def __init__(self, input_image, grayscaled_image, output_dir, warhol_dir, resize=None, **extra_args):
         self.warhol_dir = warhol_dir
         self.grayscaled_image = grayscaled_image
-        self.application_name = 'warholize'
-        self.jobname = extra_args.get('jobname', 'GrayScaleConvertApplication')
+        self.application_name = "warholize"
+        self.jobname = extra_args.get("jobname", "GrayScaleConvertApplication")
 
-        arguments = [
-            'convert',
-            os.path.basename(input_image),
-            '-colorspace',
-            'gray',
-            ]
+        arguments = ["convert", os.path.basename(input_image), "-colorspace", "gray"]
         if resize:
-            arguments.extend(['-geometry', resize])
+            arguments.extend(["-geometry", resize])
 
         gc3libs.log.info(
-            "Craeting  GrayScale convert application from file %s"
-            "to file %s" % (input_image, grayscaled_image))
+            "Craeting  GrayScale convert application from file %s" "to file %s" % (input_image, grayscaled_image)
+        )
 
         super(GrayScaleConvertApplication, self).__init__(
-            arguments = arguments + [grayscaled_image],
-            inputs = [input_image],
-            outputs = [grayscaled_image, 'stderr.txt', 'stdout.txt'],
-            output_dir = output_dir,
-            stdout = 'stdout.txt',
-            stderr = 'stderr.txt',
+            arguments=arguments + [grayscaled_image],
+            inputs=[input_image],
+            outputs=[grayscaled_image, "stderr.txt", "stdout.txt"],
+            output_dir=output_dir,
+            stdout="stdout.txt",
+            stderr="stderr.txt",
             **extra_args
-            )
+        )
 
-# Creating a `gc3libs.Application` is straigthforward: you just
-# call the constructor with the executable, the arguments, and the
-# input/output files you will need.
-#
-# If you don't specify the ``output_dir`` directory, gc3pie libraries will
-# create one starting from the job name. It is quite important, then, to
-# generate unique jobname for your applications in order to avoid
-# conflits. If the output directory exists already, the old one will be
-# renamed.
-#
-# To do any kind of post processing you can define a `terminate` method
-# for your application. It will be called after your application will
-# terminate. In our case we want to copy the gray scale version of the
-# image to the `warhol_dir`, so that it will be easily reachable by the
-# other applications::
+    # Creating a `gc3libs.Application` is straigthforward: you just
+    # call the constructor with the executable, the arguments, and the
+    # input/output files you will need.
+    #
+    # If you don't specify the ``output_dir`` directory, gc3pie libraries will
+    # create one starting from the job name. It is quite important, then, to
+    # generate unique jobname for your applications in order to avoid
+    # conflits. If the output directory exists already, the old one will be
+    # renamed.
+    #
+    # To do any kind of post processing you can define a `terminate` method
+    # for your application. It will be called after your application will
+    # terminate. In our case we want to copy the gray scale version of the
+    # image to the `warhol_dir`, so that it will be easily reachable by the
+    # other applications::
 
     def terminated(self):
         """Move grayscale image to the main output dir"""
         try:
-            copyfile(
-                os.path.join(self.output_dir, self.grayscaled_image),
-                self.warhol_dir)
+            copyfile(os.path.join(self.output_dir, self.grayscaled_image), self.warhol_dir)
         except:
-            gc3libs.log.warning("Ignoring error copying file %s to %s" % (
-                os.path.join(self.output_dir, self.grayscaled_image),
-                self.warhol_dir))
-
+            gc3libs.log.warning(
+                "Ignoring error copying file %s to %s"
+                % (os.path.join(self.output_dir, self.grayscaled_image), self.warhol_dir)
+            )
 
 
 # Step two: parallel workflow to create colorized images
@@ -415,19 +428,16 @@ class GrayScaleConvertApplication(ApplicationWithCachedResults):
 import itertools
 import random
 
+
 class TricolorizeMultipleImages(ParallelTaskCollection):
-    colors = ['yellow', 'blue', 'red',
-              'navy', 'turquoise1', 'SeaGreen', 'gold',
-              'orange', 'magenta']
+    colors = ["yellow", "blue", "red", "navy", "turquoise1", "SeaGreen", "gold", "orange", "magenta"]
 
     def __init__(self, grayscaled_image, copies, ncolors, output_dir, **extra_args):
-        gc3libs.log.info(
-            "TricolorizeMultipleImages for %d copies run" % copies)
+        gc3libs.log.info("TricolorizeMultipleImages for %d copies run" % copies)
         self.jobname = "Warholizer_Parallel"
         self.ncolors = ncolors
         ### XXX Why I have to use basename???
-        self.output_dir = os.path.join(
-            output_dir, 'tricolorize')
+        self.output_dir = os.path.join(output_dir, "tricolorize")
         self.warhol_dir = output_dir
 
         # Compute a unique sequence of random combination of
@@ -441,14 +451,19 @@ class TricolorizeMultipleImages(ParallelTaskCollection):
         # Create all the single tasks
         self.tasks = []
         for i, colors in enumerate(combinations):
-            self.tasks.append(TricolorizeImage(
-                os.path.relpath(grayscaled_image),
-                "%s.%d" % (self.output_dir, i),
-                "%s.%d" % (grayscaled_image, i),
-                colors,
-                self.warhol_dir, **extra_args))
+            self.tasks.append(
+                TricolorizeImage(
+                    os.path.relpath(grayscaled_image),
+                    "%s.%d" % (self.output_dir, i),
+                    "%s.%d" % (grayscaled_image, i),
+                    colors,
+                    self.warhol_dir,
+                    **extra_args
+                )
+            )
 
         ParallelTaskCollection.__init__(self, self.tasks)
+
 
 # The main loop will fill the `self.tasks` list with various
 # `TricolorizedImage`, each one with an unique combination of three
@@ -467,48 +482,56 @@ class TricolorizeImage(SequentialTaskCollection):
     Sequential workflow to produce a `tricolorized` version of a
     grayscale image
     """
-    def __init__(self, grayscaled_image, output_dir, output_file,
-                 colors, warhol_dir, **extra_args):
+
+    def __init__(self, grayscaled_image, output_dir, output_file, colors, warhol_dir, **extra_args):
         self.grayscaled_image = grayscaled_image
         self.output_dir = output_dir
         self.warhol_dir = warhol_dir
-        self.jobname = 'TricolorizeImage'
+        self.jobname = "TricolorizeImage"
         self.output_file = output_file
 
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
         self.extra_args = extra_args
 
-        gc3libs.log.info(
-            "Tricolorize image %s to %s" % (
-                self.grayscaled_image, self.output_file))
+        gc3libs.log.info("Tricolorize image %s to %s" % (self.grayscaled_image, self.output_file))
 
         self.tasks = [
             CreateLutApplication(
                 self.grayscaled_image,
                 "%s.miff" % self.grayscaled_image,
                 self.output_dir,
-                colors, self.warhol_dir, **extra_args),
-            ]
+                colors,
+                self.warhol_dir,
+                **extra_args
+            )
+        ]
 
         SequentialTaskCollection.__init__(self, self.tasks)
 
     def next(self, iteration):
         last = self.tasks[-1]
         if isinstance(last, CreateLutApplication):
-            self.add(ApplyLutApplication(
-                self.grayscaled_image,
-                os.path.join(last.output_dir, last.lutfile),
-                os.path.basename(self.output_file),
-                self.output_dir, self.warhol_dir, **self.extra_args))
+            self.add(
+                ApplyLutApplication(
+                    self.grayscaled_image,
+                    os.path.join(last.output_dir, last.lutfile),
+                    os.path.basename(self.output_file),
+                    self.output_dir,
+                    self.warhol_dir,
+                    **self.extra_args
+                )
+            )
             return Run.State.RUNNING
         else:
             self.execution.returncode = last.execution.returncode
             return Run.State.TERMINATED
 
+
 # The `CreateLutApplication` is again an application which inherits from
 # `ApplicationWithCachedResults` because we don't want to compute over
 # and over the same LUT, so::
+
 
 class CreateLutApplication(ApplicationWithCachedResults):
     """Create the LUT for the image using 3 colors picked randomly
@@ -517,31 +540,26 @@ class CreateLutApplication(ApplicationWithCachedResults):
     def __init__(self, input_image, output_file, output_dir, colors, working_dir, **extra_args):
         self.lutfile = os.path.basename(output_file)
         self.working_dir = working_dir
-        self.application_name = 'warholize'
-        self.jobname = 'CreateLutApplication'
-        gc3libs.log.info("Creating lut file %s from %s using "
-                         "colors: %s" % (
-            self.lutfile, input_image, str.join(", ", colors)))
+        self.application_name = "warholize"
+        self.jobname = "CreateLutApplication"
+        gc3libs.log.info(
+            "Creating lut file %s from %s using " "colors: %s" % (self.lutfile, input_image, str.join(", ", colors))
+        )
         super(CreateLutApplication, self).__init__(
-            arguments = [
-                'convert',
-                '-size',
-                '1x1'] + [
-                "xc:%s" % color for color in colors] + [
-                '+append',
-                '-resize',
-                '256x1!',
-                self.lutfile,
-                ],
-            inputs = [input_image],
-            outputs = [self.lutfile, 'stdout.txt', 'stderr.txt'],
-            output_dir = output_dir + '.createlut',
-            stdout = 'stdout.txt',
-            stderr = 'stderr.txt',
+            arguments=["convert", "-size", "1x1"]
+            + ["xc:%s" % color for color in colors]
+            + ["+append", "-resize", "256x1!", self.lutfile],
+            inputs=[input_image],
+            outputs=[self.lutfile, "stdout.txt", "stderr.txt"],
+            output_dir=output_dir + ".createlut",
+            stdout="stdout.txt",
+            stderr="stderr.txt",
             **extra_args
-            )
+        )
+
 
 # And the `ApplyLutApplication` as well::
+
 
 class ApplyLutApplication(ApplicationWithCachedResults):
     """Apply the LUT computed by `CreateLutApplication` to
@@ -552,34 +570,28 @@ class ApplyLutApplication(ApplicationWithCachedResults):
         gc3libs.log.info("Applying lut file %s to %s" % (lutfile, input_image))
         self.working_dir = working_dir
         self.output_file = output_file
-        self.application_name = 'warholize'
+        self.application_name = "warholize"
 
         super(ApplyLutApplication, self).__init__(
-            arguments = [
-                'convert',
-                os.path.basename(input_image),
-                os.path.basename(lutfile),
-                '-clut',
-                output_file,
-                ],
-            inputs = [input_image, lutfile],
-            outputs = [output_file, 'stdout.txt', 'stderr.txt'],
-            output_dir = output_dir + '.applylut',
-            stdout = 'stdout.txt',
-            stderr = 'stderr.txt',
+            arguments=["convert", os.path.basename(input_image), os.path.basename(lutfile), "-clut", output_file],
+            inputs=[input_image, lutfile],
+            outputs=[output_file, "stdout.txt", "stderr.txt"],
+            output_dir=output_dir + ".applylut",
+            stdout="stdout.txt",
+            stderr="stderr.txt",
             **extra_args
-            )
+        )
 
     def terminated(self):
         """Copy colorized image to the output dir"""
         try:
-            copyfile(
-                os.path.join(self.output_dir, self.output_file),
-                self.working_dir)
+            copyfile(os.path.join(self.output_dir, self.output_file), self.working_dir)
         except:
-            gc3libs.log.warning("Ignoring error copying file %s to %s." % (
-                os.path.join(self.output_dir, self.output_file),
-                self.working_dir))
+            gc3libs.log.warning(
+                "Ignoring error copying file %s to %s."
+                % (os.path.join(self.output_dir, self.output_file), self.working_dir)
+            )
+
 
 # which will copy the colorized image file in the top level directory,
 # so that it will be easier for the last application to find all the
@@ -598,55 +610,49 @@ class ApplyLutApplication(ApplicationWithCachedResults):
 
 import re
 
+
 class MergeImagesApplication(ApplicationWithCachedResults):
     def __init__(self, grayscaled_image, input_dir, output_file, **extra_args):
-        ifile_regexp = re.compile(
-            "%s.[0-9]+" % os.path.basename(grayscaled_image))
-        input_files = [
-            os.path.join(input_dir, fname) for fname in os.listdir(input_dir)
-            if ifile_regexp.match(fname)]
+        ifile_regexp = re.compile("%s.[0-9]+" % os.path.basename(grayscaled_image))
+        input_files = [os.path.join(input_dir, fname) for fname in os.listdir(input_dir) if ifile_regexp.match(fname)]
         input_filenames = [os.path.basename(i) for i in input_files]
         gc3libs.log.info("MergeImages initialized")
         self.input_dir = input_dir
         self.output_file = output_file
-        self.application_name = 'warholize'
+        self.application_name = "warholize"
 
         tile = math.sqrt(len(input_files))
         if tile != int(tile):
             gc3libs.log.error(
                 "We would expect to have a perfect square"
-                "of images to merge, but we have %d instead" % len(input_files))
+                "of images to merge, but we have %d instead" % len(input_files)
+            )
             raise gc3libs.exceptions.InvalidArgument(
-                "We would expect to have a perfect square of images to merge, but we have %d instead" % len(input_files))
+                "We would expect to have a perfect square of images to merge, but we have %d instead" % len(input_files)
+            )
 
         super(MergeImagesApplication, self).__init__(
-            arguments = ['montage'] + input_filenames + [
-                '-tile',
-                '%dx%d' % (tile, tile),
-                '-geometry',
-                '+5+5',
-                '-background',
-                'white',
-                output_file,
-                ],
-            inputs = input_files,
-            outputs = [output_file, 'stderr.txt', 'stdout.txt'],
-            output_dir = os.path.join(input_dir, 'output'),
-            stdout = 'stdout.txt',
-            stderr = 'stderr.txt',
+            arguments=["montage"]
+            + input_filenames
+            + ["-tile", "%dx%d" % (tile, tile), "-geometry", "+5+5", "-background", "white", output_file],
+            inputs=input_files,
+            outputs=[output_file, "stderr.txt", "stdout.txt"],
+            output_dir=os.path.join(input_dir, "output"),
+            stdout="stdout.txt",
+            stderr="stderr.txt",
             **extra_args
-            )
+        )
 
     def terminated(self):
         """Copy output file to main directory"""
         try:
-            copyfile(os.path.join(self.output_dir, self.output_file),
-                     self.input_dir)
+            copyfile(os.path.join(self.output_dir, self.output_file), self.input_dir)
         except:
             gc3libs.log.warning(
-                "Ignoring error copying file {0} to {1}"
-                .format(os.path.join(self.output_dir, self.output_file),
-                        self.input_dir))
+                "Ignoring error copying file {0} to {1}".format(
+                    os.path.join(self.output_dir, self.output_file), self.input_dir
+                )
+            )
 
 
 # Making the script executable
@@ -658,8 +664,9 @@ class MergeImagesApplication(ApplicationWithCachedResults):
 # do all the magic related to argument parsing, creating the session
 # etc...::
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import warholize
+
     warholize.WarholizeScript().run()
 
 # Please note that the ``import warholize`` statement is important to

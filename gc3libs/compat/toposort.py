@@ -40,10 +40,11 @@
 #
 ########################################################################
 
-from __future__ import absolute_import, print_function, unicode_literals
+
 from functools import reduce as _reduce
 
-__all__ = ['toposort', 'toposort_flatten']
+__all__ = ["toposort", "toposort_flatten"]
+
 
 def toposort(data):
     """Dependencies are expressed as a dictionary whose keys are items
@@ -73,13 +74,11 @@ items in the preceeding sets.
         if not ordered:
             break
         yield ordered
-        data = dict(
-            (item, (dep - ordered))
-            for item, dep in list(data.items())
-            if item not in ordered
-        )
+        data = dict((item, (dep - ordered)) for item, dep in list(data.items()) if item not in ordered)
     if len(data) != 0:
-        raise ValueError('Cyclic dependencies exist among these items: {}'.format(', '.join(repr(x) for x in list(data.items()))))
+        raise ValueError(
+            "Cyclic dependencies exist among these items: {}".format(", ".join(repr(x) for x in list(data.items())))
+        )
 
 
 def toposort_flatten(data, sort=True):

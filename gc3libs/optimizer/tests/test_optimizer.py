@@ -15,42 +15,40 @@ Unit tests for the `gc3libs.optimizer.drivers` module.
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the GNU Lesser General Public License
-# along with this program; if not, write to the Free Software
+
+__docformat__ = "reStructuredText"
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 #
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import object
-__docformat__ = 'reStructuredText'
 
-import os
-import sys
 import logging
-import tempfile
+import os
 import shutil
+import sys
+import tempfile
 
-import cli.test
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program; if not, write to the Free Software
+from builtins import object
 
 import numpy as np
 
+import cli.test
 import gc3libs
 from gc3libs import Application, configure_logger
 from gc3libs.cmdline import SessionBasedScript
 
 # optimizer specific imports
 from gc3libs.optimizer import draw_population
-from gc3libs.utils import update_parameter_in_file
-from gc3libs.optimizer.drivers import ParallelDriver, SequentialDriver
 from gc3libs.optimizer.dif_evolution import DifferentialEvolutionAlgorithm
-from gc3libs.optimizer.extra import print_stats, log_stats, plot_population
+from gc3libs.optimizer.drivers import ParallelDriver, SequentialDriver
+from gc3libs.optimizer.extra import log_stats, plot_population, print_stats
+from gc3libs.utils import update_parameter_in_file
 
 
 class TestSequentialDriver(object):
-
     def setUp(self):
         # Create a temporary stage directory
-        self.temp_stage_dir = tempfile.mkdtemp(
-            prefix='SequentialDriver_Rosenbrock_')
+        self.temp_stage_dir = tempfile.mkdtemp(prefix="SequentialDriver_Rosenbrock_")
 
     def tearDown(self):
         # Remove Rosenbrock output
@@ -77,63 +75,60 @@ class TestSequentialDriver(object):
             dim=dim,
             size=pop_size,
             in_domain=self.rosenbrock_sample_filter,
-            seed=magic_seed)
+            seed=magic_seed,
+        )
 
         algo = DifferentialEvolutionAlgorithm(
             initial_pop=initial_pop,
             de_step_size=0.85,  # DE-stepsize ex [0, 2]
             prob_crossover=prob_cross,
             # crossover probabililty constant ex [0, 1]
-            itermax=1000,      # maximum number of iterations (generations)
+            itermax=1000,  # maximum number of iterations (generations)
             dx_conv_crit=None,  # stop when variation among x's is < this
             y_conv_crit=1e-5,  # stop when ofunc < y_conv_crit
-            de_strategy='DE_local_to_best',
+            de_strategy="DE_local_to_best",
             logger=log,
             in_domain=self.rosenbrock_sample_filter,
             seed=magic_seed,
             after_update_opt_state=[print_stats, log_stats]
-            #, plot_population(temp_stage_dir)]
+            # , plot_population(temp_stage_dir)]
         )
         assert algo.de_step_size == 0.85
         assert algo.prob_crossover == prob_cross
         assert algo.itermax == 1000
         assert algo.dx_conv_crit is None
         assert algo.y_conv_crit == 1e-5
-        assert algo.de_strategy == 'DE_local_to_best'
+        assert algo.de_strategy == "DE_local_to_best"
         assert algo.logger == log
 
-        opt = SequentialDriver(
-            algo,
-            target_fn=self.rosenbrock_fn,
-            fmt="%12.8f")
+        opt = SequentialDriver(algo, target_fn=self.rosenbrock_fn, fmt="%12.8f")
         assert opt.target_fn == self.rosenbrock_fn
 
         # run the Diff.Evo. algorithm
         opt.de_opt()
 
         assert algo.has_converged()
-        assert (algo.best_y - 0.) < algo.y_conv_crit
-        assert (algo.best_x[0] - 1.) < 1e-3
-        assert (algo.best_x[1] - 1.) < 1e-3
+        assert (algo.best_y - 0.0) < algo.y_conv_crit
+        assert (algo.best_x[0] - 1.0) < 1e-3
+        assert (algo.best_x[1] - 1.0) < 1e-3
 
     @staticmethod
     def rosenbrock_fn(vectors):
         result = []
         for vector in vectors:
-            #---Rosenbrock saddle-------------------------------------------
-            F_cost = 100 * \
-                (vector[1] - vector[0] ** 2) ** 2 + (1 - vector[0]) ** 2
+            # ---Rosenbrock saddle-------------------------------------------
+            F_cost = 100 * (vector[1] - vector[0] ** 2) ** 2 + (1 - vector[0]) ** 2
 
             result.append(F_cost)
         return np.array(result)
 
     @staticmethod
     def rosenbrock_sample_filter(pop):
-        '''
+        """
         Sample filter function.
         In optimum x[0] + x[1] = 2.
-        '''
-        filter_pop_sum = 3.                # x[0] + x[1] <= filter_pop_sum
+        """
+        filter_pop_sum = 3.0  # x[0] + x[1] <= filter_pop_sum
         return [x[0] + x[1] <= filter_pop_sum for x in pop]
 
 
@@ -159,41 +154,35 @@ type=none
     def __init__(self, *args, **extra_args):
         cli.test.FunctionalTest.__init__(self, *args, **extra_args)
         self.scriptdir = os.path.join(
-            os.path.dirname(
-                os.path.abspath(__file__)),
-            '../../../examples/optimizer/rosenbrock')
+            os.path.dirname(os.path.abspath(__file__)), "../../../examples/optimizer/rosenbrock"
+        )
 
     def setUp(self):
         cli.test.FunctionalTest.setUp(self)
 
         # Create stage_dir to run optimization in.
-        self.temp_stage_dir = tempfile.mkdtemp(
-            prefix='ParallelDriver_Rosenbrock_')
+        self.temp_stage_dir = tempfile.mkdtemp(prefix="ParallelDriver_Rosenbrock_")
 
         # Create a sample user config file.
         (fd, cfgfile) = tempfile.mkstemp()
-        resourcedir = cfgfile + '.d'
-        f = os.fdopen(fd, 'w+')
+        resourcedir = cfgfile + ".d"
+        f = os.fdopen(fd, "w+")
         f.write(TestParallelDriver.CONF % resourcedir)
         f.close()
-        sys.argv += ['--config-files', cfgfile, '-r', 'localhost_test']
+        sys.argv += ["--config-files", cfgfile, "-r", "localhost_test"]
         self.files_to_remove = [cfgfile, resourcedir]
 
         self.cfg = gc3libs.config.Configuration()
         self.cfg.merge_file(cfgfile)
 
         self.core = gc3libs.core.Core(self.cfg)
-        self.backend = self.core.get_backend('localhost_test')
+        self.backend = self.core.get_backend("localhost_test")
 
         # Create base dir with sample parameter file
-        self.temp_base_dir = os.path.join(self.temp_stage_dir, 'base')
+        self.temp_base_dir = os.path.join(self.temp_stage_dir, "base")
         os.mkdir(self.temp_base_dir)
-        para_file = open(
-            os.path.join(
-                self.temp_base_dir,
-                'parameters.in'),
-            'w')
-        para_file.write('x1    100.0\nx2    50.0\n')
+        para_file = open(os.path.join(self.temp_base_dir, "parameters.in"), "w")
+        para_file.write("x1    100.0\nx2    50.0\n")
 
     def cleanup_file(self, fname):
         self.files_to_remove.append(fname)
@@ -216,26 +205,32 @@ type=none
         The script is found in ``examples/optimizer/rosenbrock/opt_rosenbrock.py``
         """
         # Run Rosenbrock
-        result = self.run_script('python',
-                                 os.path.join(
-                                     self.scriptdir,
-                                     'opt_rosenbrock.py'),
-                                 '-C', '1',
-                                 '-r', 'localhost',
-                                 '--pop_size', 5,
-                                 '--y_conv_crit', 1000.0,
-                                 '--path_to_stage_dir', self.temp_stage_dir,
-                                 '--path_to_base_dir', self.temp_base_dir,
-                                 '--path_to_executable', os.path.join(
-                                     os.path.dirname(__file__), 'fitness_func', 'rosenbrock.py')
-                                 #  ,'-vvvv'
-                                 )
+        result = self.run_script(
+            "python",
+            os.path.join(self.scriptdir, "opt_rosenbrock.py"),
+            "-C",
+            "1",
+            "-r",
+            "localhost",
+            "--pop_size",
+            5,
+            "--y_conv_crit",
+            1000.0,
+            "--path_to_stage_dir",
+            self.temp_stage_dir,
+            "--path_to_base_dir",
+            self.temp_base_dir,
+            "--path_to_executable",
+            os.path.join(os.path.dirname(__file__), "fitness_func", "rosenbrock.py")
+            #  ,'-vvvv'
+        )
 
-        assert result.stderr.find('Converged:')
+        assert result.stderr.find("Converged:")
 
 
 # main: run tests
 
 if "__main__" == __name__:
     import pytest
+
     pytest.main(["-v", __file__])

@@ -23,7 +23,6 @@ can still connect to the XML-RPC interface and manage existing tasks.
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import (absolute_import, division, print_function)
 
 from fnmatch import fnmatch
 import os
@@ -44,27 +43,33 @@ class InboxProcessingDaemon(SessionBasedDaemon):
 
     # setting `version` is required to instanciate the
     # `SessionBasedDaemon` class
-    version = '1.0'
+    version = "1.0"
 
     # add command-line options specific to this script
     def setup_options(self):
         super(InboxProcessingDaemon, self).setup_options()
-        self.add_param('-p', '--pattern', metavar='PATTERN',
-                       action='store', default=None,
-                       help=("Only process files that match this pattern."))
-
+        self.add_param(
+            "-p",
+            "--pattern",
+            metavar="PATTERN",
+            action="store",
+            default=None,
+            help=("Only process files that match this pattern."),
+        )
 
     # set up processing of positional arguments on the command line
     def setup_args(self):
-        self.add_param('program', metavar='PROGRAM',
-                       action='store', type=executable_file,
-                       help=("Run this program on each file"
-                             " that is created in the inbox(es)."))
+        self.add_param(
+            "program",
+            metavar="PROGRAM",
+            action="store",
+            type=executable_file,
+            help=("Run this program on each file" " that is created in the inbox(es)."),
+        )
 
         # last arg is always INBOX [INBOX ...] -- changing it would
         # require overriding `_start_inboxes()` as well
         super(InboxProcessingDaemon, self).setup_args()
-
 
     def created(self, inbox, subject):
         """
@@ -79,20 +84,23 @@ class InboxProcessingDaemon(SessionBasedDaemon):
         # the command-line, like base output directory, or
         # wall-time/RAM limits, etc.
         extra = self.extra.copy()
-        extra.setdefault('output_dir', input_name + '.out')
+        extra.setdefault("output_dir", input_name + ".out")
 
         self.add(
             Application(
                 [self.params.program, input_name],
                 inputs=[subject.path],
                 outputs=gc3libs.ANY_OUTPUT,
-                stdout='execution_log.txt',
-                stderr='execution_log.txt',
-                **extra))
+                stdout="execution_log.txt",
+                stderr="execution_log.txt",
+                **extra
+            )
+        )
 
 
 ## main: run server
 
 if "__main__" == __name__:
     from inbox_server import InboxProcessingDaemon
+
     InboxProcessingDaemon().run()

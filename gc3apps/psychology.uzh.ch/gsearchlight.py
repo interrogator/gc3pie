@@ -26,42 +26,43 @@ See the output of ``gsearchlight.py --help`` for program usage
 instructions.
 """
 
-from __future__ import absolute_import, print_function
 
-__version__ = 'development version (SVN $Revision$)'
+import os
+import sys
+import tempfile
+import time
+
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file, existing_file, positive_int
+from gc3libs.quantity import GB, MB, Duration, Memory, hours, kB, minutes, seconds
+
+__version__ = "development version (SVN $Revision$)"
 # summary of user-visible changes
 __changelog__ = """
   2016-12-01:
   * Initial version
 """
-__author__ = 'Sergio Maffioletti <sergio.maffioletti@uzh.ch>'
-__docformat__ = 'reStructuredText'
+__author__ = "Sergio Maffioletti <sergio.maffioletti@uzh.ch>"
+__docformat__ = "reStructuredText"
 
 
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: http://code.google.com/p/gc3pie/issues/detail?id=95
 if __name__ == "__main__":
     import gsearchlight
+
     gsearchlight.GsearchlightScript().run()
 
-import os
-import sys
-import time
-import tempfile
 
-from pkg_resources import Requirement, resource_filename
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file, positive_int, existing_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
-
-DEFAULT_ITERATIONS=1000
-DEFAULT_CHUNKS=1
-DEFAULT_REMOTE_OUTPUT_FILE="result"
-MATLAB_CMD="matlab -nosplash -nodisplay -nodesktop -r \'{main_function}({iterations} {mask} {fn} {output});quit\'"
+DEFAULT_ITERATIONS = 1000
+DEFAULT_CHUNKS = 1
+DEFAULT_REMOTE_OUTPUT_FILE = "result"
+MATLAB_CMD = "matlab -nosplash -nodisplay -nodesktop -r '{main_function}({iterations} {mask} {fn} {output});quit'"
 
 ## custom application class
 class GsearchlightApplication(Application):
@@ -69,7 +70,8 @@ class GsearchlightApplication(Application):
     Custom class to wrap the execution of the Matlab function
     over a subset of the total number of events.
     """
-    application_name = 'gsearchlight'
+
+    application_name = "gsearchlight"
 
     def __init__(self, iterations, mask, mask_hdr, fn_file, matlab_file, **extra_args):
 
@@ -78,7 +80,7 @@ class GsearchlightApplication(Application):
         outputs = dict()
 
         inputs[matlab_file] = os.path.basename(matlab_file)
-        matlab_function = inputs[matlab_file].split('.')[0]
+        matlab_function = inputs[matlab_file].split(".")[0]
         inputs[mask] = os.path.basename(mask)
         inputs[mask_hdr] = os.path.basename(mask_hdr)
         inputs[fn_file] = os.path.basename(fn_file)
@@ -89,31 +91,32 @@ class GsearchlightApplication(Application):
         #                               fn=inputs[fn_file],
         #                               output=DEFAULT_REMOTE_OUTPUT_FILE)
 
-        wrapper = resource_filename(Requirement.parse("gc3pie"),
-                                    "gc3libs/etc/run_matlab.sh")
+        wrapper = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/run_matlab.sh")
         inputs[wrapper] = "./wrapper.sh"
 
-        arguments = "./wrapper.sh %s %d %s %s %s" % (matlab_function,
-                                                     iterations,
-                                                     inputs[mask],
-                                                     inputs[fn_file],
-                                                     DEFAULT_REMOTE_OUTPUT_FILE)
+        arguments = "./wrapper.sh %s %d %s %s %s" % (
+            matlab_function,
+            iterations,
+            inputs[mask],
+            inputs[fn_file],
+            DEFAULT_REMOTE_OUTPUT_FILE,
+        )
 
         # Set output
         outputs[DEFAULT_REMOTE_OUTPUT_FILE] = DEFAULT_REMOTE_OUTPUT_FILE
 
-        gc3libs.log.debug("Creating application for executing: %s",
-                          arguments)
+        gc3libs.log.debug("Creating application for executing: %s", arguments)
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gsearchlight.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout="gsearchlight.log",
             join=True,
-            executables = executables,
-            **extra_args)
+            executables=executables,
+            **extra_args
+        )
 
 
 class GsearchlightScript(SessionBasedScript):
@@ -138,38 +141,37 @@ class GsearchlightScript(SessionBasedScript):
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__,
-            application = GsearchlightApplication,
-            stats_only_for = GsearchlightApplication,
-            )
+            self, version=__version__, application=GsearchlightApplication, stats_only_for=GsearchlightApplication
+        )
 
     def setup_args(self):
 
-        self.add_param('Mfunct',
-                       type=existing_file,
-                       help="Full path to Matlab function to execute.")
+        self.add_param("Mfunct", type=existing_file, help="Full path to Matlab function to execute.")
 
-        self.add_param('mask',
-                       type=existing_file,
-                       help="Full path to Mask file.")
+        self.add_param("mask", type=existing_file, help="Full path to Mask file.")
 
-        self.add_param('fn',
-                       type=existing_file,
-                       help="Full path to Fn file.")
+        self.add_param("fn", type=existing_file, help="Full path to Fn file.")
 
     def setup_options(self):
-        self.add_param("-I", "--iterations", metavar="INT",
-                       type=positive_int,
-                       dest="niter", default=DEFAULT_ITERATIONS,
-                       help="How to split the edges input data set. "
-                       "Default: %(default)s.")
+        self.add_param(
+            "-I",
+            "--iterations",
+            metavar="INT",
+            type=positive_int,
+            dest="niter",
+            default=DEFAULT_ITERATIONS,
+            help="How to split the edges input data set. " "Default: %(default)s.",
+        )
 
-        self.add_param("-G", "--group", metavar="INT",
-                       type=positive_int,
-                       dest="chunk", default=DEFAULT_CHUNKS,
-                       help="Group events together and process them in groups. "
-                       "Default: %(default)s.")
+        self.add_param(
+            "-G",
+            "--group",
+            metavar="INT",
+            type=positive_int,
+            dest="chunk",
+            default=DEFAULT_CHUNKS,
+            help="Group events together and process them in groups. " "Default: %(default)s.",
+        )
 
     def parse_args(self):
         """
@@ -177,9 +179,8 @@ class GsearchlightScript(SessionBasedScript):
         """
 
         mask_filename = self.params.mask.split(".")[0]
-        assert os.path.isfile(mask_filename+'.hdr'), \
-            "Mask file %s.hdr missing" % mask_filename
-        self.params.maskhdr = mask_filename+".hdr"
+        assert os.path.isfile(mask_filename + ".hdr"), "Mask file %s.hdr missing" % mask_filename
+        self.params.maskhdr = mask_filename + ".hdr"
 
     def new_tasks(self, extra):
         """
@@ -188,23 +189,22 @@ class GsearchlightScript(SessionBasedScript):
         """
         tasks = []
 
-        for iteration in get_events(self.params.niter,self.params.chunk):
+        for iteration in get_events(self.params.niter, self.params.chunk):
             extra_args = extra.copy()
-            tasks.append(GsearchlightApplication(
-                iteration,
-                self.params.mask,
-                self.params.maskhdr,
-                self.params.fn,
-                self.params.Mfunct,
-                **extra_args))
+            tasks.append(
+                GsearchlightApplication(
+                    iteration, self.params.mask, self.params.maskhdr, self.params.fn, self.params.Mfunct, **extra_args
+                )
+            )
 
         return tasks
 
-def get_events(niter,chunk):
+
+def get_events(niter, chunk):
     iterations = []
-    for i in range(0,(niter-(niter%chunk)),chunk):
+    for i in range(0, (niter - (niter % chunk)), chunk):
         iterations.append(chunk)
-    last = niter%chunk
+    last = niter % chunk
     if last > 0:
         iterations.append(last)
     return iterations

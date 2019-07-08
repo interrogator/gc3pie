@@ -19,34 +19,28 @@ Top-level classes for task execution and control.
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 2110-1301 USA
 #
 
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import next
-from builtins import filter
-from builtins import str
-from builtins import range
-from builtins import object
-from collections import defaultdict, deque
-from fnmatch import fnmatch
+
 import functools
 import itertools
 import os
 import posix
 import sys
-import time
 import tempfile
+import time
+from builtins import filter, next, object, range, str
+from collections import defaultdict, deque
+from fnmatch import fnmatch
 from warnings import warn
 
-from dictproxyhack import dictproxy
-
 import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils as utils
+from dictproxyhack import dictproxy
 from gc3libs import Application, Run, Task
 from gc3libs.events import TaskStateChange, TermStatusChange
-import gc3libs.exceptions
 from gc3libs.quantity import Duration
-import gc3libs.utils as utils
 
-
-__docformat__ = 'reStructuredText'
+__docformat__ = "reStructuredText"
 
 
 class MatchMaker(object):
@@ -91,14 +85,12 @@ class MatchMaker(object):
         unchanged.
         """
         gc3libs.log.debug(
-            "Performing matching of resource(s) %s to task '%s' ...",
-            ','.join(r.name for r in resources), task)
+            "Performing matching of resource(s) %s to task '%s' ...", ",".join(r.name for r in resources), task
+        )
         # keep only compatible resources
         try:
             compatible_resources = task.compatible_resources(resources)
-            gc3libs.log.debug(
-                'Task compatiblity check returned %d matching resources',
-                len(compatible_resources))
+            gc3libs.log.debug("Task compatiblity check returned %d matching resources", len(compatible_resources))
         except AttributeError:
             # XXX: should we require that len(resources) > 0?
             compatible_resources = resources
@@ -143,23 +135,21 @@ class Core(object):
     variable ``GC3PIE_RESOURCE_INIT_ERRORS_ARE_FATAL`` to ``yes`` or ``1``.
     """
 
-    def __init__(self, cfg, matchmaker=MatchMaker(),
-                 resource_errors_are_fatal=None):
+    def __init__(self, cfg, matchmaker=MatchMaker(), resource_errors_are_fatal=None):
         # propagate resource init errors?
         if resource_errors_are_fatal is None:
             # get result from the environment
             resource_errors_are_fatal = gc3libs.utils.string_to_boolean(
-                os.environ.get('GC3PIE_RESOURCE_INIT_ERRORS_ARE_FATAL', 'no'))
+                os.environ.get("GC3PIE_RESOURCE_INIT_ERRORS_ARE_FATAL", "no")
+            )
 
         # init auths
         self.auto_enable_auth = cfg.auto_enable_auth
 
         # init backends
-        self.resources = cfg.make_resources(
-            ignore_errors=(not resource_errors_are_fatal))
+        self.resources = cfg.make_resources(ignore_errors=(not resource_errors_are_fatal))
         if len(self.resources) == 0:
-            raise gc3libs.exceptions.NoResources(
-                "No resources given to initialize `gc3libs.core.Core` object!")
+            raise gc3libs.exceptions.NoResources("No resources given to initialize `gc3libs.core.Core` object!")
 
         # init matchmaker
         self.matchmaker = matchmaker
@@ -168,9 +158,7 @@ class Core(object):
         try:
             return self.resources[name]
         except KeyError:
-            raise gc3libs.exceptions.InvalidResourceName(
-                "No configured resource by the name '%s'"
-                % (name,))
+            raise gc3libs.exceptions.InvalidResourceName("No configured resource by the name '%s'" % (name,))
 
     def select_resource(self, match):
         """
@@ -219,9 +207,7 @@ class Core(object):
         :raise: `gc3libs.exceptions.InvalidOperation` if `app.execution.state`
                 differs from `Run.State.TERMINATED`.
         """
-        assert isinstance(
-            app, Task), "Core.free: passed an `app` argument which" \
-            " is not a `Task` instance."
+        assert isinstance(app, Task), "Core.free: passed an `app` argument which" " is not a `Task` instance."
         if isinstance(app, Application):
             return self.__free_application(app, **extra_args)
         else:
@@ -231,11 +217,10 @@ class Core(object):
     # pylint: disable=unused-argument
     def __free_application(self, app, **extra_args):
         """Implementation of `free` on `Application` objects."""
-        if app.execution.state not in [
-                Run.State.TERMINATING, Run.State.TERMINATED]:
+        if app.execution.state not in [Run.State.TERMINATING, Run.State.TERMINATED]:
             raise gc3libs.exceptions.InvalidOperation(
-                "Attempting to free resources of job '%s',"
-                " which is in non-terminal state." % app)
+                "Attempting to free resources of job '%s'," " which is in non-terminal state." % app
+            )
 
         # auto_enable_auth = extra_args.get(
         #     'auto_enable_auth', self.auto_enable_auth)
@@ -249,7 +234,8 @@ class Core(object):
                 " Application `%s` is missing the `execution.resource_name` attribute."
                 " This should not happen. I'm assuming the application had been"
                 " aborted before submission.",
-                app)
+                app,
+            )
 
     # pylint: disable=unused-argument
     def __free_task(self, task, **extra_args):
@@ -286,12 +272,9 @@ class Core(object):
           brokering among all the configured resources.
 
         """
-        assert isinstance(
-            app, Task), "Core.submit: passed an `app` argument" \
-            "which is not a `Task` instance."
+        assert isinstance(app, Task), "Core.submit: passed an `app` argument" "which is not a `Task` instance."
         if isinstance(app, Application):
-            return self.__submit_application(
-                app, resubmit, targets, **extra_args)
+            return self.__submit_application(app, resubmit, targets, **extra_args)
         else:
             # must be a `Task` instance
             return self.__submit_task(app, resubmit, targets, **extra_args)
@@ -312,33 +295,31 @@ class Core(object):
 
         # Validate Application local input files
         for input_ref in app.inputs:
-            if input_ref.scheme == 'file':
+            if input_ref.scheme == "file":
                 # Local file, check existence before proceeding
                 if not os.path.exists(input_ref.path):
                     raise gc3libs.exceptions.UnrecoverableDataStagingError(
-                        "Input file '%s' does not exist" % input_ref.path,
-                        do_log=True)
+                        "Input file '%s' does not exist" % input_ref.path, do_log=True
+                    )
 
         if targets is not None:
             assert len(targets) > 0
         else:  # targets is None
-            enabled_resources = [
-                r for r in self.resources.values() if r.enabled]
+            enabled_resources = [r for r in self.resources.values() if r.enabled]
             if len(enabled_resources) == 0:
                 raise gc3libs.exceptions.NoResources(
-                    "Could not initialize any computational resource"
-                    " - please check log and configuration file.")
+                    "Could not initialize any computational resource" " - please check log and configuration file."
+                )
 
             # decide which resource to use
-            compatible_resources = self.matchmaker.filter(
-                app, enabled_resources)
+            compatible_resources = self.matchmaker.filter(app, enabled_resources)
             if len(compatible_resources) == 0:
                 raise gc3libs.exceptions.NoResources(
-                    "No available resource can accomodate the application"
-                    " requirements")
+                    "No available resource can accomodate the application" " requirements"
+                )
             gc3libs.log.debug(
-                "Application compatibility check returned %d matching"
-                " resources", len(compatible_resources))
+                "Application compatibility check returned %d matching" " resources", len(compatible_resources)
+            )
 
             if len(compatible_resources) <= 1:
                 # shortcut: no brokering to do, just use what we've got
@@ -350,8 +331,8 @@ class Core(object):
                 if len(updated_resources) == 0:
                     raise gc3libs.exceptions.LRMSSubmitError(
                         "No computational resource found reachable during"
-                        " update! Aborting submission of task '%s'" %
-                        app)
+                        " update! Aborting submission of task '%s'" % app
+                    )
 
                 # sort resources according to Application's preferences
                 targets = self.matchmaker.rank(app, updated_resources)
@@ -359,11 +340,10 @@ class Core(object):
         exs = []
         # after brokering we have a sorted list of valid resource
         for resource in targets:
-            gc3libs.log.debug("Attempting submission to resource '%s'...",
-                              resource.name)
+            gc3libs.log.debug("Attempting submission to resource '%s'...", resource.name)
             try:
                 job.timestamp[Run.State.NEW] = time.time()
-                job.info = ("Submitting to '%s'" % (resource.name,))
+                job.info = "Submitting to '%s'" % (resource.name,)
                 resource.submit_job(app)
             except gc3libs.exceptions.LRMSSkipSubmissionToNextIteration as ex:
                 gc3libs.log.info("Submission of job %s delayed", app)
@@ -373,15 +353,17 @@ class Core(object):
             except Exception as ex:
                 gc3libs.log.info(
                     "Error in submitting job to resource '%s': %s: %s",
-                    resource.name, ex.__class__.__name__, str(ex),
-                    exc_info=True)
+                    resource.name,
+                    ex.__class__.__name__,
+                    str(ex),
+                    exc_info=True,
+                )
                 exs.append(ex)
                 continue
-            gc3libs.log.info("Successfully submitted %s to: %s",
-                             str(app), resource.name)
+            gc3libs.log.info("Successfully submitted %s to: %s", str(app), resource.name)
             job.state = Run.State.SUBMITTED
             job.resource_name = resource.name
-            job.info = ("Submitted to '%s'" % (job.resource_name,))
+            job.info = "Submitted to '%s'" % (job.resource_name,)
             app.changed = True
             app.submitted()
             # job submitted; return to caller
@@ -390,14 +372,14 @@ class Core(object):
         # appropriate handler method if defined
         ex = app.submit_error(exs)
         if isinstance(ex, Exception):
-            app.execution.info = ("Submission failed: %s" % str(ex))
+            app.execution.info = "Submission failed: %s" % str(ex)
             raise ex
         else:
             return
 
     def __submit_task(self, task, resubmit, targets, **extra_args):
         """Implementation of `submit` on generic `Task` objects."""
-        extra_args.setdefault('auto_enable_auth', self.auto_enable_auth)
+        extra_args.setdefault("auto_enable_auth", self.auto_enable_auth)
         task.submit(resubmit, targets, **extra_args)
 
     def update_job_state(self, *apps, **extra_args):
@@ -422,36 +404,21 @@ class Core(object):
                 non-existing auth section).
 
         """
-        self.__update_application(
-            (app for app in apps if isinstance(
-                app,
-                Application)),
-            **extra_args)
-        self.__update_task(
-            (app for app in apps if not isinstance(
-                app,
-                Application)),
-            **extra_args)
+        self.__update_application((app for app in apps if isinstance(app, Application)), **extra_args)
+        self.__update_task((app for app in apps if not isinstance(app, Application)), **extra_args)
 
     def __update_application(self, apps, **extra_args):
         """Implementation of `update_job_state` on `Application` objects."""
-        update_on_error = extra_args.get('update_on_error', False)
+        update_on_error = extra_args.get("update_on_error", False)
         # auto_enable_auth = extra_args.get(
         #     'auto_enable_auth', self.auto_enable_auth)
 
         for app in apps:
             state = app.execution.state
             old_state = state
-            gc3libs.log.debug(
-                "About to update state of application: %s (currently: %s)",
-                app,
-                state)
+            gc3libs.log.debug("About to update state of application: %s (currently: %s)", app, state)
             try:
-                if state not in [
-                        Run.State.NEW,
-                        Run.State.TERMINATING,
-                        Run.State.TERMINATED,
-                ]:
+                if state not in [Run.State.NEW, Run.State.TERMINATING, Run.State.TERMINATED]:
                     lrms = self.get_backend(app.execution.resource_name)
                     try:
                         state = lrms.update_job_state(app)
@@ -459,7 +426,11 @@ class Core(object):
                     except Exception as ex:
                         gc3libs.log.debug(
                             "Error getting status of application '%s': %s: %s",
-                            app, ex.__class__.__name__, ex, exc_info=True)
+                            app,
+                            ex.__class__.__name__,
+                            ex,
+                            exc_info=True,
+                        )
                         state = Run.State.UNKNOWN
                         # run error handler if defined
                         ex = app.update_job_state_error(ex)
@@ -468,34 +439,31 @@ class Core(object):
                     if state != old_state:
                         app.changed = True
                         # set log information accordingly
-                        if (app.execution.state == Run.State.TERMINATING
-                                and app.execution.returncode is not None
-                                and app.execution.returncode != 0):
+                        if (
+                            app.execution.state == Run.State.TERMINATING
+                            and app.execution.returncode is not None
+                            and app.execution.returncode != 0
+                        ):
                             # there was some error, try to explain
-                            app.execution.info = (
-                                "Execution failed on resource: %s" %
-                                app.execution.resource_name)
+                            app.execution.info = "Execution failed on resource: %s" % app.execution.resource_name
                             signal = app.execution.signal
                             if signal in Run.Signals:
-                                app.execution.info = (
-                                    "Abnormal termination: %s" % signal)
+                                app.execution.info = "Abnormal termination: %s" % signal
                             else:
                                 if os.WIFSIGNALED(app.execution.returncode):
-                                    app.execution.info = (
-                                        "Remote job terminated by signal %d" %
-                                        signal)
+                                    app.execution.info = "Remote job terminated by signal %d" % signal
                                 else:
-                                    app.execution.info = (
-                                        "Remote job exited with code %d" %
-                                        app.execution.exitcode)
+                                    app.execution.info = "Remote job exited with code %d" % app.execution.exitcode
 
                     if state != Run.State.UNKNOWN or update_on_error:
                         app.execution.state = state
 
-            except (gc3libs.exceptions.InvalidArgument,
-                    gc3libs.exceptions.ConfigurationError,
-                    gc3libs.exceptions.UnrecoverableAuthError,
-                    gc3libs.exceptions.FatalError):
+            except (
+                gc3libs.exceptions.InvalidArgument,
+                gc3libs.exceptions.ConfigurationError,
+                gc3libs.exceptions.UnrecoverableAuthError,
+                gc3libs.exceptions.FatalError,
+            ):
                 # Unrecoverable; no sense in continuing --
                 # pass immediately on to client code and let
                 # it handle this...
@@ -513,9 +481,10 @@ class Core(object):
                 # because of an unrecoverable error mark application
                 # as state UNKNOWN
                 gc3libs.log.warning(
-                    "Cannot access computational resource '%s',"
-                    " marking task '%s' as UNKNOWN.",
-                    app.execution.resource_name, app)
+                    "Cannot access computational resource '%s'," " marking task '%s' as UNKNOWN.",
+                    app.execution.resource_name,
+                    app,
+                )
                 app.execution.state = Run.State.TERMINATED
                 app.changed = True
                 continue
@@ -526,23 +495,21 @@ class Core(object):
             # pylint: disable=broad-except
             except Exception as ex:
                 if gc3libs.error_ignored(
-                        # context:
-                        # - module
-                        'core',
-                        # - class
-                        'Core',
-                        # - method
-                        'update_job_state',
-                        # - actual error class
-                        ex.__class__.__name__,
-                        # - additional keywords
-                        'update',
+                    # context:
+                    # - module
+                    "core",
+                    # - class
+                    "Core",
+                    # - method
+                    "update_job_state",
+                    # - actual error class
+                    ex.__class__.__name__,
+                    # - additional keywords
+                    "update",
                 ):
-                    gc3libs.log.warning(
-                        "Ignored error in Core.update_job_state(): %s", ex)
+                    gc3libs.log.warning("Ignored error in Core.update_job_state(): %s", ex)
                     # print again with traceback at a higher log level
-                    gc3libs.log.debug(
-                        "(Original traceback follows.)", exc_info=True)
+                    gc3libs.log.debug("(Original traceback follows.)", exc_info=True)
                     continue
                 else:
                     # propagate generic exceptions for debugging purposes
@@ -552,13 +519,12 @@ class Core(object):
     def __update_task(self, tasks, **extra_args):
         """Implementation of `update_job_state` on generic `Task` objects."""
         for task in tasks:
-            assert isinstance(
-                task, Task), "Core.update_job_state: passed an argument" \
-                " which is not a `Task` instance."
+            assert isinstance(task, Task), (
+                "Core.update_job_state: passed an argument" " which is not a `Task` instance."
+            )
             task.update_state()
 
-    def fetch_output(self, app, download_dir=None,
-                     overwrite=False, changed_only=True, **extra_args):
+    def fetch_output(self, app, download_dir=None, overwrite=False, changed_only=True, **extra_args):
         """
         Retrieve output into local directory `app.output_dir`.
 
@@ -604,25 +570,20 @@ class Core(object):
                 state, indicating the remote job has not started
                 running).
         """
-        assert isinstance(
-            app, Task), "Core.fetch_output: passed an `app` argument " \
-            "which is not a `Task` instance."
+        assert isinstance(app, Task), "Core.fetch_output: passed an `app` argument " "which is not a `Task` instance."
         if isinstance(app, Application):
-            self.__fetch_output_application(
-                app, download_dir, overwrite, changed_only, **extra_args)
+            self.__fetch_output_application(app, download_dir, overwrite, changed_only, **extra_args)
         else:
             # generic `Task` object
-            self.__fetch_output_task(
-                app, download_dir, overwrite, changed_only, **extra_args)
+            self.__fetch_output_task(app, download_dir, overwrite, changed_only, **extra_args)
 
-    def __fetch_output_application(
-            self, app, download_dir, overwrite, changed_only, **extra_args):
+    def __fetch_output_application(self, app, download_dir, overwrite, changed_only, **extra_args):
         """Implementation of `fetch_output` on `Application` objects."""
         job = app.execution
         if job.state in [Run.State.NEW, Run.State.SUBMITTED]:
             raise gc3libs.exceptions.OutputNotAvailableError(
-                "Output not available: '%s' currently in state '%s'"
-                % (app, app.execution.state))
+                "Output not available: '%s' currently in state '%s'" % (app, app.execution.state)
+            )
 
         # auto_enable_auth = extra_args.get(
         #     'auto_enable_auth', self.auto_enable_auth)
@@ -642,10 +603,8 @@ class Core(object):
                     utils.mkdir_with_backup(download_dir)
             except Exception as ex:
                 gc3libs.log.error(
-                    "Failed creating download directory '%s': %s: %s",
-                    download_dir,
-                    ex.__class__.__name__,
-                    str(ex))
+                    "Failed creating download directory '%s': %s: %s", download_dir, ex.__class__.__name__, str(ex)
+                )
                 raise
 
             # download job output
@@ -658,20 +617,19 @@ class Core(object):
             except gc3libs.exceptions.InvalidResourceName as err:
                 ex = app.fetch_output_error(err)
                 if isinstance(ex, Exception):
-                    job.info = ("No output could be retrieved: %s" % (ex,))
+                    job.info = "No output could be retrieved: %s" % (ex,)
                     raise ex
                 else:
                     return
             except gc3libs.exceptions.RecoverableDataStagingError as rex:
-                job.info = ("Temporary failure when retrieving results: %s."
-                            " Ignoring error, try again." % str(rex))
+                job.info = "Temporary failure when retrieving results: %s." " Ignoring error, try again." % str(rex)
                 return
             except gc3libs.exceptions.UnrecoverableDataStagingError as ex:
                 # pylint: disable=redefined-variable-type
                 job.signal = Run.Signals.DataStagingFailure
                 ex = app.fetch_output_error(ex)
                 if isinstance(ex, Exception):
-                    job.info = ("No output could be retrieved: %s" % str(ex))
+                    job.info = "No output could be retrieved: %s" % str(ex)
                     raise ex
             # pylint: disable=broad-except
             except Exception as ex:
@@ -680,9 +638,7 @@ class Core(object):
                     raise ex
 
             # successfully downloaded results
-            gc3libs.log.debug(
-                "Downloaded output of '%s' (which is in state %s)",
-                app, job.state)
+            gc3libs.log.debug("Downloaded output of '%s' (which is in state %s)", app, job.state)
 
             app.output_dir = os.path.abspath(download_dir)
             app.changed = True
@@ -692,11 +648,9 @@ class Core(object):
 
         return Task.fetch_output(app, download_dir)
 
-    def __fetch_output_task(
-            self, task, download_dir, overwrite, changed_only, **extra_args):
+    def __fetch_output_task(self, task, download_dir, overwrite, changed_only, **extra_args):
         """Implementation of `fetch_output` on generic `Task` objects."""
-        return task.fetch_output(
-            download_dir, overwrite, changed_only, **extra_args)
+        return task.fetch_output(download_dir, overwrite, changed_only, **extra_args)
 
     def get_resources(self, **extra_args):
         """
@@ -712,9 +666,7 @@ class Core(object):
         entails canceling the job with the remote execution system;
         terminating a job in the NEW or TERMINATED state is a no-op.
         """
-        assert isinstance(
-            app, Task), "Core.kill: passed an `app` argument which is not"\
-            " a `Task` instance."
+        assert isinstance(app, Task), "Core.kill: passed an `app` argument which is not" " a `Task` instance."
         if isinstance(app, Application):
             self.__kill_application(app, **extra_args)
         else:
@@ -735,12 +687,11 @@ class Core(object):
                 raise
         except gc3libs.exceptions.InvalidResourceName:
             gc3libs.log.warning(
-                "Cannot access computational resource '%s',"
-                " but marking task '%s' as TERMINATED anyway.",
-                app.execution.resource_name, app)
-        gc3libs.log.debug(
-            "Setting task '%s' status to TERMINATED"
-            " and returncode to SIGCANCEL", app)
+                "Cannot access computational resource '%s'," " but marking task '%s' as TERMINATED anyway.",
+                app.execution.resource_name,
+                app,
+            )
+        gc3libs.log.debug("Setting task '%s' status to TERMINATED" " and returncode to SIGCANCEL", app)
         app.changed = True
         # setting the state runs the state-transition handlers,
         # which may raise an error -- ignore them, but log nonetheless
@@ -749,22 +700,21 @@ class Core(object):
         # pylint: disable=broad-except
         except Exception as ex:
             if gc3libs.error_ignored(
-                    # context:
-                    # - module
-                    'core',
-                    # - class
-                    'Core',
-                    # - method
-                    'kill',
-                    # - actual error class
-                    ex.__class__.__name__,
-                    # - additional keywords
-                    'state',
-                    job.state,
-                    'TERMINATED',
+                # context:
+                # - module
+                "core",
+                # - class
+                "Core",
+                # - method
+                "kill",
+                # - actual error class
+                ex.__class__.__name__,
+                # - additional keywords
+                "state",
+                job.state,
+                "TERMINATED",
             ):
-                gc3libs.log.info("Ignoring error in state transition"
-                                 " since task is being killed: %s", ex)
+                gc3libs.log.info("Ignoring error in state transition" " since task is being killed: %s", ex)
             else:
                 # propagate exception to caller
                 raise
@@ -772,10 +722,10 @@ class Core(object):
         job.history.append("Cancelled")
 
     def __kill_task(self, task, **extra_args):
-        extra_args.setdefault('auto_enable_auth', self.auto_enable_auth)
+        extra_args.setdefault("auto_enable_auth", self.auto_enable_auth)
         task.kill(**extra_args)
 
-    def peek(self, app, what='stdout', offset=0, size=None, **extra_args):
+    def peek(self, app, what="stdout", offset=0, size=None, **extra_args):
         """
         Download `size` bytes (at `offset` bytes from the start) from
         the remote job standard output or error stream, and write them
@@ -790,39 +740,35 @@ class Core(object):
         relevant section of the job's standard output resp. standard
         error should be downloaded.
         """
-        assert isinstance(
-            app, Task), "Core.peek: passed an `app` argument which is" \
-            " not a `Task` instance."
+        assert isinstance(app, Task), "Core.peek: passed an `app` argument which is" " not a `Task` instance."
         if isinstance(app, Application):
-            return self.__peek_application(
-                app, what, offset, size, **extra_args)
+            return self.__peek_application(app, what, offset, size, **extra_args)
         else:
             return self.__peek_task(app, what, offset, size, **extra_args)
 
     def __peek_application(self, app, what, offset, size, **extra_args):
         """Implementation of `peek` on `Application` objects."""
-        if what == 'stdout':
+        if what == "stdout":
             remote_filename = app.stdout
-        elif what == 'stderr':
+        elif what == "stderr":
             remote_filename = app.stderr
         else:
             raise gc3libs.exceptions.Error(
-                "File name requested to `Core.peek` must be"
-                " 'stdout' or 'stderr', not '%s'" % what)
+                "File name requested to `Core.peek` must be" " 'stdout' or 'stderr', not '%s'" % what
+            )
 
         # Check if local data available
         job = app.execution
         if job.state == Run.State.TERMINATED:
             # FIXME: local data could be stale!!
             filename = os.path.join(app.output_dir, remote_filename)
-            local_file = open(filename, 'r')
+            local_file = open(filename, "r")
         else:
             # Get authN
             # auto_enable_auth = extra_args.get(
             #     'auto_enable_auth', self.auto_enable_auth)
             lrms = self.get_backend(job.resource_name)
-            local_file = tempfile.NamedTemporaryFile(
-                suffix='.tmp', prefix='gc3libs.')
+            local_file = tempfile.NamedTemporaryFile(suffix=".tmp", prefix="gc3libs.")
             lrms.peek(app, remote_filename, local_file, offset, size)
             local_file.flush()
             local_file.seek(0)
@@ -862,28 +808,26 @@ class Core(object):
                 lrms.enabled = False
                 lrms.updated = False
                 gc3libs.log.error(
-                    "Unrecoverable error updating status"
-                    " of resource '%s': %s."
-                    " Disabling resource.",
-                    lrms.name, err)
-                gc3libs.log.warning(
-                    "Resource %s will be ignored from now on.",
-                    lrms.name)
+                    "Unrecoverable error updating status" " of resource '%s': %s." " Disabling resource.",
+                    lrms.name,
+                    err,
+                )
+                gc3libs.log.warning("Resource %s will be ignored from now on.", lrms.name)
                 gc3libs.log.debug(
-                    "Got error '%s' in updating resource '%s';"
-                    " printing full traceback.",
-                    err.__class__.__name__, lrms.name,
-                    exc_info=True)
+                    "Got error '%s' in updating resource '%s';" " printing full traceback.",
+                    err.__class__.__name__,
+                    lrms.name,
+                    exc_info=True,
+                )
             # pylint: disable=broad-except
             except Exception as err:
-                gc3libs.log.error(
-                    "Ignoring error updating resource '%s': %s.",
-                    lrms.name, err)
+                gc3libs.log.error("Ignoring error updating resource '%s': %s.", lrms.name, err)
                 gc3libs.log.debug(
-                    "Got error '%s' in updating resource '%s';"
-                    " printing full traceback.",
-                    err.__class__.__name__, lrms.name,
-                    exc_info=True)
+                    "Got error '%s' in updating resource '%s';" " printing full traceback.",
+                    err.__class__.__name__,
+                    lrms.name,
+                    exc_info=True,
+                )
                 lrms.updated = False
 
     def close(self):
@@ -979,21 +923,15 @@ class Scheduler(object):
 
     # pylint: disable=missing-docstring
     def __next__(self):
-        raise NotImplementedError(
-            "Method `next` of class `%s` has not been implemented."
-            % self.__class__.__name__)
+        raise NotImplementedError("Method `next` of class `%s` has not been implemented." % self.__class__.__name__)
 
     # pylint: disable=missing-docstring
     def send(self, result):
-        raise NotImplementedError(
-            "Method `send` of class `%s` has not been implemented."
-            % self.__class__.__name__)
+        raise NotImplementedError("Method `send` of class `%s` has not been implemented." % self.__class__.__name__)
 
     # pylint: disable=missing-docstring
     def throw(self, *excinfo):
-        raise NotImplementedError(
-            "Method `throw` of class `%s` has not been implemented."
-            % self.__class__.__name__)
+        raise NotImplementedError("Method `throw` of class `%s` has not been implemented." % self.__class__.__name__)
 
     def __exit__(self, *excinfo):
         """Called at the end of a scheduling cycle, when no more submissions
@@ -1022,7 +960,8 @@ class scheduler(object):  # pylint: disable=invalid-name
     """
     Decorate a generator function for use as a `Scheduler`:class: object.
     """
-    __slots__ = ['_fn', '_gen']
+
+    __slots__ = ["_fn", "_gen"]
 
     def __init__(self, fn):
         self._fn = fn
@@ -1088,9 +1027,7 @@ def first_come_first_serve(task_queue, resources, matchmaker=MatchMaker()):
         # keep only compatible resources
         compatible_resources = matchmaker.filter(task, resources)
         if not compatible_resources:
-            gc3libs.log.warning(
-                "No compatible resources for task '%s'"
-                " - cannot submit it", task)
+            gc3libs.log.warning("No compatible resources for task '%s'" " - cannot submit it", task)
             task_queue.put(task)
             continue
         # sort them according to the Task's preference
@@ -1101,14 +1038,11 @@ def first_come_first_serve(task_queue, resources, matchmaker=MatchMaker()):
                 yield (task, target.name)
                 # submission successful, continue with next task
                 break
-            except (gc3libs.exceptions.ResourceNotReady,
-                    gc3libs.exceptions.MaximumCapacityReached) as exc:
+            except (gc3libs.exceptions.ResourceNotReady, gc3libs.exceptions.MaximumCapacityReached) as exc:
                 # this is not a real error: the resource is adapting
                 # for the task and will actually accept it sometime in
                 # the future, so disable resource and try next one
-                gc3libs.log.debug(
-                    "Disabling resource `%s` for this scheduling cycle: %s",
-                    target.name, exc)
+                gc3libs.log.debug("Disabling resource `%s` for this scheduling cycle: %s", target.name, exc)
                 resources.remove(target)
                 continue
             # pylint: disable=broad-except
@@ -1116,16 +1050,19 @@ def first_come_first_serve(task_queue, resources, matchmaker=MatchMaker()):
                 # note error condition but continue with next target resource
                 gc3libs.log.debug(
                     "Scheduler ignored error in submitting task '%s': %s: %s",
-                    task, err.__class__.__name__, err, exc_info=True)
+                    task,
+                    err.__class__.__name__,
+                    err,
+                    exc_info=True,
+                )
                 continue
         else:
             # unsuccessful submission, push task back into queue
             task_queue.put(task)
         if not resources:
             gc3libs.log.debug(
-                "No more resources available,"
-                " aborting scheduling cycle with %d tasks remaining.",
-                total - done)
+                "No more resources available," " aborting scheduling cycle with %d tasks remaining.", total - done
+            )
             return
 
 
@@ -1204,15 +1141,22 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
     | False
     """
 
-    def __init__(self, controller, tasks=[], store=None,
-                 can_submit=True, can_retrieve=True,
-                 max_in_flight=0, max_submitted=0,
-                 output_dir=None,
-                 scheduler=first_come_first_serve,  # pylint: disable=redefined-outer-name
-                 retrieve_running=False,
-                 retrieve_overwrites=False,
-                 retrieve_changed_only=True,
-                 forget_terminated=False):
+    def __init__(
+        self,
+        controller,
+        tasks=[],
+        store=None,
+        can_submit=True,
+        can_retrieve=True,
+        max_in_flight=0,
+        max_submitted=0,
+        output_dir=None,
+        scheduler=first_come_first_serve,  # pylint: disable=redefined-outer-name
+        retrieve_running=False,
+        retrieve_overwrites=False,
+        retrieve_changed_only=True,
+        forget_terminated=False,
+    ):
         """
         Create a new `Engine` instance.  Arguments are as follows:
 
@@ -1279,7 +1223,7 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
 
     def _on_state_change(self, task, from_state, to_state):
         if task in self._managed:
-            #gc3libs.log.debug("Task %s transitioned from %s to %s ...", task, from_state, to_state)
+            # gc3libs.log.debug("Task %s transitioned from %s to %s ...", task, from_state, to_state)
             self._counts.transitioned(task, from_state, to_state)
 
     class TaskQueue(object):
@@ -1328,9 +1272,7 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
             # Engine to span multiple processes...
             self._queue.remove(task)
 
-
     class _TaskQueueManager(object):
-
         def __init__(self, engine):
             # action-based queues
             self.to_kill = engine.TaskQueue()
@@ -1342,12 +1284,12 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
 
             # map action names to queues
             self._actions = {
-                'kill':         self.to_kill,
-                'update':       self.to_update,
-                'submit':       self.to_submit,
-                'fetch_output': self.to_fetch_output,
-                'cleanup':      self.to_cleanup,
-                'done':         self.done,
+                "kill": self.to_kill,
+                "update": self.to_update,
+                "submit": self.to_submit,
+                "fetch_output": self.to_fetch_output,
+                "cleanup": self.to_cleanup,
+                "done": self.done,
             }
 
             # map task ID to action
@@ -1366,12 +1308,7 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
             state = _override_state or task.execution.state
             if Run.State.NEW == state:
                 return self.to_submit
-            elif state in [
-                    Run.State.RUNNING,
-                    Run.State.STOPPED,
-                    Run.State.SUBMITTED,
-                    Run.State.UNKNOWN,
-            ]:
+            elif state in [Run.State.RUNNING, Run.State.STOPPED, Run.State.SUBMITTED, Run.State.UNKNOWN]:
                 return self.to_update
             elif Run.State.TERMINATING == state:
                 return self.to_fetch_output
@@ -1379,14 +1316,13 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
                 # FIXME: we should never add here when `self.forget_terminated == True`
                 return self.done
             else:
-                raise AssertionError(
-                    "Unhandled state '%s' in gc3libs.core.Engine." % state)
+                raise AssertionError("Unhandled state '%s' in gc3libs.core.Engine." % state)
 
         def add(self, task, action=None):
             """
             Append a task to the back of the appropriate action queue.
             """
-            queue = (self._actions[action] if action else self.get_queue(task))
+            queue = self._actions[action] if action else self.get_queue(task)
             queue.put(task)
             self._index[id(task)] = queue
 
@@ -1410,11 +1346,11 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
                 pass
             self.add(task, action)
 
-
     class _Counters(object):
         """
         Keep count of how many tasks of a class are in a given state.
         """
+
         def __init__(self, engine):
             self._engine = engine
             self.totals = {}
@@ -1432,14 +1368,14 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
             # support for Py 2.6?
             counter = self.totals[cls] = defaultdict(int)
             for task in self._engine.iter_tasks(cls):
-                counter['total'] += 1
+                counter["total"] += 1
                 state = task.execution.state
                 counter[state] += 1
                 if state == Run.State.TERMINATED:
                     if task.execution.returncode == 0:
-                        counter['ok'] += 1
+                        counter["ok"] += 1
                     else:
-                        counter['failed'] += 1
+                        counter["failed"] += 1
             return counter
 
         def _update(self, task, increment):
@@ -1447,12 +1383,12 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
             Update the counts relative to `task`'s state by `increment`.
             """
             state = task.execution.state
-            stats_to_update = ['total', state]
-            if state == 'TERMINATED':
+            stats_to_update = ["total", state]
+            if state == "TERMINATED":
                 if task.execution.returncode == 0:
-                    stats_to_update.append('ok')
+                    stats_to_update.append("ok")
                 else:
-                    stats_to_update.append('failed')
+                    stats_to_update.append("failed")
             for cls in self.totals:
                 if isinstance(task, cls):
                     for stat in stats_to_update:
@@ -1484,11 +1420,11 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
               self._update(task, to_state, +1)
             """
             stats_to_increment = [to_state]
-            if to_state == 'TERMINATED':
+            if to_state == "TERMINATED":
                 if task.execution.returncode == 0:
-                    stats_to_increment.append('ok')
+                    stats_to_increment.append("ok")
                 else:
-                    stats_to_increment.append('failed')
+                    stats_to_increment.append("failed")
                 # update counts if exit code is later changed
                 TermStatusChange.connect(self._on_termstatus_change, sender=task)
             for cls in self.totals:
@@ -1502,19 +1438,18 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
             if from_returncode == to_returncode:
                 return
             # decrement the "from" status
-            target = 'ok' if from_returncode == 0 else 'failed'
+            target = "ok" if from_returncode == 0 else "failed"
             for cls in self.totals:
                 if isinstance(task, cls):
                     self.totals[cls][target] -= 1
             # remove handler if task was resubmitted
-            if task.execution.state != 'TERMINATED':
+            if task.execution.state != "TERMINATED":
                 TermStatusChange.disconnect(self._on_termstatus_change, sender=task)
             # increment the "to" status
-            target = 'ok' if to_returncode == 0 else 'failed'
+            target = "ok" if to_returncode == 0 else "failed"
             for cls in self.totals:
                 if isinstance(task, cls):
                     self.totals[cls][target] += 1
-
 
     def add(self, task):
         """
@@ -1529,11 +1464,8 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
                 try:
                     self._tasks_by_id[task.persistent_id] = task
                 except AttributeError:
-                    gc3libs.log.debug(
-                        "Engine %s: Added task %s with no persistent ID!",
-                        self, task)
+                    gc3libs.log.debug("Engine %s: Added task %s with no persistent ID!", self, task)
             task.attach(self)
-
 
     def remove(self, task):
         """
@@ -1553,11 +1485,8 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
                 # already removed
                 pass
             except AttributeError:
-                gc3libs.log.debug(
-                    "Engine %s: Cannot remove task %s: has no persistent ID!",
-                    self, task)
+                gc3libs.log.debug("Engine %s: Cannot remove task %s: has no persistent ID!", self, task)
         task.detach()
-
 
     def find_task_by_id(self, task_id):
         """
@@ -1565,7 +1494,6 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
         `Engine` instance.  If no task has that ID, raise a `KeyError`.
         """
         return self._tasks_by_id[task_id]
-
 
     def iter_tasks(self, only_cls=None):
         """
@@ -1597,9 +1525,7 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
 
     @staticmethod
     def __iter_only(queue, cls):
-        return filter(
-            (lambda task: isinstance(task, cls)), iter(queue))
-
+        return filter((lambda task: isinstance(task, cls)), iter(queue))
 
     def init_counts_for(self, cls):
         """
@@ -1619,11 +1545,12 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
         """
         counter = self._counts.init_for(cls)
         if Run.State.TERMINATED in counter and counter[Run.State.TERMINATED] > 0:
-            warn("The Engine class will forget TERMINATED tasks in the near future."
-                 "In order to get correct results, `init_counts_for`"
-                 " should be called before any task reaches TERMINATED state",
-                 FutureWarning)
-
+            warn(
+                "The Engine class will forget TERMINATED tasks in the near future."
+                "In order to get correct results, `init_counts_for`"
+                " should be called before any task reaches TERMINATED state",
+                FutureWarning,
+            )
 
     def progress(self):
         """
@@ -1656,11 +1583,9 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
 
         # if no resources are enabled, there's no point in running
         # this further
-        nr_enabled_resources = sum(int(rsc.enabled)
-                                   for rsc in self._core.resources.values())
+        nr_enabled_resources = sum(int(rsc.enabled) for rsc in self._core.resources.values())
         if nr_enabled_resources == 0:
-            raise gc3libs.exceptions.NoResources(
-                "No resources available for running jobs.")
+            raise gc3libs.exceptions.NoResources("No resources available for running jobs.")
 
         # execute kills and update count of submitted/in-flight tasks
         queue = self._managed.to_kill
@@ -1677,18 +1602,20 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
             # pylint: disable=broad-except
             except Exception as err:
                 self.__ignore_or_raise(
-                    err, "killing", task,
+                    err,
+                    "killing",
+                    task,
                     # context:
                     # - module
-                    'core',
+                    "core",
                     # - class
-                    'Engine',
+                    "Engine",
                     # - method
-                    'progress',
+                    "progress",
                     # - actual error class
                     err.__class__.__name__,
                     # - additional keywords
-                    'kill'
+                    "kill",
                 )
 
             self._managed.requeue(task)
@@ -1696,20 +1623,13 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
         # update status of tasks before launching new ones
         queue = self._managed.to_update
         if queue:
-            gc3libs.log.debug(
-                "Engine %s about to update status of in-flight tasks ...",
-                self)
+            gc3libs.log.debug("Engine %s about to update status of in-flight tasks ...", self)
         for _ in range(len(queue)):
             task = queue.get()
 
             # ensure pre-condition on state is met
             old_state = task.execution.state
-            if old_state not in [
-                    Run.State.RUNNING,
-                    Run.State.STOPPED,
-                    Run.State.SUBMITTED,
-                    Run.State.UNKNOWN,
-            ]:
+            if old_state not in [Run.State.RUNNING, Run.State.STOPPED, Run.State.SUBMITTED, Run.State.UNKNOWN]:
                 # task changed state outside of the Engine, requeue
                 self._managed.requeue(task)
                 continue
@@ -1726,59 +1646,56 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
             # pylint: disable=broad-except
             except Exception as err:
                 self.__ignore_or_raise(
-                    err, "updating state", task,
+                    err,
+                    "updating state",
+                    task,
                     # context:
                     # - module
-                    'core',
+                    "core",
                     # - class
-                    'Engine',
+                    "Engine",
                     # - method
-                    'progress',
+                    "progress",
                     # - actual error class
                     err.__class__.__name__,
                     # - additional keywords
-                    'state',
-                    'update',
+                    "state",
+                    "update",
                 )
 
             # do book-keeping
             state = task.execution.state
 
-            if state in [
-                    Run.State.RUNNING,
-                    Run.State.STOPPED,
-                    Run.State.SUBMITTED,
-                    Run.State.UNKNOWN,
-            ]:
+            if state in [Run.State.RUNNING, Run.State.STOPPED, Run.State.SUBMITTED, Run.State.UNKNOWN]:
                 queue.put(task)
             else:
                 self._managed.requeue(task)
 
             if self.retrieve_running:
-                if (state == Run.State.RUNNING and task.would_output
-                        and self.can_retrieve):
+                if state == Run.State.RUNNING and task.would_output and self.can_retrieve:
                     # try to get output
                     try:
                         self._core.fetch_output(
-                            task,
-                            overwrite=self.retrieve_overwrites,
-                            changed_only=self.retrieve_changed_only)
+                            task, overwrite=self.retrieve_overwrites, changed_only=self.retrieve_changed_only
+                        )
                     # pylint: disable=broad-except
                     except Exception as err:
                         self.__ignore_or_raise(
-                            err, "fetching output", task,
+                            err,
+                            "fetching output",
+                            task,
                             # context:
                             # - module
-                            'core',
+                            "core",
                             # - class
-                            'Engine',
+                            "Engine",
                             # - method
-                            'progress',
+                            "progress",
                             # - actual error class
                             err.__class__.__name__,
                             # - additional keywords
-                            'RUNNING',
-                            'fetch_output',
+                            "RUNNING",
+                            "fetch_output",
                         )
 
         # reckon how many tasks are "live"; we are only interested in
@@ -1786,28 +1703,21 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
         # `Application` instances) and exclude "policy" classes (e.g.,
         # all `TaskCollections`)
         app_counts = self.counts(Application)
-        currently_submitted = app_counts['SUBMITTED']
-        currently_in_flight = currently_submitted + app_counts['RUNNING']
+        currently_submitted = app_counts["SUBMITTED"]
+        currently_in_flight = currently_submitted + app_counts["RUNNING"]
 
         # now try to submit NEW tasks
-        if (self.can_submit and
-                currently_submitted < limit_submitted and
-                currently_in_flight < limit_in_flight):
-            submit_allowance = min(
-                limit_submitted - currently_submitted,
-                limit_in_flight - currently_in_flight
-            )
+        if self.can_submit and currently_submitted < limit_submitted and currently_in_flight < limit_in_flight:
+            submit_allowance = min(limit_submitted - currently_submitted, limit_in_flight - currently_in_flight)
             queue = self._managed.to_submit
             if queue:
-                gc3libs.log.debug(
-                    "Engine %s about to submit NEW tasks ...", self)
+                gc3libs.log.debug("Engine %s about to submit NEW tasks ...", self)
             # update state of all enabled resources, to give a chance to
             # all to get a new job; for a complete discussion, see:
             # https://github.com/uzh/gc3pie/issues/485
             self._core.update_resources()
             # now try to submit
-            with self.scheduler(queue,
-                                list(self._core.resources.values())) as _sched:
+            with self.scheduler(queue, list(self._core.resources.values())) as _sched:
                 # wrap the original generator object so that `send`
                 # and `throw` do not yield a value -- we only get new
                 # stuff from the call to the `next` method in the `for
@@ -1837,92 +1747,97 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
                         # record the error in the task's history
                         task.execution.history(
                             "Submission to resource '%s' failed: %s: %s"
-                            % (resource.name, err1.__class__.__name__, err1))
+                            % (resource.name, err1.__class__.__name__, err1)
+                        )
                         gc3libs.log.error(
-                            "Got error in submitting task '%s',"
-                            " informing scheduler: %s: %s",
-                            task, err1.__class__.__name__, err1)
+                            "Got error in submitting task '%s'," " informing scheduler: %s: %s",
+                            task,
+                            err1.__class__.__name__,
+                            err1,
+                        )
                         # inform scheduler and let it handle it
                         try:
-                            sched.throw(* sys.exc_info())
+                            sched.throw(*sys.exc_info())
                         # pylint: disable=broad-except
                         except Exception as err2:
                             self.__ignore_or_raise(
-                                err2, "submitting task", task,
+                                err2,
+                                "submitting task",
+                                task,
                                 # context:
                                 # - module
-                                'core',
+                                "core",
                                 # - class
-                                'Engine',
+                                "Engine",
                                 # - method
-                                'progress',
+                                "progress",
                                 # - actual error class
                                 err2.__class__.__name__,
                                 # - additional keywords
-                                'scheduler',
-                                'submit',
+                                "scheduler",
+                                "submit",
                             )
 
         # finally, retrieve output of finished tasks
         if self.can_retrieve:
             queue = self._managed.to_fetch_output
             if queue:
-                gc3libs.log.debug(
-                    "Engine %s about to retrieve output of TERMINATING tasks ...",
-                    self)
+                gc3libs.log.debug("Engine %s about to retrieve output of TERMINATING tasks ...", self)
             for _ in range(len(queue)):
                 task = queue.get()
                 # try to get output
                 try:
                     self._core.fetch_output(
-                        task,
-                        overwrite=self.retrieve_overwrites,
-                        changed_only=self.retrieve_changed_only)
+                        task, overwrite=self.retrieve_overwrites, changed_only=self.retrieve_changed_only
+                    )
                 except gc3libs.exceptions.UnrecoverableDataStagingError as err:
                     gc3libs.log.error(
                         "Error in fetching output of task '%s',"
                         " will mark it as TERMINATED"
                         " (with error exit code %d): %s: %s",
-                        task, posix.EX_IOERR,
-                        err.__class__.__name__, err, exc_info=True)
-                    task.execution.returncode = (
-                        Run.Signals.DataStagingFailure,
-                        posix.EX_IOERR)
+                        task,
+                        posix.EX_IOERR,
+                        err.__class__.__name__,
+                        err,
+                        exc_info=True,
+                    )
+                    task.execution.returncode = (Run.Signals.DataStagingFailure, posix.EX_IOERR)
                     task.execution.state = Run.State.TERMINATED
                     task.changed = True
                 # pylint: disable=broad-except
                 except Exception as err:
                     self.__ignore_or_raise(
-                        err, "fetching output", task,
+                        err,
+                        "fetching output",
+                        task,
                         # context:
                         # - module
-                        'core',
+                        "core",
                         # - class
-                        'Engine',
+                        "Engine",
                         # - method
-                        'progress',
+                        "progress",
                         # - actual error class
                         err.__class__.__name__,
                         # - additional keywords
-                        'fetch_output',
+                        "fetch_output",
                     )
 
                 if task.execution.state == Run.State.TERMINATED:
-                    self._managed.requeue(task, 'cleanup')
+                    self._managed.requeue(task, "cleanup")
                 else:
-                    assert task.execution.state == 'TERMINATING'
+                    assert task.execution.state == "TERMINATING"
                     queue.put(task)  # retry next time
 
         # clean up terminated tasks
         queue = self._managed.to_cleanup
         if queue:
-            gc3libs.log.debug(
-                "Engine %s about to clean up TERMINATED tasks ...", self)
+            gc3libs.log.debug("Engine %s about to clean up TERMINATED tasks ...", self)
         for _ in range(len(queue)):
             task = queue.get()
             try:
                 self._core.free(task)
-                self._managed.requeue(task, 'done')
+                self._managed.requeue(task, "done")
             # pylint: disable=broad-except
             except Exception as err:
                 queue.put(task)  # retry next time
@@ -1930,7 +1845,10 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
                     "Got error freeing up resources used by task '%s': %s: %s."
                     " (For cloud-based resources, it's possible that the VM"
                     " has been destroyed already.)",
-                    task, err.__class__.__name__, err)
+                    task,
+                    err.__class__.__name__,
+                    err,
+                )
 
             if self._store and task.changed:
                 self._store.save(task)
@@ -1939,8 +1857,7 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
         if self.forget_terminated:
             queue = self._managed.done
             if queue:
-                gc3libs.log.debug(
-                    "Engine %s now dropping TERMINATED tasks ...", self)
+                gc3libs.log.debug("Engine %s now dropping TERMINATED tasks ...", self)
             # the whole purpose of this loop is to call
             # `self.remove()` on each item in the queue, so we cannot
             # use the dequeue/requeue mechanism used in other loops,
@@ -1949,28 +1866,21 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
             for task in list(queue):
                 try:
                     self.remove(task)
-                    gc3libs.log.debug(
-                        "Dropped TERMINATED task %s", task)
+                    gc3libs.log.debug("Dropped TERMINATED task %s", task)
                 except Exception as err:  # pylint: disable=broad-except
                     gc3libs.log.debug(
-                        "Could not forget TERMINATED task '%s': %s: %s",
-                        task, err.__class__.__name__, err)
+                        "Could not forget TERMINATED task '%s': %s: %s", task, err.__class__.__name__, err
+                    )
 
         gc3libs.log.debug("Engine.progress(): done.")
 
-
     def __ignore_or_raise(self, err, action, task, *ctx):
         if gc3libs.error_ignored(*ctx):
-            gc3libs.log.debug(
-                "Ignored error in %s of task '%s': %s: %s",
-                action, task, err.__class__.__name__, err)
-            gc3libs.log.debug(
-                "(Original traceback follows.)",
-                exc_info=True)
+            gc3libs.log.debug("Ignored error in %s of task '%s': %s: %s", action, task, err.__class__.__name__, err)
+            gc3libs.log.debug("(Original traceback follows.)", exc_info=True)
         else:
             # propagate exceptions for debugging purposes
             raise
-
 
     def redo(self, task, *args, **kwargs):
         """
@@ -1983,7 +1893,6 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
         self.remove(task)
         task.redo(*args, **kwargs)
         self.add(task)
-
 
     @property
     def resources(self):
@@ -1999,7 +1908,6 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
         underlying core object; see `Core.resources` for more information.
         """
         return self._core.resources
-
 
     # FIXME: rewrite using `collections.Counter` when we drop support for Py 2.6
     def counts(self, only=Task):
@@ -2021,7 +1929,6 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
         assert only in self._counts.totals
         return dictproxy(self._counts.totals[only])
 
-
     def stats(self, only=None):
         """
         Please use :meth:`counts` instead.
@@ -2030,9 +1937,11 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
 
           This is deprecated since GC3Pie version 2.5.
         """
-        warn("Deprecated method `Engine.stats()` called"
-             " -- please use `Engine.counts()` instead",
-             DeprecationWarning, stacklevel=2)
+        warn(
+            "Deprecated method `Engine.stats()` called" " -- please use `Engine.counts()` instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if only is None:
             # adapt to use `.counts()` default
             return self.counts()
@@ -2080,8 +1989,7 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
         """
         pass
 
-    def fetch_output(self, task, output_dir=None,
-                     overwrite=False, changed_only=True, **extra_args):
+    def fetch_output(self, task, output_dir=None, overwrite=False, changed_only=True, **extra_args):
         """
         Enqueue task for later output retrieval.
 
@@ -2096,9 +2004,9 @@ class Engine(object):  # pylint: disable=too-many-instance-attributes
         """
         Schedule a task for killing on the next `progress` run.
         """
-        self._managed.requeue(task, 'kill')
+        self._managed.requeue(task, "kill")
 
-    def peek(self, task, what='stdout', offset=0, size=None, **extra_args):
+    def peek(self, task, what="stdout", offset=0, size=None, **extra_args):
         """
         Proxy for `Core.peek` (which see).
         """
@@ -2139,6 +2047,7 @@ class BgEngine(object):
     invocations of `Engine` operations on a `BgEngine` always succeed:
     errors will only be visible in the background thread of execution.
     """
+
     def __init__(self, lib, *args, **kwargs):
         """
         Initialize an instance of class `BgEngine`:class:.
@@ -2175,7 +2084,8 @@ class BgEngine(object):
         assert len(args) + len(kwargs) > 0, (
             "`BgEngine()` must be called"
             " either with an `Engine` instance as second (and last) argument,"
-            " or with a set of parameters to pass on to the `Engine` constructor.")
+            " or with a set of parameters to pass on to the `Engine` constructor."
+        )
         if len(args) == 1 and isinstance(args[0], gc3libs.core.Engine):
             # first (and only!) arg is an `Engine` instance, use that
             self._engine = args[0]
@@ -2185,7 +2095,6 @@ class BgEngine(object):
 
         # no result caching until an update is really performed
         self._progress_last_run = 0
-
 
     #
     # control main loop scheduling
@@ -2199,14 +2108,9 @@ class BgEngine(object):
           Time span between successive calls of `_perform`:meth:
         """
         self.running = True
-        self._scheduler.add_job(
-            self._perform,
-            'interval', seconds=(interval.amount(Duration.s)))
+        self._scheduler.add_job(self._perform, "interval", seconds=(interval.amount(Duration.s)))
         self._scheduler.start()
-        gc3libs.log.info(
-            "Started background execution of Engine %s every %s",
-            self._engine, interval)
-
+        gc3libs.log.info("Started background execution of Engine %s every %s", self._engine, interval)
 
     def stop(self, wait=False):
         """
@@ -2218,11 +2122,9 @@ class BgEngine(object):
           When ``True``, wait until all pending actions
           on the background thread have been completed.
         """
-        gc3libs.log.info(
-            "Stopping background execution of Engine %s ...", self._engine)
+        gc3libs.log.info("Stopping background execution of Engine %s ...", self._engine)
         self.running = False
         self._scheduler.shutdown(wait)
-
 
     def _perform(self):
         """
@@ -2271,37 +2173,37 @@ class BgEngine(object):
         otherwise ignored.
         """
         for func, args, kwargs in queue:
-            gc3libs.log.debug(
-                "Executing delayed call %s(*%r, **%r) ...",
-                func.__name__, args, kwargs)
+            gc3libs.log.debug("Executing delayed call %s(*%r, **%r) ...", func.__name__, args, kwargs)
             try:
                 func(*args, **kwargs)
             except Exception as err:  # pylint: disable=broad-except
                 gc3libs.log.warning(
                     "Got '%s' while executing delayed call %s(*%r, **%r): %s",
                     err.__class__.__name__,
-                    func.__name__, args, kwargs,
-                    err, exc_info=__debug__)
+                    func.__name__,
+                    args,
+                    kwargs,
+                    err,
+                    exc_info=__debug__,
+                )
 
     def __run_engine_progress(self):
         """
         Call the `.progress()` method of the wrapped `Engine` instance.
         """
-        gc3libs.log.debug(
-            "%s: calling `progress()` on Engine %s ...",
-            self, self._engine)
+        gc3libs.log.debug("%s: calling `progress()` on Engine %s ...", self, self._engine)
         # pylint: disable=broad-except
         try:
             self._engine.progress()
             self._progress_last_run = time.time()
         except Exception as err:
             gc3libs.log.warning(
-                "Ignoring '%s' error,"
-                "  occurred while running"
-                " `Engine.progress()` in the background: %s",
-                err.__class__.__name__, err, exc_info=__debug__)
+                "Ignoring '%s' error," "  occurred while running" " `Engine.progress()` in the background: %s",
+                err.__class__.__name__,
+                err,
+                exc_info=__debug__,
+            )
         gc3libs.log.debug("%s: _perform() done", self)
-
 
     def trigger_before_progress(self, func, *args, **kwargs):
         """
@@ -2319,7 +2221,6 @@ class BgEngine(object):
         with self._before_progress_triggers_locked:
             self._before_progress_triggers.append((func, args, kwargs))
 
-
     def trigger_after_progress(self, func, *args, **kwargs):
         """
         Call a function *after* running `Engine.progress()` in the main loop.
@@ -2335,7 +2236,6 @@ class BgEngine(object):
         """
         with self._after_progress_triggers_locked:
             self._after_progress_triggers.append((func, args, kwargs))
-
 
     @staticmethod
     def at_most_once_per_cycle(fn):  # pylint: disable=invalid-name
@@ -2365,7 +2265,7 @@ class BgEngine(object):
             else:
                 key = (fn, tuple(id(arg) for arg in args))
                 try:
-                    update = (self._cache_last_updated[key] < self._progress_last_run)
+                    update = self._cache_last_updated[key] < self._progress_last_run
                 except AttributeError:
                     self._cache_last_updated = defaultdict(float)
                     self._cache_value = {}
@@ -2376,8 +2276,8 @@ class BgEngine(object):
                 # gc3libs.log.debug("%s(%s, ...): Using cached value '%s'",
                 #                  fn.__name__, obj, obj._cache_value[key])
                 return self._cache_value[key]
-        return wrapper
 
+        return wrapper
 
     #
     # Engine interface
@@ -2391,7 +2291,6 @@ class BgEngine(object):
         else:
             self._engine.add(task)
 
-
     def close(self):
         """Proxy to `Engine.close`:meth: (which see)."""
         if self.running:
@@ -2400,24 +2299,17 @@ class BgEngine(object):
         else:
             self._engine.close()
 
-
-    def fetch_output(self, task, output_dir=None,
-                     overwrite=False, changed_only=True, **extra_args):
+    def fetch_output(self, task, output_dir=None, overwrite=False, changed_only=True, **extra_args):
         """Proxy to `Engine.fetch_output`:meth: (which see)."""
         if self.running:
             with self._queue_locked:
-                self._queue.append((self._engine.fetch_output,
-                                    (task, output_dir, overwrite, changed_only),
-                                    extra_args))
+                self._queue.append((self._engine.fetch_output, (task, output_dir, overwrite, changed_only), extra_args))
         else:
-            self._engine.fetch_output(task, output_dir, overwrite,
-                                      changed_only, **extra_args)
-
+            self._engine.fetch_output(task, output_dir, overwrite, changed_only, **extra_args)
 
     def find_task_by_id(self, task_id):
         """Proxy to `Engine.find_task_by_id`:meth: (which see)."""
         return self._engine.find_task_by_id(task_id)
-
 
     def free(self, task, **extra_args):
         """Proxy to `Engine.free`:meth: (which see)."""
@@ -2427,23 +2319,19 @@ class BgEngine(object):
         else:
             self._engine.free(task, **extra_args)
 
-
     def get_resources(self):
         """Proxy to `Engine.get_resources`:meth: (which see)."""
         return self._engine.get_resources()
 
-
     def get_backend(self, name):
         """Proxy to `Engine.get_backend`:meth: (which see)."""
         return self._engine.get_backend(name)
-
 
     def iter_tasks(self):
         """
         Proxy to `Engine.iter_tasks`:meth: (which see).
         """
         return self._engine.iter_tasks()
-
 
     def kill(self, task, **extra_args):
         """Proxy to `Engine.kill`:meth: (which see)."""
@@ -2453,16 +2341,13 @@ class BgEngine(object):
         else:
             self._engine.kill(task, **extra_args)
 
-
-    def peek(self, task, what='stdout', offset=0, size=None, **extra_args):
+    def peek(self, task, what="stdout", offset=0, size=None, **extra_args):
         """Proxy to `Engine.peek`:meth: (which see)."""
         if self.running:
             with self._queue_locked:
-                self._queue.append((self._engine.peek,
-                                    (task, what, offset, size), extra_args))
+                self._queue.append((self._engine.peek, (task, what, offset, size), extra_args))
         else:
             self._engine.peek(task, what, offset, size, **extra_args)
-
 
     def progress(self):
         """
@@ -2478,7 +2363,6 @@ class BgEngine(object):
         else:
             self._engine.progress()
 
-
     def remove(self, task):
         """Proxy to `Engine.remove`:meth: (which see)."""
         if self.running:
@@ -2486,7 +2370,6 @@ class BgEngine(object):
                 self._queue.append((self._engine.remove, (task,), {}))
         else:
             self._engine.remove(task)
-
 
     def select_resource(self, match):
         """Proxy to `Engine.select_resource`:meth: (which see)."""
@@ -2496,11 +2379,9 @@ class BgEngine(object):
         else:
             self._engine.select_resource(match)
 
-
     def stats(self, only=None):
         """Proxy to `Engine.stats`:meth: (which see)."""
         return self._engine.stats(only)
-
 
     def submit(self, task, resubmit=False, targets=None, **extra_args):
         """Proxy to `Engine.submit`:meth: (which see)."""
@@ -2509,7 +2390,6 @@ class BgEngine(object):
                 self._queue.append((self._engine.submit, (task, resubmit, targets), extra_args))
         else:
             self._engine.submit(task, resubmit, targets, **extra_args)
-
 
     def update_job_state(self, *tasks, **extra_args):
         """Proxy to `Engine.update_job_state`:meth: (which see)."""

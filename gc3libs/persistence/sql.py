@@ -19,42 +19,41 @@ SQL-based storage of GC3pie objects.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from __future__ import absolute_import, print_function, unicode_literals
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-__docformat__ = 'reStructuredText'
 
+import os
+from builtins import str
 
 # stdlib imports
 from contextlib import closing
 from io import BytesIO
-import os
 from urllib.parse import parse_qs
 from warnings import warn
 from weakref import WeakValueDictionary
 
+import gc3libs.exceptions
+import gc3libs.utils
 import sqlalchemy as sqla
 import sqlalchemy.sql as sql
+from future import standard_library
 
 # GC3Pie interface
 from gc3libs import Run
-import gc3libs.exceptions
-from gc3libs.url import Url
-import gc3libs.utils
-from gc3libs.utils import same_docstring_as
-
 from gc3libs.persistence.idfactory import IdFactory
 from gc3libs.persistence.serialization import make_pickler, make_unpickler
 from gc3libs.persistence.store import Store
+from gc3libs.url import Url
+from gc3libs.utils import same_docstring_as
+
+standard_library.install_aliases()
+
+__docformat__ = "reStructuredText"
 
 
 # uncomment lines containing `_lvl` to show nested save/loads in logs
-#_lvl = ''
+# _lvl = ''
 
 
 class IntId(int):
-
     def __new__(cls, prefix, seqno):
         return int.__new__(cls, seqno)
 
@@ -127,8 +126,7 @@ class SqlStore(Store):
     `FilesystemStore`:class:.
     """
 
-    def __init__(self, url, table_name=None, idfactory=None,
-                 extra_fields=None, create=True, **extra_args):
+    def __init__(self, url, table_name=None, idfactory=None, extra_fields=None, create=True, **extra_args):
         """
         Open a connection to the storage database identified by `url`.
 
@@ -144,22 +142,22 @@ class SqlStore(Store):
         # init static public args
         self.idfactory = idfactory or IdFactory(id_class=IntId)
 
-        url_table_names = kv.get('table')
+        url_table_names = kv.get("table")
         if url_table_names:
             url_table_name = url_table_names[-1]  # last wins
         else:
-            url_table_name = ''
+            url_table_name = ""
         if table_name is None:
             self.table_name = url_table_name or "store"
         else:
             if table_name != url_table_name:
                 gc3libs.log.debug(
-                    "DB table name given in store URL fragment,"
-                    " but overriden by `table` argument to SqlStore()")
+                    "DB table name given in store URL fragment," " but overriden by `table` argument to SqlStore()"
+                )
             self.table_name = table_name
 
         # save ctor args for lazy-initialization
-        self._init_extra_fields = (extra_fields if extra_fields is not None else {})
+        self._init_extra_fields = extra_fields if extra_fields is not None else {}
         self._init_create = create
 
         # create slots for lazy-init'ed attrs
@@ -171,7 +169,7 @@ class SqlStore(Store):
 
     @staticmethod
     def _to_sqlalchemy_url(url):
-        if url.scheme == 'sqlite':
+        if url.scheme == "sqlite":
             # rewrite ``sqlite`` URLs to be RFC compliant, see:
             # https://github.com/uzh/gc3pie/issues/261
             db_url = "%s://%s/%s" % (url.scheme, url.netloc, url.path)
@@ -179,7 +177,7 @@ class SqlStore(Store):
             db_url = str(url)
         # remove fragment identifier, if any
         try:
-            fragment_loc = db_url.index('#')
+            fragment_loc = db_url.index("#")
             db_url = db_url[:fragment_loc]
         except ValueError:
             pass
@@ -194,8 +192,7 @@ class SqlStore(Store):
         for more details and motivation.
         """
         url = self._to_sqlalchemy_url(self.url)
-        gc3libs.log.debug(
-            "Initializing SQLAlchemy engine for `%s`...", url)
+        gc3libs.log.debug("Initializing SQLAlchemy engine for `%s`...", url)
         self._real_engine = sqla.create_engine(url)
 
         # create schema
@@ -203,13 +200,10 @@ class SqlStore(Store):
         table = sqla.Table(
             self.table_name,
             meta,
-            sqla.Column('id',
-                        sqla.Integer(),
-                        primary_key=True, nullable=False),
-            sqla.Column('data',
-                        sqla.LargeBinary()),
-            sqla.Column('state',
-                        sqla.String(length=128)))
+            sqla.Column("id", sqla.Integer(), primary_key=True, nullable=False),
+            sqla.Column("data", sqla.LargeBinary()),
+            sqla.Column("state", sqla.String(length=128)),
+        )
 
         # create internal rep of table
         self._real_extra_fields = {}
@@ -225,7 +219,6 @@ class SqlStore(Store):
             meta.create_all()
 
         self._real_tables = meta.tables[self.table_name]
-
 
     def pre_fork(self):
         """
@@ -245,7 +238,6 @@ class SqlStore(Store):
         self._real_extra_fields = None
         self._real_tables = None
 
-
     @property
     def _engine(self):
         if self._real_engine is None:
@@ -264,8 +256,11 @@ class SqlStore(Store):
         """
         Deprecated compatibility alias for `SqlStore._tables`
         """
-        warn("`SqlStore.t_store` has been renamed to `SqlStore._tables`;"
-             " please update your code", DeprecationWarning, 2)
+        warn(
+            "`SqlStore.t_store` has been renamed to `SqlStore._tables`;" " please update your code",
+            DeprecationWarning,
+            2,
+        )
         return self._tables
 
     @property
@@ -273,7 +268,6 @@ class SqlStore(Store):
         if self._real_extra_fields is None:
             self._delayed_init()
         return self._real_extra_fields
-
 
     @same_docstring_as(Store.invalidate_cache)
     def invalidate_cache(self):
@@ -294,7 +288,7 @@ class SqlStore(Store):
     # copied from FilesystemStore
     @same_docstring_as(Store.save)
     def save(self, obj):
-        if not hasattr(obj, 'persistent_id'):
+        if not hasattr(obj, "persistent_id"):
             obj.persistent_id = self.idfactory.new(obj)
         return self._save_or_replace(obj.persistent_id, obj)
 
@@ -305,17 +299,17 @@ class SqlStore(Store):
         #     gc3libs.log.debug("%s Saving %r@%x as %s ...", _lvl, obj, id(obj), id_)
 
         # build row to insert/update
-        fields = {'id': id_}
+        fields = {"id": id_}
 
         with closing(BytesIO()) as dstdata:
             make_pickler(self, dstdata, obj).dump(obj)
-            fields['data'] = dstdata.getvalue()
+            fields["data"] = dstdata.getvalue()
 
         try:
-            fields['state'] = obj.execution.state
+            fields["state"] = obj.execution.state
         except AttributeError:
             # If we cannot determine the state of a task, consider it UNKNOWN.
-            fields['state'] = Run.State.UNKNOWN
+            fields["state"] = Run.State.UNKNOWN
 
         # insert into db
         for column in self.extra_fields:
@@ -323,16 +317,14 @@ class SqlStore(Store):
                 fields[column] = self.extra_fields[column](obj)
             except Exception as ex:
                 gc3libs.log.warning(
-                    "Error saving DB column '%s' of object '%s': %s: %s",
-                    column, obj, ex.__class__.__name__, str(ex))
+                    "Error saving DB column '%s' of object '%s': %s: %s", column, obj, ex.__class__.__name__, str(ex)
+                )
 
         if __debug__:
             for column in fields:
-                if column == 'data':
+                if column == "data":
                     continue
-                gc3libs.log.debug(
-                    "Writing value '%s' in column '%s' for object '%s'",
-                    fields[column], column, obj)
+                gc3libs.log.debug("Writing value '%s' in column '%s' for object '%s'", fields[column], column, obj)
 
         q = sql.select([self._tables.c.id]).where(self._tables.c.id == id_)
         with self._engine.begin() as conn:
@@ -342,11 +334,10 @@ class SqlStore(Store):
                 q = self._tables.insert().values(**fields)
             else:
                 # it's an update
-                q = self._tables.update().where(
-                        self._tables.c.id == id_).values(**fields)
+                q = self._tables.update().where(self._tables.c.id == id_).values(**fields)
             conn.execute(q)
         obj.persistent_id = id_
-        if hasattr(obj, 'changed'):
+        if hasattr(obj, "changed"):
             obj.changed = False
 
         # update cache
@@ -392,8 +383,7 @@ class SqlStore(Store):
         with self._engine.begin() as conn:
             rawdata = conn.execute(q).fetchone()
         if not rawdata:
-            raise gc3libs.exceptions.LoadError(
-                "Unable to find any object with ID '%s'" % id_)
+            raise gc3libs.exceptions.LoadError("Unable to find any object with ID '%s'" % id_)
         obj = make_unpickler(self, BytesIO(rawdata[0])).load()
         super(SqlStore, self)._update_to_latest_schema()
         assert str(id_) not in self._loaded
@@ -407,8 +397,7 @@ class SqlStore(Store):
     @same_docstring_as(Store.remove)
     def remove(self, id_):
         with self._engine.begin() as conn:
-            conn.execute(
-                self._tables.delete().where(self._tables.c.id == id_))
+            conn.execute(self._tables.delete().where(self._tables.c.id == id_))
         try:
             del self._loaded[str(id_)]
         except KeyError:
@@ -435,7 +424,7 @@ def make_sqlstore(url, *args, **extra_args):
     """
     assert isinstance(url, gc3libs.url.Url)
     gc3libs.log.debug("Building SQL store from URL %s", url)
-    if url.scheme == 'sqlite':
+    if url.scheme == "sqlite":
         # create parent directories: avoid "OperationalError: unable to open
         # database file None None"
         dir = gc3libs.utils.dirname(url.path)
@@ -448,5 +437,5 @@ def make_sqlstore(url, *args, **extra_args):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="sql",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="sql", optionflags=doctest.NORMALIZE_WHITESPACE)

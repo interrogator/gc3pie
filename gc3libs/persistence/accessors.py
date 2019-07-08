@@ -19,12 +19,12 @@ Accessors for object attributes and container items.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from __future__ import absolute_import, print_function, unicode_literals
-from builtins import object
-__docformat__ = 'reStructuredText'
 
+from builtins import object
 
 from gc3libs.utils import getattr_nested
+
+__docformat__ = "reStructuredText"
 
 
 # tag object for catching the "no value passed" in `GetAttr` and
@@ -66,7 +66,8 @@ class GetValue(object):
        True
 
     """
-    __slots__ = ('default',)
+
+    __slots__ = ("default",)
 
     def __init__(self, default=_none):
         self.default = default
@@ -76,16 +77,12 @@ class GetValue(object):
         return obj
 
     def __getattr__(self, name):
-        if name.startswith('_'):
-            raise AttributeError(
-                "'%s' object has no attribute '%s'"
-                % (self.__class__.__name__, name))
-        return GetAttributeValue(
-            name, xform=(lambda obj: self(obj)), default=self.default)
+        if name.startswith("_"):
+            raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
+        return GetAttributeValue(name, xform=(lambda obj: self(obj)), default=self.default)
 
     def __getitem__(self, place):
-        return GetItemValue(
-            place, xform=(lambda obj: self(obj)), default=self.default)
+        return GetItemValue(place, xform=(lambda obj: self(obj)), default=self.default)
 
     def ONLY(self, specifier):
         """
@@ -110,8 +107,7 @@ class GetValue(object):
             AttributeError: 'NoneType' object has no attribute 'a'
 
         """
-        return GetOnly(
-            specifier, xform=(lambda obj: self(obj)), default=self.default)
+        return GetOnly(specifier, xform=(lambda obj: self(obj)), default=self.default)
 
 
 GET = GetValue()
@@ -181,7 +177,8 @@ class GetAttributeValue(GetValue):
     `GetItemValue`:class: for examples.
 
     """
-    __slots__ = ('attr', 'xform', 'default')
+
+    __slots__ = ("attr", "xform", "default")
 
     def __init__(self, attr, xform=(lambda obj: obj), default=_none):
         self.attr = attr
@@ -264,7 +261,8 @@ class GetItemValue(GetValue):
     This allows combining `GetItemValue` with `GetAttrValue`:class:
     (which see), to access objects in deeply-nested data structures.
     """
-    __slots__ = ('idx', 'xform', 'default')
+
+    __slots__ = ("idx", "xform", "default")
 
     def __init__(self, place, xform=(lambda obj: obj), default=_none):
         self.idx = place
@@ -308,7 +306,8 @@ class GetOnly(GetValue):
        'None'
 
     """
-    __slots__ = ('only', 'xform', 'default')
+
+    __slots__ = ("only", "xform", "default")
 
     def __init__(self, only, xform=(lambda obj: obj), default=_none):
         self.only = only
@@ -330,5 +329,5 @@ class GetOnly(GetValue):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="get",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="get", optionflags=doctest.NORMALIZE_WHITESPACE)

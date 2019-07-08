@@ -1,6 +1,5 @@
 #! /usr/bin/env python
 
-from __future__ import absolute_import
 import os
 from os.path import abspath, basename
 import sys
@@ -10,8 +9,9 @@ from gc3libs.cmdline import SessionBasedScript
 from gc3libs.quantity import GB
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from ex2c import GrayscaleScript
+
     GrayscaleScript().run()
 
 
@@ -19,8 +19,10 @@ class GrayscaleScript(SessionBasedScript):
     """
     Convert images to grayscale.
     """
+
     def __init__(self):
-        super(GrayscaleScript, self).__init__(version='1.0')
+        super(GrayscaleScript, self).__init__(version="1.0")
+
     def new_tasks(self, extra):
         # since `self.params.args` is already a list of file names,
         # just iterate over it to build the list of apps to run...
@@ -35,13 +37,13 @@ class GrayscaleScript(SessionBasedScript):
 # `from grayscale_app import GrayscaleApp` above
 class GrayscaleApp(Application):
     """Convert a single image file to grayscale."""
+
     def __init__(self, img):
         inp = basename(img)
         out = "gray-" + inp
         Application.__init__(
             self,
-            arguments=[
-                "convert", inp, "-colorspace", "gray", out],
+            arguments=["convert", inp, "-colorspace", "gray", out],
             inputs=[img],
             outputs=[out],
             # need to use a different output dir per set of
@@ -52,4 +54,5 @@ class GrayscaleApp(Application):
             stderr="stderr.txt",
             # this is needed to circumvent GC3Pie issue #559, see
             # <https://github.com/uzh/gc3pie/issues/559>
-            requested_memory=1*GB)
+            requested_memory=1 * GB,
+        )
