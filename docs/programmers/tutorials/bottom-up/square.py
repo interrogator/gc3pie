@@ -27,6 +27,7 @@ gc3libs.configure_logger(loglevel, "gdemo")
 
 class SquareApplication(gc3libs.Application):
     """Compute the square of `x`, using a remote job."""
+
     def __init__(self, x):
         self.to_square = x
         gc3libs.Application.__init__(
@@ -36,7 +37,8 @@ class SquareApplication(gc3libs.Application):
             outputs=[],
             output_dir="./squares.d",
             stdout="stdout.txt",
-            join=True)
+            join=True,
+        )
 
 
 # assume the number to square is given on the command-line
@@ -44,9 +46,7 @@ x = int(sys.argv[1])
 
 # Read configuration from the default configuration file, and create
 # an instance of `Core`.
-cfg = gc3libs.config.Configuration(
-    *gc3libs.Default.CONFIG_FILE_LOCATIONS,
-    auto_enable_auth=True)
+cfg = gc3libs.config.Configuration(*gc3libs.Default.CONFIG_FILE_LOCATIONS, auto_enable_auth=True)
 core = gc3libs.core.Core(cfg)
 
 # create an instance of SquareApplication and submit it
@@ -56,23 +56,20 @@ core.submit(app)
 # After submssion, you have to check the application for its state:
 # if state is NEW, then submission failed
 if app.execution.state == gc3libs.Run.State.NEW:
-    print ("Failed submitting application, check log for errors.")
+    print("Failed submitting application, check log for errors.")
     sys.exit(1)
 else:
-    print ("SquareApplication successfully submitted,"
-           " remote job ID is: %s" % app.execution.lrms_jobid)
+    print("SquareApplication successfully submitted," " remote job ID is: %s" % app.execution.lrms_jobid)
 
 # Periodically check the status of your application.
-while app.execution.state in [ gc3libs.Run.State.SUBMITTED,
-                               gc3libs.Run.State.RUNNING,
-                               ]:
+while app.execution.state in [gc3libs.Run.State.SUBMITTED, gc3libs.Run.State.RUNNING]:
     time.sleep(5)
     # This call will contact the resource(s) and get the current
     # job state
     core.update_job_state(app)
-    print "Job state is now %s " % app.execution.state
+    print("Job state is now %s " % app.execution.state)
 
-print ("Fetching job output...")
+print("Fetching job output...")
 
 # You can specify a different `download_dir` option if you want to
 # override the value used in the GdemoSimpleApp initialization
@@ -86,7 +83,7 @@ core.fetch_output(app, overwrite=False)
 
 # after calling, `fetch_output` the job is in TERMINATED state and
 # GC3Pie won't act on it any more
-print ("Job state is now %s." % app.execution.state)
+print("Job state is now %s." % app.execution.state)
 
 
-print "Done. Results are in %s" % app.output_dir
+print("Done. Results are in %s" % app.output_dir)

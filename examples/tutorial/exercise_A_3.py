@@ -51,18 +51,21 @@ import gc3libs.core
 loglevel = logging.DEBUG
 gc3libs.configure_logger(loglevel, "gdemo")
 
+
 class GdemoSimpleApp(gc3libs.Application):
     """This simple application will run /bin/hostname on the remove
     host, and retrive the output in a file named `stdout.txt` into a
     directory `mygc3job` inside the current directory."""
+
     def __init__(self):
         gc3libs.Application.__init__(
             self,
-            arguments = ['/bin/cat', '/proc/cpuinfo'], # mandatory
-            inputs = [],                  # mandatory
-            outputs = [],                 # mandatory
-            output_dir = "./mygc3job",    # mandatory
-            stdout = "stdout.txt",)
+            arguments=['/bin/cat', '/proc/cpuinfo'],  # mandatory
+            inputs=[],  # mandatory
+            outputs=[],  # mandatory
+            output_dir="./mygc3job",  # mandatory
+            stdout="stdout.txt",
+        )
 
     def terminated(self):
         """
@@ -85,18 +88,18 @@ class GdemoSimpleApp(gc3libs.Application):
                 break
         fd.close()
 
+
 # create an instance of GdemoSimpleApp
 applications = [GdemoSimpleApp() for i in range(10)]
 
 # create an instance of Core. Read configuration from your default
 # configuration file
-cfg = gc3libs.config.Configuration(*gc3libs.Default.CONFIG_FILE_LOCATIONS,
-                                   **{'auto_enable_auth': True})
+cfg = gc3libs.config.Configuration(*gc3libs.Default.CONFIG_FILE_LOCATIONS, **{'auto_enable_auth': True})
 core = gc3libs.core.Core(cfg)
 
 # in case you want to select a specific resource, call
 # `Core.select_resource(...)`
-if len(sys.argv)>1:
+if len(sys.argv) > 1:
     core.select_resource(sys.argv[1])
 
 # This dictionary will contain a  mapping "model name" => "occurrencies"
@@ -107,14 +110,11 @@ model_names = dict()
 for app in applications:
     # Submit the application
     core.submit(app)
-    
+
     # Periodically check the status of the application.
-    while app.execution.state in [ gc3libs.Run.State.NEW,
-                                   gc3libs.Run.State.SUBMITTED,
-                                   gc3libs.Run.State.RUNNING,
-                                   ]:
+    while app.execution.state in [gc3libs.Run.State.NEW, gc3libs.Run.State.SUBMITTED, gc3libs.Run.State.RUNNING]:
         try:
-            print "Job in status %s " % app.execution.state
+            print("Job in status %s " % app.execution.state)
             time.sleep(1)
             # This call will contact the resource(s) and get the current
             # job state
@@ -126,13 +126,13 @@ for app in applications:
 
     # Application is done. Fetching output so the `terminated()`
     # method is claled.
-    print "Job is completed. Fetching the output."
+    print("Job is completed. Fetching the output.")
     core.fetch_output(app, overwrite=False)
     if app.model_name not in model_names:
         model_names[app.model_name] = 1
     else:
         model_names[app.model_name] += 1
-        
 
-for (k,v) in model_names.iteritems():
-    print "Model name: %s (%d)" % (k,v)
+
+for (k, v) in model_names.iteritems():
+    print("Model name: %s (%d)" % (k, v))

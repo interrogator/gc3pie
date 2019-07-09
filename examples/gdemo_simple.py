@@ -52,8 +52,10 @@ import gc3libs
 #
 # (The following lines can be commented out to make the output less verbose.)
 import logging
+
 loglevel = logging.INFO
 gc3libs.configure_logger(loglevel, "gdemo")
+
 
 class GdemoSimpleApp(gc3libs.Application):
     """
@@ -61,16 +63,19 @@ class GdemoSimpleApp(gc3libs.Application):
     and retrieve the output in a file named `stdout.txt`:file: into a
     directory `GdemoSimpleApp_output`:file: inside the current directory.
     """
+
     def __init__(self):
         gc3libs.Application.__init__(
             self,
             # the following arguments are mandatory:
-            arguments = ["/bin/hostname"],
-            inputs = [],
-            outputs = [],
-            output_dir = "./GdemoSimpleApp_output",
+            arguments=["/bin/hostname"],
+            inputs=[],
+            outputs=[],
+            output_dir="./GdemoSimpleApp_output",
             # the rest is optional and has reasonable defaults:
-            stdout = "stdout.txt",)
+            stdout="stdout.txt",
+        )
+
 
 # Create an instance of GdemoSimpleApp
 app = GdemoSimpleApp()
@@ -86,12 +91,12 @@ engine.add(app)
 
 # in case you want to select a specific resource, call
 # `Engine.select_resource(<resource_name>)`
-if len(sys.argv)>1:
+if len(sys.argv) > 1:
     engine.select_resource(sys.argv[1])
 
 # Periodically check the status of your application.
 while app.execution.state != gc3libs.Run.State.TERMINATED:
-    print "Job in status %s " % app.execution.state
+    print("Job in status %s " % app.execution.state)
     # `Engine.progress()` will do the GC3Pie magic:
     # submit new jobs, update status of submitted jobs, get
     # results of terminating jobs etc...
@@ -100,5 +105,5 @@ while app.execution.state != gc3libs.Run.State.TERMINATED:
     # Wait a few seconds...
     time.sleep(1)
 
-print "Job is now terminated."
-print "The output of the application is in `%s`." %  app.output_dir
+print("Job is now terminated.")
+print("The output of the application is in `%s`." % app.output_dir)

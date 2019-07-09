@@ -37,6 +37,7 @@ import gc3libs
 import gc3libs.cmdline
 import gc3libs.workflow
 
+
 class SimpleScript(gc3libs.cmdline.SessionBasedScript):
     """
     This script will run an application which produce a random
@@ -47,29 +48,31 @@ class SimpleScript(gc3libs.cmdline.SessionBasedScript):
     even exit code``, otherwise it will write ``previous application
     exited with an odd exit code``.
     """
+
     version = '0.1'
-    
+
     def new_tasks(self, extra):
         yield (
             'Dice App',
             DiceApplication,
             [
-                
                 gc3libs.Application(
-                    arguments = ["bash", "-c", "exit $[$RANDOM%6]"],
-                    inputs = [],
-                    outputs = [],
-                    output_dir = 'DiceApp',
+                    arguments=["bash", "-c", "exit $[$RANDOM%6]"],
+                    inputs=[],
+                    outputs=[],
+                    output_dir='DiceApp',
                     stderr='stderr.txt',
                     stdout='stdout.txt',
                     **extra
-                    )
-                ],
-            extra)
+                )
+            ],
+            extra,
+        )
 
 
 if __name__ == "__main__":
     from exercise_F import SimpleScript
+
     SimpleScript().run()
 
 
@@ -79,11 +82,11 @@ class DiceApplication(gc3libs.workflow.RetryableTask):
 
     Then, depending on the exit code of the first application, decide
     which application to run next.
-    
+
     """
 
     def retry(self):
-        print "Previous application returned: %s" % self.task.execution.returncode
+        print("Previous application returned: %s" % self.task.execution.returncode)
         if self.task.execution.returncode == 1:
             return False
         else:

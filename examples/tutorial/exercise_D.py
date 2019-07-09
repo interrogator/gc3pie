@@ -50,25 +50,20 @@ class ProcessFilesInParallel(gc3libs.cmdline.SessionBasedScript):
     `PATTERN` into the directory `DIRECTORY`.
     
     """
+
     version = '0.1'
 
     def setup_options(self):
-        self.add_param('--command', required=True,
-                       help="Command to execute on each input file.")
-        self.add_param('--directory', required=True,
-                       help="Directory containing the input files.")
-        self.add_param('--pattern', required=True,
-                       help="Pattern that input files inside `DIRECTORY` must match.")
+        self.add_param('--command', required=True, help="Command to execute on each input file.")
+        self.add_param('--directory', required=True, help="Directory containing the input files.")
+        self.add_param('--pattern', required=True, help="Pattern that input files inside `DIRECTORY` must match.")
 
     def new_tasks(self, extra):
-        input_files = self._search_for_input_files(
-            self.params.directory,
-            pattern=self.params.pattern)
+        input_files = self._search_for_input_files(self.params.directory, pattern=self.params.pattern)
 
         if not input_files:
-            print "No input files matching `%s` in directory `%s`" % (
-                self.params.pattern, self.params.directory)
-            return 
+            print("No input files matching `%s` in directory `%s`" % (self.params.pattern, self.params.directory))
+            return
 
         for ifile in input_files:
             kw = extra.copy()
@@ -76,15 +71,14 @@ class ProcessFilesInParallel(gc3libs.cmdline.SessionBasedScript):
             yield (
                 "File:%s" % ifile.replace('/', '_'),
                 gc3libs.Application,
-                [[self.params.command, ifile],
-                 [ifile],
-                 [],
-                 ],
-                kw)
-                
-        
+                [[self.params.command, ifile], [ifile], []],
+                kw,
+            )
+
+
 ## main: run tests
 
 if "__main__" == __name__:
     from exercise_D import ProcessFilesInParallel
+
     ProcessFilesInParallel().run()

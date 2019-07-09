@@ -43,10 +43,12 @@ from gc3libs.workflow import ParallelTaskCollection, SequentialTaskCollection
 
 if "__main__" == __name__:
     import grun
+
     grun.GRunScript().run()
 
 
 ## aux application classes
+
 
 class GRunApplication(Application):
     """
@@ -55,6 +57,7 @@ class GRunApplication(Application):
     the argument is a file, and in that case it will add it to the
     files to upload as input.
     """
+
     def __init__(self, arguments, **extra_args):
         # Fix path of the executable
         inputs = extra_args.get('inputs', [])
@@ -64,16 +67,19 @@ class GRunApplication(Application):
             argpath = os.path.expandvars(os.path.expanduser(arg))
             if os.path.exists(argpath):
                 inputs.append(argpath)
-        Application.__init__(self,
-                             arguments = ["sh", "-c", str.join(' ', shellargs)],
-                             inputs = inputs,
-                             outputs = gc3libs.ANY_OUTPUT,
-                             stdout = "stdout.txt",
-                             stderr = "stderr.txt",
-                             **extra_args)
+        Application.__init__(
+            self,
+            arguments=["sh", "-c", str.join(' ', shellargs)],
+            inputs=inputs,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout="stdout.txt",
+            stderr="stderr.txt",
+            **extra_args
+        )
 
 
 ## the script definition
+
 
 class GRunScript(SessionBasedScript):
     """
@@ -83,15 +89,27 @@ class GRunScript(SessionBasedScript):
     To be mainly used for testing purposes; for "production" runs,
     consider writing a specialized script.
     """
+
     version = '1.1.1'
+
     def setup_options(self):
         """Add options specific to this session-based script."""
-        self.add_param('--parallel', metavar="COUNT",
-                       action="store", default=0, type=nonnegative_int,
-                       help='Execute the command line this many times in parallel')
-        self.add_param('--sequential', metavar="COUNT",
-                       action="store", default=0, type=nonnegative_int,
-                       help='Execute the command line this many times in a sequence')
+        self.add_param(
+            '--parallel',
+            metavar="COUNT",
+            action="store",
+            default=0,
+            type=nonnegative_int,
+            help='Execute the command line this many times in parallel',
+        )
+        self.add_param(
+            '--sequential',
+            metavar="COUNT",
+            action="store",
+            default=0,
+            type=nonnegative_int,
+            help='Execute the command line this many times in a sequence',
+        )
 
     def parse_args(self):
         if not self.params.parallel and not self.params.sequential:
@@ -105,21 +123,31 @@ class GRunScript(SessionBasedScript):
 
         if self.params.parallel:
             task = ParallelTaskCollection(
-                [GRunApplication(
+                [
+                    GRunApplication(
                         self.params.args,
                         jobname='GRunApplication.%d' % i,
                         output_dir='GRunApplication.%d.d' % i,
-                        **appextra)
-                 for i in range(self.params.parallel)], **extra)
+                        **appextra
+                    )
+                    for i in range(self.params.parallel)
+                ],
+                **extra
+            )
 
         elif self.params.sequential:
             task = SequentialTaskCollection(
-                [GRunApplication(
+                [
+                    GRunApplication(
                         self.params.args,
                         jobname='GRunApplication.%d' % i,
                         output_dir='GRunApplication.%d.d' % i,
-                        **appextra)
-                 for i in range(self.params.sequential)], **extra)
+                        **appextra
+                    )
+                    for i in range(self.params.sequential)
+                ],
+                **extra
+            )
 
         else:
             task = GRunApplication(self.params.args, **extra)
