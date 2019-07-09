@@ -125,8 +125,7 @@ def _do_download(version, download_base, to_dir, download_delay):
     tp = 'setuptools-{version}-{py_desig}.egg'
     egg = os.path.join(to_dir, tp.format(**locals()))
     if not os.path.exists(egg):
-        archive = download_setuptools(version, download_base,
-            to_dir, download_delay)
+        archive = download_setuptools(version, download_base, to_dir, download_delay)
         _build_egg(egg, archive, to_dir)
     sys.path.insert(0, egg)
 
@@ -136,12 +135,11 @@ def _do_download(version, download_base, to_dir, download_delay):
         _unload_pkg_resources()
 
     import setuptools
+
     setuptools.bootstrap_install_from = egg
 
 
-def use_setuptools(
-        version=DEFAULT_VERSION, download_base=DEFAULT_URL,
-        to_dir=DEFAULT_SAVE_DIR, download_delay=15):
+def use_setuptools(version=DEFAULT_VERSION, download_base=DEFAULT_URL, to_dir=DEFAULT_SAVE_DIR, download_delay=15):
     """
     Ensure that a setuptools version is installed.
 
@@ -158,6 +156,7 @@ def use_setuptools(
 
     try:
         import pkg_resources
+
         pkg_resources.require("setuptools>=" + version)
         # a suitable version is already installed
         return
@@ -184,29 +183,24 @@ def _conflict_bail(VC_err, version):
     Setuptools was imported prior to invocation, so it is
     unsafe to unload it. Bail out.
     """
-    conflict_tmpl = textwrap.dedent("""
+    conflict_tmpl = textwrap.dedent(
+        """
         The required version of setuptools (>={version}) is not available,
         and can't be installed while this script is running. Please
         install a more recent version first, using
         'easy_install -U setuptools'.
 
         (Currently using {VC_err.args[0]!r})
-        """)
+        """
+    )
     msg = conflict_tmpl.format(**locals())
     sys.stderr.write(msg)
     sys.exit(2)
 
 
 def _unload_pkg_resources():
-    sys.meta_path = [
-        importer
-        for importer in sys.meta_path
-        if importer.__class__.__module__ != 'pkg_resources.extern'
-    ]
-    del_modules = [
-        name for name in sys.modules
-        if name.startswith('pkg_resources')
-    ]
+    sys.meta_path = [importer for importer in sys.meta_path if importer.__class__.__module__ != 'pkg_resources.extern']
+    del_modules = [name for name in sys.modules if name.startswith('pkg_resources')]
     for mod_name in del_modules:
         del sys.modules[mod_name]
 
@@ -236,14 +230,9 @@ def download_file_powershell(url, target):
     ps_cmd = (
         "[System.Net.WebRequest]::DefaultWebProxy.Credentials = "
         "[System.Net.CredentialCache]::DefaultCredentials; "
-        '(new-object System.Net.WebClient).DownloadFile("%(url)s", "%(target)s")'
-        % locals()
+        '(new-object System.Net.WebClient).DownloadFile("%(url)s", "%(target)s")' % locals()
     )
-    cmd = [
-        'powershell',
-        '-Command',
-        ps_cmd,
-    ]
+    cmd = ['powershell', '-Command', ps_cmd]
     _clean_check(cmd, target)
 
 
@@ -258,6 +247,8 @@ def has_powershell():
         except Exception:
             return False
     return True
+
+
 download_file_powershell.viable = has_powershell
 
 
@@ -274,6 +265,8 @@ def has_curl():
         except Exception:
             return False
     return True
+
+
 download_file_curl.viable = has_curl
 
 
@@ -290,6 +283,8 @@ def has_wget():
         except Exception:
             return False
     return True
+
+
 download_file_wget.viable = has_wget
 
 
@@ -305,24 +300,24 @@ def download_file_insecure(url, target):
     # Write all the data in one block to avoid creating a partial file.
     with open(target, "wb") as dst:
         dst.write(data)
+
+
 download_file_insecure.viable = lambda: True
 
 
 def get_best_downloader():
-    downloaders = (
-        download_file_powershell,
-        download_file_curl,
-        download_file_wget,
-        download_file_insecure,
-    )
+    downloaders = (download_file_powershell, download_file_curl, download_file_wget, download_file_insecure)
     viable_downloaders = (dl for dl in downloaders if dl.viable())
     return next(viable_downloaders, None)
 
 
 def download_setuptools(
-        version=DEFAULT_VERSION, download_base=DEFAULT_URL,
-        to_dir=DEFAULT_SAVE_DIR, delay=15,
-        downloader_factory=get_best_downloader):
+    version=DEFAULT_VERSION,
+    download_base=DEFAULT_URL,
+    to_dir=DEFAULT_SAVE_DIR,
+    delay=15,
+    downloader_factory=get_best_downloader,
+):
     """
     Download setuptools from a specified location and return its filename.
 
@@ -382,26 +377,25 @@ def _parse_args():
     """Parse the command line for options."""
     parser = optparse.OptionParser()
     parser.add_option(
-        '--user', dest='user_install', action='store_true', default=False,
-        help='install in user site package')
+        '--user', dest='user_install', action='store_true', default=False, help='install in user site package'
+    )
     parser.add_option(
-        '--download-base', dest='download_base', metavar="URL",
+        '--download-base',
+        dest='download_base',
+        metavar="URL",
         default=DEFAULT_URL,
-        help='alternative URL from where to download the setuptools package')
-    parser.add_option(
-        '--insecure', dest='downloader_factory', action='store_const',
-        const=lambda: download_file_insecure, default=get_best_downloader,
-        help='Use internal, non-validating downloader'
+        help='alternative URL from where to download the setuptools package',
     )
     parser.add_option(
-        '--version', help="Specify which version to download",
-        default=DEFAULT_VERSION,
+        '--insecure',
+        dest='downloader_factory',
+        action='store_const',
+        const=lambda: download_file_insecure,
+        default=get_best_downloader,
+        help='Use internal, non-validating downloader',
     )
-    parser.add_option(
-        '--to-dir',
-        help="Directory to save (and re-use) package",
-        default=DEFAULT_SAVE_DIR,
-    )
+    parser.add_option('--version', help="Specify which version to download", default=DEFAULT_VERSION)
+    parser.add_option('--to-dir', help="Directory to save (and re-use) package", default=DEFAULT_SAVE_DIR)
     options, args = parser.parse_args()
     # positional arguments are ignored
     return options
@@ -422,6 +416,7 @@ def main():
     options = _parse_args()
     archive = download_setuptools(**_download_args(options))
     return _install(archive, _build_install_args(options))
+
 
 if __name__ == '__main__':
     sys.exit(main())

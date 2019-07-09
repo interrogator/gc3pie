@@ -19,6 +19,7 @@
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 import os
@@ -34,8 +35,7 @@ from gc3libs.utils import write_contents
 
 # for readability
 def _check_events(poller, path, expected):
-    events = [event for event in poller.get_new_events()
-              if event[0].path == path]
+    events = [event for event in poller.get_new_events() if event[0].path == path]
     assert len(events) == len(expected)
     for n, expected_event in enumerate(expected):
         url, actual_event = events[n]
@@ -44,13 +44,11 @@ def _check_events(poller, path, expected):
 
 
 class TestPollers(object):
-
     @pytest.fixture(autouse=True)
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
         yield
         shutil.rmtree(self.tmpdir)
-
 
     def test_filepoller(self):
         poller = plr.FilePoller(self.tmpdir)
@@ -78,7 +76,6 @@ class TestPollers(object):
         os.remove(fpath)
         _check_events(poller, fpath, ['deleted'])
         assert fpath not in poller._watched
-
 
     def test_inotifypoller(self):
         poller = plr.INotifyPoller(self.tmpdir)

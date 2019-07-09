@@ -55,6 +55,7 @@ from gc3libs.cmdline import SessionBasedScript, existing_file
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == '__main__':
     import ggamess
+
     ggamess.GGamessScript().run()
 
 
@@ -79,29 +80,40 @@ of newly-created jobs so that this limit is never exceeded.
     """
 
     def setup_options(self):
-        self.add_param("-A", "--apppot", metavar="PATH",
-                       dest="apppot",
-                       type=existing_file, default=None,
-                       help="Use an AppPot image to run GAMESS."
-                       " PATH can point either to a complete AppPot system image"
-                       " file, or to a `.changes` file generated with the"
-                       " `apppot-snap` utility.")
-        self.add_param("-R", "--verno", metavar="VERNO",
-                       dest="verno", default='2012R1',
-                       help="Request the specified version of GAMESS"
-                       " (default: %(default)s).")
-        self.add_param("-e", "--extbas", metavar='FILE',
-                       dest='extbas',
-                       type=existing_file, default=None,
-                       help="Make the specified external basis file available to jobs.")
+        self.add_param(
+            "-A",
+            "--apppot",
+            metavar="PATH",
+            dest="apppot",
+            type=existing_file,
+            default=None,
+            help="Use an AppPot image to run GAMESS."
+            " PATH can point either to a complete AppPot system image"
+            " file, or to a `.changes` file generated with the"
+            " `apppot-snap` utility.",
+        )
+        self.add_param(
+            "-R",
+            "--verno",
+            metavar="VERNO",
+            dest="verno",
+            default='2012R1',
+            help="Request the specified version of GAMESS" " (default: %(default)s).",
+        )
+        self.add_param(
+            "-e",
+            "--extbas",
+            metavar='FILE',
+            dest='extbas',
+            type=existing_file,
+            default=None,
+            help="Make the specified external basis file available to jobs.",
+        )
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__, # module version == script version
-            input_filename_pattern = '*.inp'
-            )
-
+            self, version=__version__, input_filename_pattern='*.inp'  # module version == script version
+        )
 
     def new_tasks(self, extra):
         # setup AppPot parameters
@@ -117,7 +129,7 @@ of newly-created jobs so that this limit is never exceeded.
         # create tasks
         inputs = self._search_for_input_files(self.params.args)
         for path in inputs:
-            parameters = [ path ]
+            parameters = [path]
             kwargs = extra.copy()
             kwargs['verno'] = self.params.verno
             if self.params.extbas is not None:
@@ -139,4 +151,5 @@ of newly-created jobs so that this limit is never exceeded.
                 # parameters to `cls` constructor, see `GamessApplication.__init__`
                 parameters,
                 # keyword arguments, see `GamessApplication.__init__`
-                kwargs)
+                kwargs,
+            )

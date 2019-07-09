@@ -22,6 +22,7 @@ For more details about AppPot, visit:
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
+
 __docformat__ = 'reStructuredText'
 
 import gc3libs
@@ -55,30 +56,27 @@ class AppPotApplication(gc3libs.Application):
     application_name = 'apppot'
 
     def __init__(
-            self,
-            arguments,
-            inputs,
-            outputs,
-            output_dir,
-            apppot_img=None,
-            apppot_changes=None,
-            apppot_tag='ENV/APPPOT-0.21',
-            apppot_extra=[],
-            **extra_args):
+        self,
+        arguments,
+        inputs,
+        outputs,
+        output_dir,
+        apppot_img=None,
+        apppot_changes=None,
+        apppot_tag='ENV/APPPOT-0.21',
+        apppot_extra=[],
+        **extra_args
+    ):
         # AppPot-specific setup
         apppot_start_args = []
         if apppot_img is not None:
             AppPotApplication._add_to_inputs(inputs, apppot_img, 'apppot.img')
             apppot_start_args += ['--apppot', 'apppot.img']
         if apppot_changes is not None:
-            AppPotApplication._add_to_inputs(
-                inputs,
-                apppot_changes,
-                'apppot.changes.tar.gz')
+            AppPotApplication._add_to_inputs(inputs, apppot_changes, 'apppot.changes.tar.gz')
             apppot_start_args += ['--changes', 'apppot.changes.tar.gz']
         if 'requested_memory' in extra_args:
-            apppot_start_args += ['--mem',
-                                  ("%dM" % (extra_args['requested_memory'].amount(MB)))]
+            apppot_start_args += ['--mem', ("%dM" % (extra_args['requested_memory'].amount(MB)))]
             # FIXME: we need to remove the memory limit because batch
             # systems miscompute the amount of memory actually used by
             # an UMLx process...
@@ -95,9 +93,8 @@ class AppPotApplication(gc3libs.Application):
 
         # init base class
         gc3libs.Application.__init__(
-            self,
-            ['./apppot-start.sh'] + apppot_start_args,  # arguments
-            inputs, outputs, output_dir, **extra_args)
+            self, ['./apppot-start.sh'] + apppot_start_args, inputs, outputs, output_dir, **extra_args  # arguments
+        )
 
     @staticmethod
     def _add_to_inputs(inputs, localpath, remotepath):
@@ -110,15 +107,14 @@ class AppPotApplication(gc3libs.Application):
         elif isinstance(inputs, list):
             inputs.append((localpath, remotepath))
         else:
-            raise TypeError(
-                "Unexpected type for `inputs` parameter: need `dict` or `list`.")
+            raise TypeError("Unexpected type for `inputs` parameter: need `dict` or `list`.")
 
     def xrsl(self, resource):
-            # FIXME: for ARC submissions, replace `executable` with
-            # the value of a (remotely defined) environment variable,
-            # because otherwise ARC insists that 'apppot-start.sh'
-            # should be included in "inputFiles", but it obviously
-            # breaks all other submission schemes...
+        # FIXME: for ARC submissions, replace `executable` with
+        # the value of a (remotely defined) environment variable,
+        # because otherwise ARC insists that 'apppot-start.sh'
+        # should be included in "inputFiles", but it obviously
+        # breaks all other submission schemes...
         original_executable = self.arguments[0]
         self.arguments[0] = '/$APPPOT_STARTUP'
         jobdesc = gc3libs.Application.xrsl(self, resource)
@@ -130,5 +126,5 @@ class AppPotApplication(gc3libs.Application):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="apppot",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="apppot", optionflags=doctest.NORMALIZE_WHITESPACE)

@@ -25,11 +25,7 @@ from __future__ import absolute_import
 import sys
 
 # always ignore `setup.py` and other aux files
-collect_ignore = [
-    'conftest.py',
-    'scripts/install.py',
-    'setup.py',
-]
+collect_ignore = ['conftest.py', 'scripts/install.py', 'setup.py']
 
 # OpenStack-related modules cause an `ImportError` on Python 2.6
 if sys.version_info < (2, 7):

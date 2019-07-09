@@ -27,6 +27,7 @@ modules`__ for more details.
 from __future__ import absolute_import, print_function, unicode_literals
 
 from future import standard_library
+
 standard_library.install_aliases()
 from builtins import object
 
@@ -75,8 +76,7 @@ class _PicklerWithPersistentID(pickle.Pickler):
         if obj is self._root:
             return None
         elif isinstance(obj, Persistable):
-            if (not hasattr(obj, 'persistent_id')
-                or getattr(obj, 'changed', True)):
+            if not hasattr(obj, 'persistent_id') or getattr(obj, 'changed', True):
                 self._driver.save(obj)
             return obj.persistent_id
 

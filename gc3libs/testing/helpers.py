@@ -63,12 +63,12 @@ def test_resource(name='test', **params):
         architecture=set([Run.Arch.X86_64]),
         enabled=True,
         # Use unusual values so that we can easily spot if the `override` option works
-        large_file_chunk_size=1.78*MB,
-        large_file_threshold=1.414*GB,
+        large_file_chunk_size=1.78 * MB,
+        large_file_threshold=1.414 * GB,
         max_cores=123,
         max_cores_per_job=123,
-        max_memory_per_core=999*GB,
-        max_walltime=7*hours,
+        max_memory_per_core=999 * GB,
+        max_walltime=7 * hours,
     )
     # update with given parameters
     rsc.update(**params)
@@ -121,7 +121,7 @@ def temporary_config_file(cfgtext=None, keep=False):
     ``.name`` attribute holds the file path in the filesystem.
     """
     if cfgtext is None:
-        cfgtext = ("""
+        cfgtext = """
 [resource/test]
 enabled = yes
 type = shellcmd
@@ -134,9 +134,8 @@ max_cores = 10
 architecture = x86_64
 auth = none
 override = no
-            """)
-    with NamedTemporaryFile(prefix='gc3libs.test.',
-                            suffix='.tmp', delete=(not keep)) as cfgfile:
+            """
+    with NamedTemporaryFile(prefix='gc3libs.test.', suffix='.tmp', delete=(not keep)) as cfgfile:
         cfgfile.write(cfgtext)
         cfgfile.flush()
         yield cfgfile
@@ -158,22 +157,19 @@ def temporary_config(cfgtext=None):
 
 class SuccessfulApp(Application):
     """An application instance reporting always a zero exit code."""
+
     def __init__(self, name='success', **extra_args):
         Application.__init__(
-            self,
-            ['/bin/true'],
-            inputs=[],
-            outputs=[],
-            output_dir='/tmp',
-            jobname=name,
-            requested_cores=1,
-            **extra_args)
+            self, ['/bin/true'], inputs=[], outputs=[], output_dir='/tmp', jobname=name, requested_cores=1, **extra_args
+        )
+
     def terminated(self):
         self.execution.returncode = 0
 
 
 class UnsuccessfulApp(Application):
     """An application reporting always a non-zero exit code."""
+
     def __init__(self, name='fail', **extra_args):
         Application.__init__(
             self,
@@ -183,7 +179,9 @@ class UnsuccessfulApp(Application):
             output_dir='/tmp',
             jobname=name,
             requested_cores=1,
-            **extra_args)
+            **extra_args
+        )
+
     def terminated(self):
         self.execution.returncode = (0, 1)
 

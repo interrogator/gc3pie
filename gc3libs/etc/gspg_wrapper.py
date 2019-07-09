@@ -33,18 +33,19 @@ import argparse
 import time
 import csv
 
-DEFAULT_BINARY="ctx-linkdyn-ordprm-sirs.p4"
-RESULT_FILE="results.csv"
+DEFAULT_BINARY = "ctx-linkdyn-ordprm-sirs.p4"
+RESULT_FILE = "results.csv"
+
 
 def runctx(args):
 
     results = dict()
 
     parser = argparse.ArgumentParser(description='Run CTX simulation.')
-    parser.add_argument('inputcsv', metavar='I',
-                        help='location of input .csv file.')
-    parser.add_argument('--ctx', dest='ctx', action='store', default=None,
-                        help='Alterantive path to ctx binay (default: None)')
+    parser.add_argument('inputcsv', metavar='I', help='location of input .csv file.')
+    parser.add_argument(
+        '--ctx', dest='ctx', action='store', default=None, help='Alterantive path to ctx binay (default: None)'
+    )
 
     arguments = parser.parse_args(args)
 
@@ -53,43 +54,44 @@ def runctx(args):
     if arguments.ctx:
         command = "%s " % arguments.ctx
     else:
-        command =  DEFAULT_BINARY
+        command = DEFAULT_BINARY
     command += " -i ./input.dat"
 
     # use csv package only
-    with open(arguments.inputcsv,'rb') as rd:
+    with open(arguments.inputcsv, 'rb') as rd:
         reader = csv.reader(rd)
         columns = next(reader)
         # open destination file
         for line in reader:
             index_of_dat = line[-1]
-            with open("./input.dat",'wb') as fd:
-                for index in range(0,len(line)-1):
-                    fd.write("%s\t%s\n" % (columns[index],line[index]))
+            with open("./input.dat", 'wb') as fd:
+                for index in range(0, len(line) - 1):
+                    fd.write("%s\t%s\n" % (columns[index], line[index]))
 
-            _process = subprocess.Popen(command,stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE,
-                                        close_fds=True, shell=True)
+            _process = subprocess.Popen(
+                command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, shell=True
+            )
 
             stime = time.time()
-            (out,err) = _process.communicate()
+            (out, err) = _process.communicate()
             ftime = time.time()
-            print("Index %s processed in %d" % (index_of_dat,(ftime-stime)))
+            print("Index %s processed in %d" % (index_of_dat, (ftime - stime)))
             exitcode = _process.returncode
 
             if exitcode == 0:
                 results[index_of_dat] = out.strip().split('\t')
             else:
-                print("ERROR %d. message: %s" % (exitcode,err))
+                print("ERROR %d. message: %s" % (exitcode, err))
 
     # collect all results into a single .csv file
     print("Aggregating results")
-    with open(RESULT_FILE,'wb') as rd:
-        for idx,line in list(results.items()):
+    with open(RESULT_FILE, 'wb') as rd:
+        for idx, line in list(results.items()):
             rd.write(idx + "," + ",".join(x for x in line) + "\n")
     print("Done")
 
+
 if __name__ == '__main__':
     if len(sys.argv[1:]) < 1:
-           sys.exit(1)
+        sys.exit(1)
     sys.exit(runctx(sys.argv[1:]))

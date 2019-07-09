@@ -9,12 +9,7 @@ import subprocess
 from xml.etree import cElementTree as ET
 from xml.etree.ElementTree import Element, SubElement, Comment, tostring
 
-SENTIMENTS = [
-    'neutral',
-    'negative',
-    'very negative',
-    'positive',
-    'very positive']
+SENTIMENTS = ['neutral', 'negative', 'very negative', 'positive', 'very positive']
 FIELD = "pdid"
 CONTENT = "content"
 
@@ -49,11 +44,7 @@ def RunParser(input, output):
         return 1
 
     command = '/usr/bin/java -cp "$CORENLP/*" edu.stanford.nlp.sentiment.SentimentPipeline -file input_contents.xml'
-    nlp = subprocess.Popen(
-        [command],
-        shell=True,
-        stderr=subprocess.PIPE,
-        stdout=subprocess.PIPE)
+    nlp = subprocess.Popen([command], shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
     print("Running command %s" % command)
     (stdout, stderr) = nlp.communicate()
@@ -98,7 +89,8 @@ def RunParser(input, output):
     print("Done")
     return 0
 
+
 if __name__ == '__main__':
-    if (len(sys.argv) != 3):
+    if len(sys.argv) != 3:
         sys.exit(Usage())
     sys.exit(RunParser(sys.argv[1], sys.argv[2]))

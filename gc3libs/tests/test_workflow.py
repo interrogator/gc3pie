@@ -21,6 +21,7 @@
 # stdlib imports
 from __future__ import absolute_import, print_function, unicode_literals
 from future import standard_library
+
 standard_library.install_aliases()
 from io import StringIO
 import os
@@ -39,8 +40,10 @@ def test_staged_task_collection_progress():
     class ThreeStageCollection(StagedTaskCollection):
         def stage0(self):
             return SuccessfulApp()
+
         def stage1(self):
             return SuccessfulApp()
+
         def stage2(self):
             return UnsuccessfulApp()
 
@@ -54,13 +57,13 @@ def test_staged_task_collection_progress():
         while coll.tasks[0].execution.state != Run.State.TERMINATED:
             coll.progress()
         assert coll.execution.state in [Run.State.SUBMITTED, Run.State.RUNNING]
-        #assert_equal(coll.execution.exitcode, 0)
+        # assert_equal(coll.execution.exitcode, 0)
 
         # second task is successful
         while coll.tasks[1].execution.state != Run.State.TERMINATED:
             coll.progress()
-        #assert_equal(coll.execution.state, Run.State.RUNNING)
-        #assert_equal(coll.execution.exitcode, 0)
+        # assert_equal(coll.execution.state, Run.State.RUNNING)
+        # assert_equal(coll.execution.exitcode, 0)
 
         # third task is unsuccessful
         while coll.tasks[2].execution.state != Run.State.TERMINATED:
@@ -73,6 +76,7 @@ def test_staged_task_collection_stage():
     class TwoStageCollection(StagedTaskCollection):
         def stage0(self):
             return SuccessfulApp(name='stage0')
+
         def stage1(self):
             return UnsuccessfulApp(name='stage1')
 
@@ -81,7 +85,7 @@ def test_staged_task_collection_stage():
         coll.attach(core)
         coll.submit()
         stage = coll.stage()
-        assert isinstance(stage, SuccessfulApp), ("stage=%r" % (stage,))
+        assert isinstance(stage, SuccessfulApp), "stage=%r" % (stage,)
         assert stage.jobname == 'stage0'
 
         # advance to next task

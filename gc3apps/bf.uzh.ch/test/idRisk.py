@@ -43,7 +43,8 @@ import shutil
 import logbook, sys
 from supportGc3 import wrapLogger
 
-logger = wrapLogger(loggerName = __name__ + 'logger', streamVerb = 'DEBUG', logFile = __name__ + '.log')
+logger = wrapLogger(loggerName=__name__ + 'logger', streamVerb='DEBUG', logFile=__name__ + '.log')
+
 
 class idRiskApplication(Application):
     application_name = 'idrisk'
@@ -51,13 +52,13 @@ class idRiskApplication(Application):
     _invalid_chars = re.compile(r'[^_a-zA-Z0-9]+', re.X)
 
     def __init__(self, executable, arguments, inputs, outputs, output_dir, **extra_args):
-        Application.__init__(self, executable, arguments, inputs, outputs, output_dir, requested_walltime = 1*hours)
+        Application.__init__(self, executable, arguments, inputs, outputs, output_dir, requested_walltime=1 * hours)
 
     def fetch_output_error(self, ex):
 
         if self.execution.state == Run.State.TERMINATING:
-        # do notify task/main application that we're done
-        # ignore error, let's continue
+            # do notify task/main application that we're done
+            # ignore error, let's continue
             self.execution.state = Run.State.TERMINATED
             logger.debug('fetch_output_error occured... continuing')
             if self.persistent_id:
@@ -66,7 +67,7 @@ class idRiskApplication(Application):
                 logger.debug('info: %s exception: %s' % (self.info, str(ex)))
             return None
         else:
-        # non-terminal state, pass on error
+            # non-terminal state, pass on error
             return ex
 
     # def submit_error(self, ex):
@@ -80,7 +81,6 @@ class idRiskApplication(Application):
     #     except AttributeError:
     #         logger.debug('no `lrms_jobid` hence submission didnt happen')
     #     return None
-
 
     def terminated(self):
         """
@@ -120,9 +120,10 @@ class idRiskApplication(Application):
             self.execution.exitcode = 2
 
 
-
 class idRiskApppotApplication(idRiskApplication, gc3libs.application.apppot.AppPotApplication):
     _invalid_chars = re.compile(r'[^_a-zA-Z0-9]+', re.X)
 
     def __init__(self, executable, arguments, inputs, outputs, output_dir, **extra_args):
-        gc3libs.application.apppot.AppPotApplication.__init__(self, executable, arguments, inputs, outputs, output_dir, **extra_args)
+        gc3libs.application.apppot.AppPotApplication.__init__(
+            self, executable, arguments, inputs, outputs, output_dir, **extra_args
+        )

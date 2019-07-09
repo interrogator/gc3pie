@@ -54,17 +54,16 @@ from gc3libs.workflow import RetryableTask
 
 ## retry policy
 
-class GamessRetryPolicy(RetryableTask):
 
+class GamessRetryPolicy(RetryableTask):
     def __init__(self, inp_file_path, *other_input_files, **extra_args):
         """Constructor. Interface compatible with `GamessApplication`:class:"""
         if extra_args.has_key('tags'):
             extra_args['tags'].append('ENV/CPU/OPTERON-2350')
         else:
-            extra_args['tags'] = [ 'ENV/CPU/OPTERON-2350' ]
+            extra_args['tags'] = ['ENV/CPU/OPTERON-2350']
         task = GamessApplication(inp_file_path, *other_input_files, **extra_args)
         RetryableTask.__init__(self, task, max_retries=3, **extra_args)
-
 
     def retry(self):
         # return True or False depending whether the application
@@ -91,8 +90,8 @@ class GamessRetryPolicy(RetryableTask):
                 return True
 
 
-
 ## the main script
+
 
 class GGamessScript(SessionBasedScript):
     """
@@ -117,13 +116,14 @@ of newly-created jobs so that this limit is never exceeded.
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = ggamess_retry.GamessRetryPolicy,
-            input_filename_pattern = '*.inp',
+            version=__version__,  # module version == script version
+            application=ggamess_retry.GamessRetryPolicy,
+            input_filename_pattern='*.inp',
             # `GamessRetryPolicy` is the top-level object now,
             # so only print information about it.
-            stats_only_for = ggamess_retry.GamessRetryPolicy,
-            )
+            stats_only_for=ggamess_retry.GamessRetryPolicy,
+        )
+
 
 # run it
 if __name__ == '__main__':

@@ -19,58 +19,63 @@ sources of a different project and it would not stop working.
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+standard_library.install_aliases()
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
-from future import standard_library
-standard_library.install_aliases()
-from builtins import next
-from builtins import range
-from builtins import object
-__docformat__ = 'reStructuredText'
 
-
-from collections import defaultdict, deque
 import contextlib
 import functools
+import io as StringIO
 import os
 import os.path
-if bytes == str:
-    # Python2's `os.sysconf()` cannot handle sysconf variable names as
-    # Unicode strings, so we need to cast them to byte-strings
-    def os_sysconf(name):
-        return os.sysconf(str(name))
-else:
-    # Python3
-    from os import sysconf as os_sysconf
 import random
 import re
 import shutil
 import sys
 import tempfile
 import time
-import io as StringIO
 import UserDict
-
-
-from gc3libs.compat._collections import OrderedDict
-import lockfile
+from builtins import next, object, range
+from collections import defaultdict, deque
 
 import gc3libs
-import gc3libs.exceptions
 import gc3libs.debug
+import gc3libs.exceptions
+import lockfile
+
+#
+# You should have received a copy of the GNU Lesser General Public License
+from future import standard_library
+from gc3libs.compat._collections import OrderedDict
 from gc3libs.quantity import Duration, Memory
+
+__docformat__ = 'reStructuredText'
+
+
+if bytes == str:
+    # Python2's `os.sysconf()` cannot handle sysconf variable names as
+    # Unicode strings, so we need to cast them to byte-strings
+    def os_sysconf(name):
+        return os.sysconf(str(name))
+
+
+else:
+    # Python3
+    from os import sysconf as os_sysconf
+
 
 # This fixes an issue with Python 2.4, which does not have
 # `shutl.WindowsError`
 try:
     WindowsError = shutil.WindowsError
 except AttributeError:
+
     class NeverUsedException(Exception):
 
         """this exception should never be raised"""
+
     WindowsError = NeverUsedException
 
 
@@ -106,12 +111,11 @@ def backup(path):
       >>> os.remove(path+'.~2~')
 
     """
-    parent_dir = (os.path.dirname(path) or os.getcwd())
+    parent_dir = os.path.dirname(path) or os.getcwd()
     prefix = os.path.basename(path) + '.~'
     p = len(prefix)
     suffix = 1
-    for name in [entry for entry in os.listdir(parent_dir)
-                 if (entry.startswith(prefix) and entry.endswith('~'))]:
+    for name in [entry for entry in os.listdir(parent_dir) if (entry.startswith(prefix) and entry.endswith('~'))]:
         try:
             n = int(name[p:-1])
             suffix = max(suffix, n + 1)
@@ -202,13 +206,14 @@ def cache_for(lapse):
         2
 
     """
+
     def decorator(fn):
         @functools.wraps(fn)
         def wrapper(obj, *args):
             now = time.time()
             key = (fn, tuple(id(arg) for arg in args))
             try:
-                update = ((now - obj._cache_last_updated[key]) > lapse)
+                update = (now - obj._cache_last_updated[key]) > lapse
             except AttributeError:
                 obj._cache_last_updated = defaultdict(lambda: 0)
                 obj._cache_value = dict()
@@ -219,7 +224,9 @@ def cache_for(lapse):
             # gc3libs.log.debug("%s(%s, ...): Using cached value '%s'",
             #                  fn.__name__, obj, obj._cache_value[key])
             return obj._cache_value[key]
+
         return wrapper
+
     return decorator
 
 
@@ -293,8 +300,7 @@ def copyfile(src, dst, overwrite=False, changed_only=True, link=False):
             if changed_only:
                 sstat = os.stat(src)
                 dstat = os.stat(dst)
-                if (sstat.st_size ==
-                        dstat.st_size and sstat.st_mtime <= dstat.st_mtime):
+                if sstat.st_size == dstat.st_size and sstat.st_mtime <= dstat.st_mtime:
                     # same size and destination more recent, do not copy
                     return False
         if link:
@@ -331,8 +337,7 @@ def copytree(src, dst, overwrite=False, changed_only=True):
 
     See also: `shutil.copytree`.
     """
-    assert os.path.isdir(src), \
-        ("Source path `%s` does not name an existing directory" % src)
+    assert os.path.isdir(src), "Source path `%s` does not name an existing directory" % src
     errors = []
     if not os.path.exists(dst):
         os.makedirs(dst)
@@ -341,8 +346,7 @@ def copytree(src, dst, overwrite=False, changed_only=True):
         dstname = os.path.join(dst, name)
         try:
             if os.path.isdir(srcname):
-                errors.extend(
-                    copytree(srcname, dstname, overwrite, changed_only))
+                errors.extend(copytree(srcname, dstname, overwrite, changed_only))
             else:
                 copyfile(srcname, dstname)
         except (IOError, os.error) as why:
@@ -409,35 +413,28 @@ def deploy_configuration_file(filename, template_filename=None):
         return True
     else:
         try:
-            from pkg_resources import (Requirement, resource_filename,
-                                       DistributionNotFound)
+            from pkg_resources import Requirement, resource_filename, DistributionNotFound
             import shutil
         except ImportError as err:
             raise gc3libs.exceptions.FatalError(
                 "Cannot import required Python modules: %s."
                 " Please check GC3Pie installation instructions at"
-                " http://gc3pie.googlecode.com/svn/trunk/gc3pie/docs/html/install.html" %  # noqa
-                str(err))
+                " http://gc3pie.googlecode.com/svn/trunk/gc3pie/docs/html/install.html" % str(err)  # noqa
+            )
         try:
             # copy sample config file
             if not os.path.exists(dirname(filename)):
                 os.makedirs(dirname(filename))
-            sample_config = resource_filename(
-                Requirement.parse("gc3pie"),
-                "gc3libs/etc/" +
-                template_filename)
+            sample_config = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/" + template_filename)
             shutil.copyfile(sample_config, filename)
             return False
         except IOError as err:
             gc3libs.log.critical("Failed copying configuration file: %s", err)
             raise gc3libs.exceptions.NoConfigurationFile(
-                "No configuration file '%s' was found, and an attempt to"
-                " create it failed. Aborting." % filename)
+                "No configuration file '%s' was found, and an attempt to" " create it failed. Aborting." % filename
+            )
         except DistributionNotFound as ex:
-            raise AssertionError(
-                "Cannot access resources for Python package: %s."
-                " Installation error?" %
-                str(ex))
+            raise AssertionError("Cannot access resources for Python package: %s." " Installation error?" % str(ex))
 
 
 def dirname(pathname):
@@ -484,6 +481,7 @@ class Enum(frozenset):
       CAT
       DOG
     """
+
     def __new__(cls, *args):
         return frozenset.__new__(cls, args)
 
@@ -491,8 +489,7 @@ class Enum(frozenset):
         if name in self:
             return name
         else:
-            raise AttributeError("No '%s' in enumeration '%s'"
-                                 % (name, self.__class__.__name__))
+            raise AttributeError("No '%s' in enumeration '%s'" % (name, self.__class__.__name__))
 
     def __setattr__(self, name, value):
         raise SyntaxError("Cannot assign enumeration values.")
@@ -567,8 +564,7 @@ def first(seq):
         return seq[0]
     except IndexError:
         pass
-    raise TypeError(
-        "Argument to `first()` method needs to be iterator or sequence.")
+    raise TypeError("Argument to `first()` method needs to be iterator or sequence.")
 
 
 def fgrep(literal, filename):
@@ -603,7 +599,7 @@ def from_template(template, **extra_args):
         # treat `template` as a string
         template_contents = template
     # substitute `extra_args` into `t` and return it
-    return (template_contents % extra_args)
+    return template_contents % extra_args
 
 
 def get_available_physical_memory():
@@ -624,8 +620,7 @@ def get_available_physical_memory():
         avail_pages = os_sysconf('SC_AVPHYS_PAGES')
         return Memory(avail_pages * pagesize, unit=Memory.B)
     except ValueError:
-        raise NotImplementedError(
-            "Cannot determine amount of available physical memory.")
+        raise NotImplementedError("Cannot determine amount of available physical memory.")
 
 
 def get_linux_memcg_limit():
@@ -658,11 +653,7 @@ def get_linux_memcg_limit():
     limit = None
     # read possible limits in ascending order ("soft" limits *should*
     # be lower than "hard" limits) and return first one that exists
-    for limit_file in [
-            'memory.soft_limit_in_bytes',
-            'memory.limit_in_bytes',
-            'memory.memsw.limit_in_bytes',
-    ]:
+    for limit_file in ['memory.soft_limit_in_bytes', 'memory.limit_in_bytes', 'memory.memsw.limit_in_bytes']:
         path = os.path.join(memcg_dir, limit_file)
         try:
             with open(path, 'r') as limit_file:
@@ -731,6 +722,7 @@ def get_num_processors():
         pass
     try:
         import multiprocessing
+
         return multiprocessing.cpu_count()
     except ImportError:  # no multiprocessing?
         pass
@@ -771,19 +763,19 @@ def get_scheduler_and_lock_factory(lib):
     if lib == 'threading':
         from apscheduler.schedulers.background import BackgroundScheduler
         from threading import Lock
+
         return (BackgroundScheduler, Lock)
     elif lib == 'gevent':
         from apscheduler.schedulers.gevent import GeventScheduler
         from gevent.lock import Semaphore
+
         return (GeventScheduler, Semaphore)
     elif lib in ['asyncio', 'tornado', 'twisted', 'qt']:
-        raise NotImplemented(
-            "Support for {lib} is not yet available!"
-            .format(lib=lib))
+        raise NotImplemented("Support for {lib} is not yet available!".format(lib=lib))
     else:
         raise ValueError(
-            "Library '{lib}' is unknown to `{mod}._get_scheduler_and_lock_factory()`"
-            .format(lib=lib, mod=__name__))
+            "Library '{lib}' is unknown to `{mod}._get_scheduler_and_lock_factory()`".format(lib=lib, mod=__name__)
+        )
 
 
 def getattr_nested(obj, name):
@@ -834,8 +826,7 @@ def ifelse(test, if_true, if_false):
 
 # original source: https://gist.github.com/jtriley/7270594
 def insert_char_every_n_chars(string, char='\n', every=64):
-    return char.join(
-        string[i:i + every] for i in range(0, len(string), every))
+    return char.join(string[i : i + every] for i in range(0, len(string), every))
 
 
 def irange(start, stop, step=1):
@@ -980,8 +971,7 @@ class History(object):
         in human readable format.
 
         """
-        return "%s at %s" % (
-            message[0], time.asctime(time.localtime(message[1])))
+        return "%s at %s" % (message[0], time.asctime(time.localtime(message[1])))
 
     # shortcut for append
     def __call__(self, message, *tags):
@@ -995,8 +985,7 @@ class History(object):
     def __str__(self):
         """Return all messages texts in a single string, separated by newline
         characters."""
-        return '- ' + '\n- '.join([self.format_message(record)
-                               for record in self._messages]) + '\n'
+        return '- ' + '\n- '.join([self.format_message(record) for record in self._messages]) + '\n'
 
 
 def lookup(obj, name):
@@ -1040,9 +1029,7 @@ def lookup(obj, name):
         return obj[name]
     except (KeyError, TypeError):
         pass
-    raise LookupError(
-        'Object {0} has no attribute nor key named `{1}`'
-        .format(obj, name))
+    raise LookupError('Object {0} has no attribute nor key named `{1}`'.format(obj, name))
 
 
 def mkdir(path, mode=0o777):
@@ -1107,8 +1094,7 @@ def movefile(src, dst, overwrite=False, changed_only=True, link=False):
         if changed_only:
             sstat = os.stat(src)
             dstat = os.stat(dst)
-            if (sstat.st_size ==
-                    dstat.st_size and sstat.st_mtime <= dstat.st_mtime):
+            if sstat.st_size == dstat.st_size and sstat.st_mtime <= dstat.st_mtime:
                 # same size and destination more recent, do not move
                 return False
     try:
@@ -1127,8 +1113,7 @@ def movetree(src, dst, overwrite=False, changed_only=True):
 
     See also: `copytree`:func:.
     """
-    assert os.path.isdir(src), \
-        ("Source path `%s` does not name an existing directory" % src)
+    assert os.path.isdir(src), "Source path `%s` does not name an existing directory" % src
     errors = []
     if not os.path.exists(dst):
         os.makedirs(dst)
@@ -1137,8 +1122,7 @@ def movetree(src, dst, overwrite=False, changed_only=True):
         dstname = os.path.join(dst, name)
         try:
             if os.path.isdir(srcname):
-                errors.extend(
-                    movetree(srcname, dstname, overwrite, changed_only))
+                errors.extend(movetree(srcname, dstname, overwrite, changed_only))
             else:
                 movefile(srcname, dstname)
         except (IOError, os.error) as why:
@@ -1250,7 +1234,7 @@ def _parse_ulimit(limit, unit):
         unit = Duration.us
     else:
         # "files", "signals", "processes", etc.
-        cls = (lambda v, u: v)
+        cls = lambda v, u: v
         unit = None
     return cls(limit, unit)
 
@@ -1324,7 +1308,8 @@ def parse_range(spec):
         raise ValueError(
             "Argument `spec` must have the form 'LOW:HIGH:STEP',"
             " where LOW, HIGH and STEP are (integer or"
-            " floating-point) numbers.")
+            " floating-point) numbers."
+        )
     # are low, high, step to floats or ints?
     if ('.' in low) or ('.' in high) or ('.' in step):
         low = float(low)
@@ -1338,15 +1323,8 @@ def parse_range(spec):
 
 
 def prettyprint(
-        D,
-        indent=0,
-        width=0,
-        maxdepth=None,
-        step=4,
-        only_keys=None,
-        output=sys.stdout,
-        _key_prefix='',
-        _exclude=None):
+    D, indent=0, width=0, maxdepth=None, step=4, only_keys=None, output=sys.stdout, _key_prefix='', _exclude=None
+):
     """
     Print dictionary instance `D` in a YAML-like format.
     Each output line consists of:
@@ -1399,18 +1377,16 @@ def prettyprint(
             continue
         # To make a 'key' valid in YAML it must not start with one of the following chars
         sk = str(k)
-        sk = sk if sk[0] not in  u'\0 \t\r\n\x85\u2028\u2029-?:,[]{}#&*!|>\'\"%@`' else  "'%s'" % sk
+        sk = sk if sk[0] not in u'\0 \t\r\n\x85\u2028\u2029-?:,[]{}#&*!|>\'\"%@`' else "'%s'" % sk
         first = ''.join([leading_spaces, sk, ': '])
-        if isinstance(
-                v, (dict, UserDict.DictMixin, UserDict.UserDict, OrderedDict)):
+        if isinstance(v, (dict, UserDict.DictMixin, UserDict.UserDict, OrderedDict)):
             if maxdepth is None or maxdepth > 0:
                 if maxdepth is None:
                     depth = None
                 else:
                     depth = maxdepth - 1
                 sstream = StringIO.StringIO()
-                prettyprint(v, indent + step, width, depth, step,
-                            only_keys, sstream, full_name + '.', _exclude)
+                prettyprint(v, indent + step, width, depth, step, only_keys, sstream, full_name + '.', _exclude)
                 second = sstream.getvalue()
                 sstream.close()
             elif maxdepth == 0:
@@ -1420,8 +1396,7 @@ def prettyprint(
         else:
             second = str(v)
         # wrap overlong lines, and always wrap if the second part is multi-line
-        if (width > 0 and len(first) + len(second)
-                > width) or ('\n' in second):
+        if (width > 0 and len(first) + len(second) > width) or ('\n' in second):
             first += '\n'
         # indent a multi-line block by indent+step spaces
         if '\n' in second:
@@ -1434,12 +1409,7 @@ def prettyprint(
             # rebuild `second`, indenting each line by (indent+step) spaces
             second = ''
             for line in lines:
-                second = ''.join([
-                    second,
-                    ' ' * (indent + step),
-                    line.rstrip().expandtabs(step)[dedent:],
-                    '\n'
-                ])
+                second = ''.join([second, ' ' * (indent + step), line.rstrip().expandtabs(step)[dedent:], '\n'])
         # there can be multiple trailing '\n's, which we remove here
         second = second.rstrip()
         # finally print line(s)
@@ -1506,11 +1476,9 @@ def progressive_number(qty=None, id_filename=None):
             every call.  A list of such numbers if argument `qty` is a
             positive integer.
     """
-    assert qty is None or qty > 0, \
-        "Argument `qty` must be a positive integer"
+    assert qty is None or qty > 0, "Argument `qty` must be a positive integer"
     if id_filename is None:
-        id_filename = os.environ.get('GC3PIE_ID_FILE',
-                                     os.path.expanduser('~/.gc3/next_id.txt'))
+        id_filename = os.environ.get('GC3PIE_ID_FILE', os.path.expanduser('~/.gc3/next_id.txt'))
     # ensure directory exists, otherwise the error message is obscure;
     # see Issue 486 for details
     id_dirname = dirname(id_filename)
@@ -1522,13 +1490,11 @@ def progressive_number(qty=None, id_filename=None):
     id = int(id_file.read(8) or "0", 16)
     id_file.seek(0)
     if qty is None:
-        id_file.write(
-            "%08x -- DO NOT REMOVE OR ALTER THIS FILE: it is used internally"
-            " by the gc3libs\n" % (id + 1))
+        id_file.write("%08x -- DO NOT REMOVE OR ALTER THIS FILE: it is used internally" " by the gc3libs\n" % (id + 1))
     else:
         id_file.write(
-            "%08x -- DO NOT REMOVE OR ALTER THIS FILE: it is used internally"
-            " by the gc3libs\n" % (id + qty))
+            "%08x -- DO NOT REMOVE OR ALTER THIS FILE: it is used internally" " by the gc3libs\n" % (id + qty)
+        )
     id_file.close()
     unlock(lck)
     if qty is None:
@@ -1582,7 +1548,7 @@ def safe_repr(obj):
     Avoids calling any Python magic methods, so should be safe to use
     as a 'last resort' in implementation of `__str__` and `__repr__`.
     """
-    return ("%s@%x" % (obj.__class__.__name__, id(obj)))
+    return "%s@%x" % (obj.__class__.__name__, id(obj))
 
 
 def same_docstring_as(referenced_fn):
@@ -1594,9 +1560,11 @@ def same_docstring_as(referenced_fn):
     derived classes, so that they inherit the docstring from the
     corresponding abstract method in the base class.
     """
+
     def decorate(f):
         f.__doc__ = referenced_fn.__doc__
         return f
+
     return decorate
 
 
@@ -1629,7 +1597,7 @@ def sh_quote_safe(arg):
       ''\\''arg'\\'''
 
     """
-    return ("'" + str(arg).replace("'", r"'\''") + "'")
+    return "'" + str(arg).replace("'", r"'\''") + "'"
 
 
 def sh_quote_safe_cmdline(args):
@@ -1667,7 +1635,7 @@ def sh_quote_unsafe(arg):
       "\\"\\\\\\"arg\\\\\\"\\""
 
     """
-    return ('"' + _DQUOTE_RE.sub(r'\1\1\"', str(arg)) + '"' )
+    return '"' + _DQUOTE_RE.sub(r'\1\1\"', str(arg)) + '"'
 
 
 def sh_quote_unsafe_cmdline(args):
@@ -1698,10 +1666,10 @@ class Singleton(object):
        True
 
     """
+
     def __new__(cls, *args, **extra_args):
         if not hasattr(cls, '_instance'):
-            cls._instance = super(Singleton, cls).__new__(
-                cls, *args, **extra_args)
+            cls._instance = super(Singleton, cls).__new__(cls, *args, **extra_args)
         return cls._instance
 
 
@@ -1880,8 +1848,7 @@ class PlusInfinity(Singleton):
 
     def __sub__(self, other):
         if other == self:
-            raise RuntimeError(
-                "Undefined result subtracting +infinity from +infinity.")
+            raise RuntimeError("Undefined result subtracting +infinity from +infinity.")
         return self
 
 
@@ -2064,20 +2031,18 @@ def test_file(path, mode, exception=RuntimeError, isdir=False):
         ...
       RuntimeError: Expected '/bin/cat' to be a directory, but it's not.
     """
-    what = ("directory" if isdir else "file")
+    what = "directory" if isdir else "file"
     if not os.access(path, os.F_OK):
         raise exception("Cannot access %s '%s'." % (what, path))
     if isdir and not os.path.isdir(path):
-        raise exception(
-            "Expected '%s' to be a directory, but it's not." % path)
+        raise exception("Expected '%s' to be a directory, but it's not." % path)
     if (mode & os.R_OK) and not os.access(path, os.R_OK):
         raise exception("Cannot read %s '%s'." % (what, path))
     if (mode & os.W_OK) and not os.access(path, os.W_OK):
         raise exception("Cannot write to %s '%s'." % (what, path))
     if (mode & os.X_OK) and not os.access(path, os.X_OK):
         if isdir:
-            raise exception("Cannot traverse directory '%s':"
-                            " lacks 'x' permission." % path)
+            raise exception("Cannot traverse directory '%s':" " lacks 'x' permission." % path)
         else:
             raise exception("File '%s' lacks execute ('x') permission." % path)
     return True
@@ -2126,7 +2091,7 @@ def to_bytes(s):
         k = 1000
     # convert the substring of `s` that does not include the suffix
     if unit.isdigit():
-        return int(s[0:(last + 1)])
+        return int(s[0 : (last + 1)])
     if unit == 'k':
         return int(float(s[0:last]) * k)
     if unit == 'm':
@@ -2166,8 +2131,7 @@ def send_mail(send_from, send_to, subject, text, files=[], server="localhost"):
         part = MIMEBase('application', "octet-stream")
         part.set_payload(open(f, "rb").read())
         Encoders.encode_base64(part)
-        part.add_header('Content-Disposition',
-                        'attachment; filename="%s"' % os.path.basename(f))
+        part.add_header('Content-Disposition', 'attachment; filename="%s"' % os.path.basename(f))
         msg.attach(part)
 
     smtp = SMTP(server)
@@ -2243,16 +2207,16 @@ def update_parameter_in_file(path, var_in, new_val, regex_in):
                     of the parameter file.
     '''
     _loop_regexps = {
-        'bar-separated': (r'([a-z]+[\s\|]+)'
-                          r'(\w+)'  # variable name
-                          r'(\s*[\|]+\s*)'  # bars and spaces
-                          r'([\w\s\.,;\[\]\-]+)'  # value
-                          r'(\s*)'),
-        'space-separated': (r'(\s*)'
-                            r'(\w+)'  # variable name
-                            r'(\s+)'  # spaces (filler)
-                            r'([\w\s\.,;\[\]\-]+)'  # values
-                            r'(\s*)'),  # spaces (filler)
+        'bar-separated': (
+            r'([a-z]+[\s\|]+)'
+            r'(\w+)'  # variable name
+            r'(\s*[\|]+\s*)'  # bars and spaces
+            r'([\w\s\.,;\[\]\-]+)'  # value
+            r'(\s*)'
+        ),
+        'space-separated': (
+            r'(\s*)' r'(\w+)' r'(\s+)' r'([\w\s\.,;\[\]\-]+)' r'(\s*)'  # variable name  # spaces (filler)  # values
+        ),  # spaces (filler)
     }
     isfound = False
     if regex_in in list(_loop_regexps.keys()):
@@ -2263,8 +2227,7 @@ def update_parameter_in_file(path, var_in, new_val, regex_in):
         if not line.rstrip():
             continue
         (a, var, b, old_val, c) = re.match(regex_in, line.rstrip()).groups()
-        gc3libs.log.debug(
-            "Read variable '%s' with value '%s' ...", var, old_val)
+        gc3libs.log.debug("Read variable '%s' with value '%s' ...", var, old_val)
         if var == var_in:
             isfound = True
             upd_val = new_val
@@ -2276,9 +2239,7 @@ def update_parameter_in_file(path, var_in, new_val, regex_in):
     # move new modified content over the old
     os.rename(path + '.tmp', path)
     if not isfound:
-        gc3libs.log.critical(
-            'update_parameter_in_file could not find parameter'
-            ' in sepcified file')
+        gc3libs.log.critical('update_parameter_in_file could not find parameter' ' in sepcified file')
 
 
 def write_contents(path, data):
@@ -2352,5 +2313,5 @@ class YieldAtNext(object):
 
 if __name__ == '__main__':
     import doctest
-    doctest.testmod(name='utils',
-                    optionflags=doctest.NORMALIZE_WHITESPACE|doctest.ELLIPSIS)
+
+    doctest.testmod(name='utils', optionflags=doctest.NORMALIZE_WHITESPACE | doctest.ELLIPSIS)

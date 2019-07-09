@@ -35,6 +35,7 @@ import gc3libs
 import gc3libs.cmdline
 import gc3libs.workflow
 
+
 class SimpleScript(gc3libs.cmdline.SessionBasedScript):
     """
     This script will run an application which produce a random
@@ -45,14 +46,16 @@ class SimpleScript(gc3libs.cmdline.SessionBasedScript):
     even exit code``, otherwise it will write ``previous application
     exited with an odd exit code``.
     """
+
     version = '0.1'
-    
+
     def new_tasks(self, extra):
         yield TwoStageWorkflow()
 
 
 if __name__ == "__main__":
     from exercise_E import SimpleScript
+
     SimpleScript().run()
 
 
@@ -64,35 +67,38 @@ class TwoStageWorkflow(gc3libs.workflow.StagedTaskCollection):
     which application to run next.
     
     """
+
     def stage0(self):
         return gc3libs.Application(
-            arguments = ["bash", "-c", "exit $RANDOM"],
-            inputs = [],
-            outputs = [],
-            output_dir = 'TwoStageWorkflow.stage0',
-            stdout = 'stdout.txt',
-            stderr = 'stderr.txt',
-            )
+            arguments=["bash", "-c", "exit $RANDOM"],
+            inputs=[],
+            outputs=[],
+            output_dir='TwoStageWorkflow.stage0',
+            stdout='stdout.txt',
+            stderr='stderr.txt',
+        )
 
     def stage1(self):
         # Check exit status of previous task
         if self.tasks[-1].execution.returncode % 2 == 0:
             return gc3libs.Application(
-                arguments = [
+                arguments=[
                     "echo",
-                    "previous application exited with an even exit code (%d)" % self.tasks[-1].execution.returncode],
-            inputs = [],
-            outputs = [],
-            output_dir = 'TwoStageWorkflow.stage1',
-            stdout = 'stdout.txt',
-                )
+                    "previous application exited with an even exit code (%d)" % self.tasks[-1].execution.returncode,
+                ],
+                inputs=[],
+                outputs=[],
+                output_dir='TwoStageWorkflow.stage1',
+                stdout='stdout.txt',
+            )
         else:
             return gc3libs.Application(
-                arguments = [
+                arguments=[
                     "echo",
-                    "previous application exited with an odd exit code (%d)" % self.tasks[-1].execution.returncode],
-                inputs = [],
-                outputs = [],
-                output_dir = 'TwoStageWorkflow.stage1',
-                stdout = 'stdout.txt',
-                )
+                    "previous application exited with an odd exit code (%d)" % self.tasks[-1].execution.returncode,
+                ],
+                inputs=[],
+                outputs=[],
+                output_dir='TwoStageWorkflow.stage1',
+                stdout='stdout.txt',
+            )

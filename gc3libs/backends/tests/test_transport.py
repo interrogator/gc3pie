@@ -19,6 +19,7 @@
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 # System imports
@@ -35,10 +36,8 @@ from gc3libs.exceptions import TransportError
 
 
 class StubForTestTransport(object):
-
     def extra_setup(self):
-        (exitcode, tmpdir, stderror) = self.transport.execute_command(
-            'mktemp -d /tmp/test_transport.XXXXXXXXX')
+        (exitcode, tmpdir, stderror) = self.transport.execute_command('mktemp -d /tmp/test_transport.XXXXXXXXX')
         self.tmpdir = tmpdir.strip()
 
     def tearDown(self):
@@ -65,8 +64,7 @@ class StubForTestTransport(object):
         children = self.transport.listdir(self.tmpdir)
         assert children == ['testdir']
 
-        nephews = self.transport.listdir(
-            os.path.join(self.tmpdir, 'testdir'))
+        nephews = self.transport.listdir(os.path.join(self.tmpdir, 'testdir'))
         assert nephews == ['testdir2']
 
     def test_open(self):
@@ -120,8 +118,7 @@ class StubForTestTransport(object):
     def test_open_failure_nonexistent_file(self):
         with pytest.raises(TransportError):
             # pylint: disable=invalid-name,unused-variable
-            fd = self.transport.open(
-                os.path.join(self.tmpdir, 'nonexistent'), 'r')
+            fd = self.transport.open(os.path.join(self.tmpdir, 'nonexistent'), 'r')
 
     def test_open_failure_unauthorized(self):
         # we cannot rely on *any* file being unreadable, as tests may
@@ -143,30 +140,31 @@ class StubForTestTransport(object):
     def test_remove_failure(self):
         with pytest.raises(TransportError):
             # pylint: disable=no-member
-            self.transport.remove(
-                os.path.join(self.tmpdir, 'nonexistent'))
+            self.transport.remove(os.path.join(self.tmpdir, 'nonexistent'))
 
 
 class TestLocalTransport(StubForTestTransport):
-
     @pytest.fixture(autouse=True)
     def setUp(self):
         self.transport = transport.LocalTransport()
         self.transport.connect()
         self.extra_setup()
 
+
 @pytest.mark.skipif(
     'SshTransport' not in os.environ.get('GC3PIE_TESTS_ALLOW', ''),
-    reason=("Skipping SSH test: SSH to localhost not allowed"
-            " (set env variable `GC3PIE_TESTS_ALLOW` to `SshTransport` to run)"))
+    reason=(
+        "Skipping SSH test: SSH to localhost not allowed"
+        " (set env variable `GC3PIE_TESTS_ALLOW` to `SshTransport` to run)"
+    ),
+)
 class TestSshTransport(StubForTestTransport):
-
     @pytest.fixture(autouse=True)
     def setUp(self):
-        self.transport = transport.SshTransport('localhost',
-                                                ignore_ssh_host_keys=True)
+        self.transport = transport.SshTransport('localhost', ignore_ssh_host_keys=True)
         self.transport.connect()
         self.extra_setup()
+
 
 # main: run tests
 

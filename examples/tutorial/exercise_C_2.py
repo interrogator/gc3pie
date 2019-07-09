@@ -37,6 +37,7 @@ class GDemoSimpleApp(gc3libs.Application):
     and retrive the output in a file named `stdout.txt` into the
     output directory
     """
+
     def __init__(self, input_files, **extra):
         # output_dir is automatically passed to the __init__()
         # constructor by the `SessionBasedScript` class, in case no
@@ -46,22 +47,26 @@ class GDemoSimpleApp(gc3libs.Application):
             extra['output_dir'] = "./mygc3job"
         gc3libs.Application.__init__(
             self,
-            arguments = ['/usr/bin/md5sum'] + input_files, # mandatory
-            inputs = input_files,                  # mandatory
-            outputs = [],                 # mandatory
-            stdout = "stdout.txt",
-            stderr = "stderr.txt", **extra)
+            arguments=['/usr/bin/md5sum'] + input_files,  # mandatory
+            inputs=input_files,  # mandatory
+            outputs=[],  # mandatory
+            stdout="stdout.txt",
+            stderr="stderr.txt",
+            **extra
+        )
+
 
 class GDemoScript(gc3libs.cmdline.SessionBasedScript):
     """
     GDemo script
     """
+
     version = '0.1'
 
     def setup_options(self):
-        self.add_param('-n', '--copies', default=10, type=int,
-                       help="Number of copies of the default application to run."
-                       )
+        self.add_param(
+            '-n', '--copies', default=10, type=int, help="Number of copies of the default application to run."
+        )
 
     def new_tasks(self, extra):
         # GC3Pie will delay submission of jobs if these exceed the
@@ -75,16 +80,15 @@ class GDemoScript(gc3libs.cmdline.SessionBasedScript):
             return
         # compute how many input files we are going to assign to each
         # application
-        max_per_app = len(input_files)/self.params.copies
+        max_per_app = len(input_files) / self.params.copies
 
         for i in range(self.params.copies):
             # Get the correct "slice" of input files for this app.
-            ifiles = input_files[i*max_per_app : (i+1)*max_per_app]
-            yield ('GDemoApp',
-                   GDemoSimpleApp,
-                   [ifiles],
-                   extra.copy())
+            ifiles = input_files[i * max_per_app : (i + 1) * max_per_app]
+            yield ('GDemoApp', GDemoSimpleApp, [ifiles], extra.copy())
+
 
 if __name__ == "__main__":
     from exercise_C_2 import GDemoScript
+
     GDemoScript().run()

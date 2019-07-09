@@ -35,6 +35,7 @@ class GDemoSimpleApp(gc3libs.Application):
     and retrive the output in a file named `stdout.txt` into the
     output directory
     """
+
     def __init__(self, **extra):
         # output_dir is automatically passed to the __init__()
         # constructor by the `SessionBasedScript` class, in case no
@@ -44,31 +45,35 @@ class GDemoSimpleApp(gc3libs.Application):
             extra['output_dir'] = "./mygc3job"
         gc3libs.Application.__init__(
             self,
-            arguments = ['/bin/hostname'], # mandatory
-            inputs = [],                  # mandatory
-            outputs = [],                 # mandatory
-            stdout = "stdout.txt", **extra)
+            arguments=['/bin/hostname'],  # mandatory
+            inputs=[],  # mandatory
+            outputs=[],  # mandatory
+            stdout="stdout.txt",
+            **extra
+        )
+
 
 class GDemoScript(gc3libs.cmdline.SessionBasedScript):
     """
     GDemo script
     """
+
     version = '0.1'
 
     def setup_options(self):
-        self.add_param('-n', '--copies', default=10, type=int,
-                       help="Number of copies of the default application to run."
-                       )
+        self.add_param(
+            '-n', '--copies', default=10, type=int, help="Number of copies of the default application to run."
+        )
 
     def new_tasks(self, extra):
         # GC3Pie will delay submission of jobs if these exceed the
         # maximum number of jobs for a resource. Please note that in
         # `exercise_A` you have to do it by yourself.
         for i in range(self.params.copies):
-            yield ('GDemoApp',
-                   GDemoSimpleApp,
-                   [], extra)
+            yield ('GDemoApp', GDemoSimpleApp, [], extra)
+
 
 if __name__ == "__main__":
     from exercise_C import GDemoScript
+
     GDemoScript().run()

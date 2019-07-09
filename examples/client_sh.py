@@ -26,7 +26,7 @@ recording, nor scripting support.
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import (absolute_import, division, print_function)
+from __future__ import absolute_import, division, print_function
 
 import os
 import sys
@@ -54,16 +54,19 @@ class InteractiveClient(DaemonClient):
         """
         Define positional command-line arguments.
         """
-        self.add_param('server', metavar='SERVER',
-                       help=("Path to the file containing hostname and port of the"
-                             " XML-RPC enpdoint of the daemon"))
+        self.add_param(
+            'server',
+            metavar='SERVER',
+            help=("Path to the file containing hostname and port of the" " XML-RPC enpdoint of the daemon"),
+        )
 
     def main(self):
         server = self._connect_to_server(self.params.server)
         if server is None:
             return os.EX_NOHOST
         # print banner
-        print("""
+        print(
+            """
 Connected: {0}
 
 Type `help` followed by a newline to get a list of commands available
@@ -71,7 +74,10 @@ on the server.
 
 Press Ctrl+C at the prompt to exit.
 
-        """.format(str(server)))
+        """.format(
+                str(server)
+            )
+        )
         # `str(server)` looks like: <ServerProxy for 127.0.0.1:34847/>
         prompt = '{0}>'.format(str(server)[17:-2])
         while True:

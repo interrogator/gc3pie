@@ -19,6 +19,7 @@ Test class `Task`:class:.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
+
 __docformat__ = 'reStructuredText'
 
 
@@ -32,6 +33,7 @@ from gc3libs.testing.helpers import SuccessfulApp, UnsuccessfulApp, temporary_co
 
 
 ## tests
+
 
 def test_task_progress():
     with temporary_core() as core:
@@ -47,22 +49,21 @@ def test_task_progress():
 
 
 def test_task_state_handlers():
-    report = {
-        'submitted': False,
-        'terminating': False,
-        'terminated': False,
-    }
+    report = {'submitted': False, 'terminating': False, 'terminated': False}
 
     class HandlerTestApp(SuccessfulApp):
         def __init__(self, report):
             super(HandlerTestApp, self).__init__()
             self.report = report
+
         def submitted(self):
             self.report['submitted'] = True
             print("Submitted!")
+
         def terminating(self):
             self.report['terminating'] = True
             print("Terminating!")
+
         def terminated(self):
             print("Terminated!")
             self.report['terminated'] = True
@@ -111,8 +112,7 @@ def test_task_redo2():
         assert task.execution.state == Run.State.SUBMITTED
 
         # cannot redo a task that is not yet terminated
-        with pytest.raises(AssertionError,
-                   message="`Task.redo()` succeeded on task not yet finished"):
+        with pytest.raises(AssertionError, message="`Task.redo()` succeeded on task not yet finished"):
             task.redo()
 
 
@@ -128,4 +128,5 @@ def test_task_redo3():
 
 if "__main__" == __name__:
     import pytest
+
     pytest.main(["-v", __file__])

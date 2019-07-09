@@ -20,6 +20,7 @@ Specialized support for computational jobs running simple demo.
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import str
+
 __docformat__ = 'reStructuredText'
 
 
@@ -55,30 +56,27 @@ class Square(gc3libs.Application):
         # extra_args.setdefault('stdout', 'stdout.txt')
         # extra_args.setdefault('stderr', 'stderr.txt')
 
-        gc3libs.Application.__init__(self,
-                                     arguments=[
-                                         "/usr/bin/expr",
-                                         str(x),
-                                         "*",
-                                         str(x)],
-                                     inputs=[],
-                                     outputs=[],
-                                     output_dir=None,
-                                     stdout="stdout.txt",
-                                     stderr="stderr.txt",
-                                     # set computational requirements. XXX this
-                                     # is mandatory, thus probably should
-                                     # become part of the Application's
-                                     # signature
-                                     requested_memory=1 * GB,
-                                     requested_cores=1,
-                                     requested_walltime=1 * hours,
-                                     )
+        gc3libs.Application.__init__(
+            self,
+            arguments=["/usr/bin/expr", str(x), "*", str(x)],
+            inputs=[],
+            outputs=[],
+            output_dir=None,
+            stdout="stdout.txt",
+            stderr="stderr.txt",
+            # set computational requirements. XXX this
+            # is mandatory, thus probably should
+            # become part of the Application's
+            # signature
+            requested_memory=1 * GB,
+            requested_cores=1,
+            requested_walltime=1 * hours,
+        )
 
 
 # main: run tests
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="square",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="square", optionflags=doctest.NORMALIZE_WHITESPACE)

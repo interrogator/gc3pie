@@ -30,21 +30,21 @@ in core Python, namely:
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = 'reStructuredText'
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
+
+#
+# You should have received a copy of the GNU Lesser General Public License
 from builtins import str
-__docformat__ = 'reStructuredText'
-
-
 from warnings import warn
 
 import gc3libs
 
-
 ## base error classes
+
 
 class Error(Exception):
 
@@ -71,6 +71,7 @@ class Error(Exception):
 # could succeed), or "Unrecoverable" (meaning there's no point in
 # retrying).
 
+
 class RecoverableError(Error):
 
     """
@@ -80,6 +81,7 @@ class RecoverableError(Error):
     This exception should *never* be instanciated: it is only to be used
     in `except` clauses to catch "try again" situations.
     """
+
     pass
 
 
@@ -92,6 +94,7 @@ class UnrecoverableError(Error):
     This exception should *never* be instanciated: it is only to be used
     in `except` clauses to exclude "try again" situations.
     """
+
     pass
 
 
@@ -115,6 +118,7 @@ class FatalError(UnrecoverableError):
 
 ## derived exceptions
 
+
 class AuthError(Error):
 
     """
@@ -123,6 +127,7 @@ class AuthError(Error):
     Should *never* be instanciated: create a specific error class
     describing the actual error condition.
     """
+
     pass
 
 
@@ -141,6 +146,7 @@ class ConfigurationError(FatalError):
     read/parsed.  Also used to signal that a required parameter is
     missing or has an unknown/invalid value.
     """
+
     pass
 
 
@@ -152,6 +158,7 @@ class DataStagingError(Error):
     Should *never* be instanciated: create a specific error class
     describing the actual error condition.
     """
+
     pass
 
 
@@ -165,6 +172,7 @@ class RecoverableDataStagingError(DataStagingError, RecoverableError):
     connectivity interruption), so trying again at a later time could
     solve the problem.
     """
+
     pass
 
 
@@ -174,7 +182,9 @@ class UnrecoverableDataStagingError(DataStagingError, UnrecoverableError):
     Raised when problems with copying data to or from the remote
     execution site occurred.
     """
+
     pass
+
 
 class InputFileError(FatalError):
 
@@ -182,6 +192,7 @@ class InputFileError(FatalError):
     Raised when an input file is specified, which does not exist or
     cannot be read.
     """
+
     pass
 
 
@@ -193,6 +204,7 @@ class InternalError(Error, AssertionError):
     a response string gotten from an external command cannot be parsed
     as expected.
     """
+
     pass
 
 
@@ -204,6 +216,7 @@ class AuxiliaryCommandError(InternalError):
     For instance, we might need to list processes on a remote machine
     but ``ps aux`` does not run because of insufficient privileges.
     """
+
     pass
 
 
@@ -214,6 +227,7 @@ class InvalidArgument(Error, AssertionError):  # XXX: should this be fatal?
     required contract.  For instance, either one of two optional
     arguments must be provided, but none of them was.
     """
+
     pass
 
 
@@ -223,6 +237,7 @@ class InvalidType(InvalidArgument, TypeError):
     A specialization of`InvalidArgument` for cases when the type of
     the passed argument does not match expectations.
     """
+
     pass
 
 
@@ -232,6 +247,7 @@ class InvalidValue(InvalidArgument, ValueError):
     A specialization of`InvalidArgument` for cases when the value of
     the passed argument does not match expectations.
     """
+
     pass
 
 
@@ -241,6 +257,7 @@ class DuplicateEntryError(InvalidArgument):
     Raised by `Application.__init__` if not all (local or remote)
     entries in the input or output files are distinct.
     """
+
     pass
 
 
@@ -251,6 +268,7 @@ class InvalidOperation(Error):
     valid according to the system state.  For instance, trying to
     retrieve the output of a job that has not yet been submitted.
     """
+
     pass
 
 
@@ -264,6 +282,7 @@ class InvalidResourceName(Error, ValueError):
     level, unless the `do_log=False` optional argument is explicitly
     passed to the constructor.
     """
+
     def __init__(self, msg, do_log=True):
         super(InvalidResourceName, self).__init__(msg, do_log)
 
@@ -278,6 +297,7 @@ class InvalidUsage(FatalError):
     Since the exception message is the last thing a user will see,
     try to be specific about what is wrong on the command line.
     """
+
     pass
 
 
@@ -286,6 +306,7 @@ class LoadError(Error):
     """
     Raised upon errors loading a job from the persistent storage.
     """
+
     pass
 
 
@@ -306,6 +327,7 @@ class ResourceNotReady(LRMSSubmitError, RecoverableError):
     task, but it is still booting.  Although we cannot submit the task
     right now, it *will* be accepted in the (not too distant) future.
     """
+
     pass
 
 
@@ -316,11 +338,14 @@ class LRMSSkipSubmissionToNextIteration(ResourceNotReady):
 
     Only actually kept for backwards-compatibility.
     """
+
     def __init__(self, msg, do_log=False):
         warn(
             "Old class name `LRMSSkipSubmissionToNextIteration` called."
             " Please fix the source code to use `ResourceNotReady` instead.",
-            DeprecationWarning, 2)
+            DeprecationWarning,
+            2,
+        )
         super(LRMSSkipSubmissionToNextIteration, self).__init__(msg, do_log)
 
 
@@ -329,6 +354,7 @@ class MaximumCapacityReached(LRMSSubmitError, RecoverableError):
     """
     Indicates that a resource is full and cannot run any more jobs.
     """
+
     pass
 
 
@@ -337,6 +363,7 @@ class ConfigurationFileError(FatalError):
     """
     Generic issue with the configuration file(s).
     """
+
     pass
 
 
@@ -347,6 +374,7 @@ class NoConfigurationFile(ConfigurationFileError):
     exist or has wrong permissions), or cannot be parsed (e.g., is
     malformed).
     """
+
     pass
 
 
@@ -356,6 +384,7 @@ class NoAccessibleConfigurationFile(NoConfigurationFile):
     Raised when the configuration file cannot be read (e.g., does not
     exist or has wrong permissions).
     """
+
     pass
 
 
@@ -364,6 +393,7 @@ class NoValidConfigurationFile(NoConfigurationFile):
     Raised when the configuration file cannot be parsed (e.g., is
     malformed).
     """
+
     pass
 
 
@@ -373,6 +403,7 @@ class NoResources(Error):
     Raised to signal that no resources are defined, or that none are
     compatible with the request.
     """
+
     # FIXME: should we have a separate `NoCompatibleResources` exception?
     pass
 
@@ -383,6 +414,7 @@ class OutputNotAvailableError(InvalidOperation):
     Raised upon attempts to retrieve the output for jobs that are
     still in `NEW` or `SUBMITTED` state.
     """
+
     pass
 
 
@@ -392,6 +424,7 @@ class SpoolDirError(LRMSError, InvalidValue, UnrecoverableError):
     Raised when a backend fails to access the spooldir either because
     it does not exists or cannot be read.
     """
+
     pass
 
 
@@ -400,6 +433,7 @@ class TaskError(Error):
     """
     Generic error condition in a `Task` object.
     """
+
     pass
 
 
@@ -409,6 +443,7 @@ class DetachedFromControllerError(TaskError):
     Raised when a method (other than :meth:`attach`) is called on
     a detached `Task` instance.
     """
+
     pass
 
 
@@ -418,6 +453,7 @@ class UnexpectedStateError(TaskError):
     Raised by :meth:`Task.progress` when a job lands in `STOPPED`
     or `TERMINATED` state.
     """
+
     pass
 
 
@@ -443,9 +479,8 @@ class CopyError(TransportError):
         self.source = source
         self.destination = destination
         TransportError.__init__(
-            self,
-            "Could not copy '%s' to '%s': %s: %s"
-            % (source, destination, ex.__class__.__name__, str(ex)))
+            self, "Could not copy '%s' to '%s': %s: %s" % (source, destination, ex.__class__.__name__, str(ex))
+        )
 
 
 class UnknownJob(Error, ValueError):
@@ -454,6 +489,7 @@ class UnknownJob(Error, ValueError):
     Raised when an operation is attempted on a task, which is
     unknown to the remote server or backend.
     """
+
     pass
 
 
@@ -470,6 +506,7 @@ class UnexpectedJobState(RecoverableError, ValueError):
     but the batch system accounting commands still report it as
     running.
     """
+
     pass
 
 
@@ -481,6 +518,7 @@ class UnknownJobState(Error, AssertionError):
     there is a version mismatch between GC3Libs and the Grid
     middleware used.
     """
+
     pass
 
 
@@ -491,6 +529,7 @@ class ApplicationDescriptionError(FatalError):
     something that the LRMS backend cannot process.
 
     """
+
     pass
 
 
@@ -498,5 +537,5 @@ class ApplicationDescriptionError(FatalError):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="exceptions",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="exceptions", optionflags=doctest.NORMALIZE_WHITESPACE)

@@ -48,6 +48,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gprecovery
+
     gprecovery.GprecoveryScript().run()
 
 import os
@@ -68,12 +69,13 @@ import gc3libs.utils
 from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
 from gc3libs.workflow import RetryableTask
 
-MODELS_SPECS = [1,2,3,4]
+MODELS_SPECS = [1, 2, 3, 4]
 ## custom application class
 class GprecoveryApplication(Application):
     """
     Custom class to wrap the execution of the Matlab script.
     """
+
     application_name = 'matlab-mcr'
 
     def __init__(self, model_index, seed, **extra_args):
@@ -95,32 +97,34 @@ class GprecoveryApplication(Application):
 
         # self.output_filename = "ParRecovery_Genmodel%s_.mat" % str(model_index)
         # outputs[self.output_filename] = os.path.join(self.result_dir, "ParRecovery_Genmodel%s_%s.mat" % (str(model_index),extra_args['repetition']))
-        self.output_filename = "ParRecovery_Genmodel%s_%s.mat" % (str(model_index),extra_args['repetition'])
+        self.output_filename = "ParRecovery_Genmodel%s_%s.mat" % (str(model_index), extra_args['repetition'])
         outputs["ParRecovery_Genmodel%s_.mat" % str(model_index)] = self.output_filename
 
         arguments += "%s %s" % (str(model_index), str(seed))
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gprecovery.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout='gprecovery.log',
             join=True,
-            executables = executables,
-            **extra_args)
-
+            executables=executables,
+            **extra_args
+        )
 
     def terminated(self):
         """
         Move output file in 'result_dir'
         """
-        if os.path.isfile(os.path.join(self.output_dir,self.output_filename)):
-            shutil.move(os.path.join(self.output_dir,self.output_filename),
-                             os.path.join(self.result_dir,self.output_filename))
+        if os.path.isfile(os.path.join(self.output_dir, self.output_filename)):
+            shutil.move(
+                os.path.join(self.output_dir, self.output_filename), os.path.join(self.result_dir, self.output_filename)
+            )
         else:
-            gc3libs.log.error("Expected output file %s not found."
-                              % os.path.join(self.output_dir,self.output_filename))
+            gc3libs.log.error(
+                "Expected output file %s not found." % os.path.join(self.output_dir, self.output_filename)
+            )
 
 
 class GprecoveryScript(SessionBasedScript):
@@ -142,43 +146,65 @@ class GprecoveryScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GprecoveryApplication,
+            version=__version__,  # module version == script version
+            application=GprecoveryApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GprecoveryApplication,
-            )
+            stats_only_for=GprecoveryApplication,
+        )
 
     def setup_args(self):
 
-        self.add_param('models', type=str,
-                       help="list of models to process. Valid ranges are: %s."
-                       " Syntax allowed: "
-                       " [index|index_start:index_end|index_1,...,index_N]."
-                       " Es. 1,3 | 1:4 | 3" % MODELS_SPECS)
+        self.add_param(
+            'models',
+            type=str,
+            help="list of models to process. Valid ranges are: %s."
+            " Syntax allowed: "
+            " [index|index_start:index_end|index_1,...,index_N]."
+            " Es. 1,3 | 1:4 | 3" % MODELS_SPECS,
+        )
 
     def setup_options(self):
-        self.add_param("-b", "--binary", metavar="[STRING]",
-                       dest="run_binary", default=None,
-                       help="Location of the Matlab compiled binary "
-                       "version of the ParRecoveryFun. Default: None.")
+        self.add_param(
+            "-b",
+            "--binary",
+            metavar="[STRING]",
+            dest="run_binary",
+            default=None,
+            help="Location of the Matlab compiled binary " "version of the ParRecoveryFun. Default: None.",
+        )
 
-        self.add_param("-E", "--random_range", type=int, metavar="[int]",
-                       dest="random_range", default=1000,
-                       help="Upper limit for the random seed used in the "
-                       "fmin function. Default: 1000.")
+        self.add_param(
+            "-E",
+            "--random_range",
+            type=int,
+            metavar="[int]",
+            dest="random_range",
+            default=1000,
+            help="Upper limit for the random seed used in the " "fmin function. Default: 1000.",
+        )
 
-        self.add_param("-R", "--repeat", type=int, metavar="[int]",
-                       dest="repeat", default=1,
-                       help="Repeat all simulation [repeat] times. "
-                       " Default: 1 (no repeat).")
+        self.add_param(
+            "-R",
+            "--repeat",
+            type=int,
+            metavar="[int]",
+            dest="repeat",
+            default=1,
+            help="Repeat all simulation [repeat] times. " " Default: 1 (no repeat).",
+        )
 
-        self.add_param("-S", "--store_results", type=str, metavar="[STRING]",
-                       dest="store_results", default=None,
-                       help="Location where all results will be aggregated. "
-                       "Default: (session folder).")
+        self.add_param(
+            "-S",
+            "--store_results",
+            type=str,
+            metavar="[STRING]",
+            dest="store_results",
+            default=None,
+            help="Location where all results will be aggregated. " "Default: (session folder).",
+        )
 
     def parse_args(self):
         """
@@ -189,34 +215,31 @@ class GprecoveryScript(SessionBasedScript):
 
         if self.params.run_binary:
             if not os.path.isfile(self.params.run_binary):
-                raise gc3libs.exceptions.InvalidUsage("ParRecoveryFun binary "
-                                                      " file %s not found"
-                                                      % self.params.run_binary)
+                raise gc3libs.exceptions.InvalidUsage(
+                    "ParRecoveryFun binary " " file %s not found" % self.params.run_binary
+                )
         try:
             if self.params.models.count(':') == 1:
                 start, end = self.params.models.split(':')
                 if (int(start) <= int(end)) and (int(start) in MODELS_SPECS) and (int(end) in MODELS_SPECS):
-                    self.models = range(int(start), int(end)+1)
+                    self.models = range(int(start), int(end) + 1)
                 else:
-                    raise gc3libs.exceptions.InvalidUsage(
-                        "Model not in valid range. "
-                        "Range: %s" % str(MODELS_SPECS))
+                    raise gc3libs.exceptions.InvalidUsage("Model not in valid range. " "Range: %s" % str(MODELS_SPECS))
             elif self.params.models.count(',') >= 1:
-                self.models = [ int(s) for s in self.params.models.split(',')
-                                if int(s) in MODELS_SPECS ]
+                self.models = [int(s) for s in self.params.models.split(',') if int(s) in MODELS_SPECS]
             else:
                 if int(self.params.models) in MODELS_SPECS:
-                    self.models = [ int(self.params.models) ]
+                    self.models = [int(self.params.models)]
                 else:
-                    gc3libs.log.error("Model %s not in valid range. "
-                                      "Range: %s" % (self.params.models,
-                                                     str(MODELS_SPECS)))
+                    gc3libs.log.error(
+                        "Model %s not in valid range. " "Range: %s" % (self.params.models, str(MODELS_SPECS))
+                    )
 
         except ValueError:
             raise gc3libs.exceptions.InvalidUsage(
                 "Invalid argument '%s', use on of the following formats: "
-                " INT:INT | INT,INT,INT,..,INT | INT " % (models,))
-
+                " INT:INT | INT,INT,INT,..,INT | INT " % (models,)
+            )
 
     def new_tasks(self, extra):
         """
@@ -229,13 +252,13 @@ class GprecoveryScript(SessionBasedScript):
 
         for model in self.models:
 
-            for repeat in range(1,(self.params.repeat + 1)):
+            for repeat in range(1, (self.params.repeat + 1)):
 
                 # XXX: need to find a more compact name
                 # jobname = "gprecovery-%s-%s" % (model,data_index)
-                jobname = "gprecovery-%d-%d" % (model,repeat)
+                jobname = "gprecovery-%d-%d" % (model, repeat)
 
-                seed = random.randint(1,self.params.random_range)
+                seed = random.randint(1, self.params.random_range)
 
                 extra_args = extra.copy()
 
@@ -254,15 +277,13 @@ class GprecoveryScript(SessionBasedScript):
                     extra_args['result_dir'] = extra_args['result_dir'].replace('NAME', self.params.session)
 
                 extra_args['output_dir'] = self.params.output
-                extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', '%s.%s' % (str(model),str(repeat)))
-                extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', '%s.%s' % (str(model),str(repeat)))
-                extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', '%s.%s' % (str(model),str(repeat)))
-                extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', '%s.%s' % (str(model),str(repeat)))
+                extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', '%s.%s' % (str(model), str(repeat)))
+                extra_args['output_dir'] = extra_args['output_dir'].replace(
+                    'SESSION', '%s.%s' % (str(model), str(repeat))
+                )
+                extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', '%s.%s' % (str(model), str(repeat)))
+                extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', '%s.%s' % (str(model), str(repeat)))
 
-
-                tasks.append(GprecoveryApplication(
-                    model,
-                    seed,
-                    **extra_args))
+                tasks.append(GprecoveryApplication(model, seed, **extra_args))
 
         return tasks

@@ -33,6 +33,7 @@ BEAST24_COMMAND = "java -Xmx{requested_memory}m -jar {jar} -working -overwrite -
 
 ## main: run tests
 
+
 class GRunningApp(gc3libs.Task):
     """Fake application. Its state is always RUNNING: it's a cheap way to
     run a "daemon" gc3pie application.
@@ -42,9 +43,11 @@ class GRunningApp(gc3libs.Task):
     attribute.
 
     """
+
     def __init__(self, **extra):
         self.extra = extra
         gc3libs.Task.__init__(self, **extra)
+
 
 class GBeastApp(gc3libs.Application):
     def __init__(self, beast, jarfile, dirname, fname, ncores, **extra):
@@ -53,27 +56,33 @@ class GBeastApp(gc3libs.Application):
         self.extra = extra
         extra['output_dir'] = fname[:-4] + '.d'
         extra['requested_cores'] = ncores
-        extra['requested_memory'] = ncores*4*GiB
+        extra['requested_memory'] = ncores * 4 * GiB
 
         if beast == 'beast2.4':
-            args = BEAST24_COMMAND.format(requested_memory=extra['requested_memory'].amount(MiB),
-                                           jar=jarfile,
-                                           requested_cores=ncores,
-                                           input_xml=fname)
+            args = BEAST24_COMMAND.format(
+                requested_memory=extra['requested_memory'].amount(MiB),
+                jar=jarfile,
+                requested_cores=ncores,
+                input_xml=fname,
+            )
         else:
-            args = BEAST1_COMMAND.format(requested_memory=extra['requested_memory'].amount(MiB),
-                                         jar=jarfile,
-                                         requested_cores=ncores,
-                                         input_xml=fname)
+            args = BEAST1_COMMAND.format(
+                requested_memory=extra['requested_memory'].amount(MiB),
+                jar=jarfile,
+                requested_cores=ncores,
+                input_xml=fname,
+            )
 
         gc3libs.Application.__init__(
             self,
-            arguments = args,
-            inputs = [infile],
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'stdout.txt',
-            stderr = 'stderr.txt',
-            **extra)
+            arguments=args,
+            inputs=[infile],
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout='stdout.txt',
+            stderr='stderr.txt',
+            **extra
+        )
+
 
 class GBeastScript(SessionBasedScript):
     """This script gets a directory as only argument. For each file in the
@@ -84,17 +93,19 @@ class GBeastScript(SessionBasedScript):
     session.
 
     """
+
     version = '0.1'
 
     def setup_options(self):
         """Script to parallelize execution of BEAST over multiple input
         files. Takes a directory containing XML files, parse"""
 
-        self.add_param('-b', '--beast', choices=['beast1', 'beast2'],
-                       help='Beast version to run')
+        self.add_param('-b', '--beast', choices=['beast1', 'beast2'], help='Beast version to run')
         self.add_param('--beast1', default='/apps/BEASTv1.8.2/lib/beast.jar', help='Path to BEAST v1 jar file')
         self.add_param('--beast2', default='/apps/BEASTv2.3.2/lib/beast.jar', help='Path to BEAST v2 jar file')
-        self.add_param('--beast2_4', default='/apps/BEASTv2.4.7/beast/lib/beast.jar', help='Path to BEAST v2.4 jar file')
+        self.add_param(
+            '--beast2_4', default='/apps/BEASTv2.4.7/beast/lib/beast.jar', help='Path to BEAST v2.4 jar file'
+        )
         self.add_param('--cores', default=1, type=int, help="Amount of cores to use. Default: %(default)s")
         self.add_param('path', help='Path to directory to watch for new input files')
 
@@ -121,7 +132,9 @@ class GBeastScript(SessionBasedScript):
                 beast = 'beast2'
                 jarfile = self.params.beast2
             else:
-                gc3libs.log.warning("Unable to guess which version of BEAST you want to run for file %s. Assuming BEAST v1" % fname)
+                gc3libs.log.warning(
+                    "Unable to guess which version of BEAST you want to run for file %s. Assuming BEAST v1" % fname
+                )
 
             try:
                 # We need to load from a previously saved job extra
@@ -139,12 +152,7 @@ class GBeastScript(SessionBasedScript):
                 # but it might not be what you want. Maybe a command
                 # line option?
 
-                app = GBeastApp(beast,
-                                jarfile,
-                                self.params.path,
-                                fname,
-                                self.params.cores,
-                                **extra.copy())
+                app = GBeastApp(beast, jarfile, self.params.path, fname, self.params.cores, **extra.copy())
                 ### FIXME: do we really need to add the app to the
                 ### controller *and* to the session?
                 self._controller.add(app)
@@ -180,6 +188,8 @@ class GBeastScript(SessionBasedScript):
         # created.
         return [GRunningApp(**extra)]
 
+
 if "__main__" == __name__:
     from gbeastnotify import GBeastScript
+
     GBeastScript().run()

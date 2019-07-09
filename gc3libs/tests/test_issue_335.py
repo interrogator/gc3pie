@@ -20,6 +20,7 @@
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import range
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 import logging
@@ -35,7 +36,6 @@ configure_logger(loglevel, "test_issue_335")
 
 
 class MySequentialCollection(SequentialTaskCollection):
-
     def __init__(self, *args, **kwargs):
         SequentialTaskCollection.__init__(self, *args, **kwargs)
         self.next_called_n_times = 0
@@ -47,7 +47,6 @@ class MySequentialCollection(SequentialTaskCollection):
 
 
 class test_issue_335(object):
-
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
         CONF_FILE = """
@@ -79,20 +78,17 @@ resourcedir = %s
         """Test that SequentialTasksCollection goes in TERMINATED state when
         all of its tasks are in TERMINATED state."""
         num_tasks_in_seq = 5
-        seq = MySequentialCollection([
-            Application(
-                ['echo', 'test1'],
-                [], [],
-                os.path.join(self.tmpdir, 'test.%d.d' % i))
-            for i in range(num_tasks_in_seq)
-        ])
+        seq = MySequentialCollection(
+            [
+                Application(['echo', 'test1'], [], [], os.path.join(self.tmpdir, 'test.%d.d' % i))
+                for i in range(num_tasks_in_seq)
+            ]
+        )
         engine = create_engine(self.cfgfile, auto_enable_auth=True)
         engine.add(seq)
         while True:
             engine.progress()
-            if (len([task for task in seq.tasks
-                     if task.execution.state == Run.State.TERMINATED])
-                    == num_tasks_in_seq):
+            if len([task for task in seq.tasks if task.execution.state == Run.State.TERMINATED]) == num_tasks_in_seq:
                 engine.progress()
                 # check that final SequentialCollection state is TERMINATED
                 assert seq.execution.state == Run.State.TERMINATED
@@ -106,4 +102,5 @@ resourcedir = %s
 
 if "__main__" == __name__:
     import pytest
+
     pytest.main(["-v", __file__])

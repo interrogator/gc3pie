@@ -55,16 +55,15 @@ from gc3utils.commands import GC3UtilsScript
 # will only allow a jkbas, cbas or cabs if it's not *earlier*
 # than the orbital basis; i.e. if the orbital basis is
 # ``aug-cc-pVQZ`` then jkbas cannot be ``aug-cc-pVTZ``.
-basis_set_names = [
-    'aug-cc-pVTZ',
-    'aug-cc-pVQZ',
-    'aug-cc-pV5Z',
-    ]
+basis_set_names = ['aug-cc-pVTZ', 'aug-cc-pVQZ', 'aug-cc-pV5Z']
+
 
 def acceptable_ridft_basis_set(extra_args):
     """Define which combination of orbital and JK basis are valid."""
-    def order(k): # small aux function
+
+    def order(k):  # small aux function
         return basis_set_names.index(extra_args[k])
+
     orb_basis_nr = order('ORB_BASIS')
     jkbas_basis_nr = order('RIJK_BASIS')
     # only allow a jkbas if it's not *earlier* than the orbital basis;
@@ -75,10 +74,13 @@ def acceptable_ridft_basis_set(extra_args):
     # otherwise, the basis combination is acceptable
     return True
 
+
 def acceptable_ricc2_basis_set(extra_args):
     """Define which combination of CABS and CBAS are valid."""
-    def order(k): # small aux function
+
+    def order(k):  # small aux function
         return basis_set_names.index(extra_args[k])
+
     orb_basis_nr = order('ORB_BASIS')
     cabs_basis_nr = order('CABS_BASIS')
     cbas_basis_nr = order('CBAS_BASIS')
@@ -91,6 +93,7 @@ def acceptable_ricc2_basis_set(extra_args):
         return False
     # otherwise, the basis combination is acceptable
     return True
+
 
 # TURBOMOLE's ``define`` input for the RIDFT step
 RIDFT_DEFINE_IN = """\
@@ -153,6 +156,7 @@ b all ${CABS_BASIS}
 
 ## main
 
+
 class CreateTMFilesScript(GC3UtilsScript):
     """
 For each molecule defined in a ``coord`` file given on the
@@ -168,41 +172,67 @@ controlled with the ``--bas``, ``--jkbas``, ``--cbas`` and
     def __init__(self):
         GC3UtilsScript.__init__(
             self,
-            version = '0.1',
+            version='0.1',
             # TURBOMOLE's "coord" files are input
-            input_filename_pattern = 'coord',
-            )
+            input_filename_pattern='coord',
+        )
 
     def setup_args(self):
         """
         Set up command-line parsing.
         """
         # option arguments
-        self.add_param("--bas", metavar="LIST", action="append",
-                       dest="bas", default=[],
-                       help="Comma-separated list of orbital bases to sweep."
-                       " (Default: %(default)s")
-        self.add_param("--jkbas", metavar="LIST", action="append",
-                       dest="jkbas", default=['aug-cc-pVTZ', 'aug-cc-pVQZ', 'aug-cc-pV5Z'],
-                       help="Comma-separated list of RIJK bases to sweep."
-                       " (Default: %(default)s")
-        self.add_param("--cbas", metavar="LIST", action="append",
-                       dest="cbas", default=['aug-cc-pVTZ', 'aug-cc-pVQZ', 'aug-cc-pV5Z'],
-                       help="Comma-separated list of `cbas` bases to sweep."
-                       " (Default: %(default)s")
-        self.add_param("--cabs", metavar="LIST", action="append",
-                       dest="cabs", default=['aug-cc-pVTZ', 'aug-cc-pVQZ', 'aug-cc-pV5Z'],
-                       help="Comma-separated list of `cabs` bases to sweep."
-                       " (Default: %(default)s")
-        self.add_param("-m", "--memory",
-                       dest="memory", type=positive_int, default=2000,
-                       help="Memory (in MB) to set for TURBOMOLE jobs.")
-        self.add_param("-o", "--output-directory", metavar='PATH',
-                       dest="output_dir", type=valid_directory, default=os.getcwd(),
-                       help="Create output files into directories rooted at PATH")
+        self.add_param(
+            "--bas",
+            metavar="LIST",
+            action="append",
+            dest="bas",
+            default=[],
+            help="Comma-separated list of orbital bases to sweep." " (Default: %(default)s",
+        )
+        self.add_param(
+            "--jkbas",
+            metavar="LIST",
+            action="append",
+            dest="jkbas",
+            default=['aug-cc-pVTZ', 'aug-cc-pVQZ', 'aug-cc-pV5Z'],
+            help="Comma-separated list of RIJK bases to sweep." " (Default: %(default)s",
+        )
+        self.add_param(
+            "--cbas",
+            metavar="LIST",
+            action="append",
+            dest="cbas",
+            default=['aug-cc-pVTZ', 'aug-cc-pVQZ', 'aug-cc-pV5Z'],
+            help="Comma-separated list of `cbas` bases to sweep." " (Default: %(default)s",
+        )
+        self.add_param(
+            "--cabs",
+            metavar="LIST",
+            action="append",
+            dest="cabs",
+            default=['aug-cc-pVTZ', 'aug-cc-pVQZ', 'aug-cc-pV5Z'],
+            help="Comma-separated list of `cabs` bases to sweep." " (Default: %(default)s",
+        )
+        self.add_param(
+            "-m",
+            "--memory",
+            dest="memory",
+            type=positive_int,
+            default=2000,
+            help="Memory (in MB) to set for TURBOMOLE jobs.",
+        )
+        self.add_param(
+            "-o",
+            "--output-directory",
+            metavar='PATH',
+            dest="output_dir",
+            type=valid_directory,
+            default=os.getcwd(),
+            help="Create output files into directories rooted at PATH",
+        )
         # positional (mandatory) arguments
-        self.add_param('args', nargs='+', metavar='COORDFILE',
-                       help="Path to a `coord` file in TURBOMOLE format.")
+        self.add_param('args', nargs='+', metavar='COORDFILE', help="Path to a `coord` file in TURBOMOLE format.")
 
     def parse_args(self):
         # collect the basis set names given to the ``--bas``,
@@ -215,8 +245,7 @@ controlled with the ``--bas``, ``--jkbas``, ``--cbas`` and
             self.params.bas = str.join(',', self.params.bas).split(',')
         for name in self.params.bas:
             if name not in basis_set_names:
-                raise gc3libs.exceptions.InvalidUsage(
-                    "Unknown basis set name: '%s'." % name)
+                raise gc3libs.exceptions.InvalidUsage("Unknown basis set name: '%s'." % name)
 
         if len(self.params.jkbas) == 0:
             self.params.jkbas = jkbasis_set_names
@@ -224,8 +253,7 @@ controlled with the ``--bas``, ``--jkbas``, ``--cbas`` and
             self.params.jkbas = str.join(',', self.params.jkbas).split(',')
         for name in self.params.jkbas:
             if name not in basis_set_names:
-                raise gc3libs.exceptions.InvalidUsage(
-                    "Unknown basis set name: '%s'." % name)
+                raise gc3libs.exceptions.InvalidUsage("Unknown basis set name: '%s'." % name)
 
         if len(self.params.cbas) == 0:
             self.params.cbas = cbasis_set_names
@@ -233,8 +261,7 @@ controlled with the ``--bas``, ``--jkbas``, ``--cbas`` and
             self.params.cbas = str.join(',', self.params.cbas).split(',')
         for name in self.params.cbas:
             if name not in basis_set_names:
-                raise gc3libs.exceptions.InvalidUsage(
-                    "Unknown basis set name: '%s'." % name)
+                raise gc3libs.exceptions.InvalidUsage("Unknown basis set name: '%s'." % name)
 
         if len(self.params.cabs) == 0:
             self.params.cabs = cabsis_set_names
@@ -242,14 +269,12 @@ controlled with the ``--bas``, ``--jkbas``, ``--cbas`` and
             self.params.cabs = str.join(',', self.params.cabs).split(',')
         for name in self.params.cabs:
             if name not in basis_set_names:
-                raise gc3libs.exceptions.InvalidUsage(
-                    "Unknown basis set name: '%s'." % name)
+                raise gc3libs.exceptions.InvalidUsage("Unknown basis set name: '%s'." % name)
 
         if self.params.memory < 1:
             raise gc3libs.exceptions.InvalidUsage(
-                "Argument to option -m/--memory must be a positive integer;"
-                " got %d instead" % self.params.memory)
-
+                "Argument to option -m/--memory must be a positive integer;" " got %d instead" % self.params.memory
+            )
 
     def _search_for_input_files(self, paths):
         """
@@ -267,12 +292,12 @@ controlled with the ``--bas``, ``--jkbas``, ``--cbas`` and
             # re-check for more wildcard characters
             if '*' in ext or '?' in ext or '[' in ext:
                 ext = None
-        #self.log.debug("Input files must match glob pattern '%s' or extension '%s'"
+        # self.log.debug("Input files must match glob pattern '%s' or extension '%s'"
         #               % (pattern, ext))
 
         def matches(name):
-            return (fnmatch.fnmatch(os.path.basename(name), pattern)
-                    or fnmatch.fnmatch(name, pattern))
+            return fnmatch.fnmatch(os.path.basename(name), pattern) or fnmatch.fnmatch(name, pattern)
+
         for path in paths:
             self.log.debug("Now processing input path '%s' ..." % path)
             if os.path.isdir(path):
@@ -280,26 +305,22 @@ controlled with the ``--bas``, ``--jkbas``, ``--cbas`` and
                 for dirpath, dirnames, filenames in os.walk(path):
                     for filename in filenames:
                         if matches(filename):
-                            self.log.debug("Path '%s' matches pattern '%s',"
-                                           " adding it to input list"
-                                           % (os.path.join(dirpath, filename),
-                                              pattern))
+                            self.log.debug(
+                                "Path '%s' matches pattern '%s',"
+                                " adding it to input list" % (os.path.join(dirpath, filename), pattern)
+                            )
                             inputs.add(os.path.join(dirpath, filename))
             elif matches(path) and os.path.exists(path):
-                self.log.debug("Path '%s' matches pattern '%s',"
-                               " adding it to input list" % (path, pattern))
+                self.log.debug("Path '%s' matches pattern '%s'," " adding it to input list" % (path, pattern))
                 inputs.add(path)
             elif ext is not None and not path.endswith(ext) and os.path.exists(path + ext):
-                self.log.debug("Path '%s' matched extension '%s',"
-                               " adding to input list"
-                               % (path + ext, ext))
+                self.log.debug("Path '%s' matched extension '%s'," " adding to input list" % (path + ext, ext))
                 inputs.add(os.path.realpath(path + ext))
             else:
                 self.log.error("Cannot access input path '%s' - ignoring it.", path)
-            #self.log.debug("Gathered input files: '%s'" % str.join("', '", inputs))
+            # self.log.debug("Gathered input files: '%s'" % str.join("', '", inputs))
 
         return inputs
-
 
     def _make_define_in(self, path, contents):
         """
@@ -312,12 +333,10 @@ controlled with the ``--bas``, ``--jkbas``, ``--cbas`` and
         define_in_file.close()
         return define_in_filename
 
-
     def _make_turbomole_files(self, coord, ridft_in, ricc2_ins, work_dir):
         orb_basis = ridft_in._keywords['ORB_BASIS']
         rijk_basis = ridft_in._keywords['RIJK_BASIS']
-        work_dir = os.path.join(work_dir,
-                                'bas-%s/jkbas-%s' % (orb_basis, rijk_basis))
+        work_dir = os.path.join(work_dir, 'bas-%s/jkbas-%s' % (orb_basis, rijk_basis))
         gc3libs.utils.mkdir(work_dir)
         # run 1st pass in the `ridft` directory
         ridft_dir = os.path.join(work_dir, 'ridft')
@@ -325,20 +344,16 @@ controlled with the ``--bas``, ``--jkbas``, ``--cbas`` and
         ridft_coord = os.path.join(ridft_dir, 'coord')
         gc3libs.utils.copyfile(coord, ridft_coord)
         ridft_define_in = self._make_define_in(ridft_dir, ridft_in)
-        gc3libs.log.info("Created RIDFT input files in directory '%s'",
-                         ridft_dir)
+        gc3libs.log.info("Created RIDFT input files in directory '%s'", ridft_dir)
         # proceeed with 2nd pass
         for ricc2_in in ricc2_ins:
             cbas = ricc2_in._keywords['CBAS_BASIS']
             cabs = ricc2_in._keywords['CABS_BASIS']
-            ricc2_dir = os.path.join(work_dir,
-                                     'cbas-%s/cabs-%s/ricc2' % (cbas, cabs))
+            ricc2_dir = os.path.join(work_dir, 'cbas-%s/cabs-%s/ricc2' % (cbas, cabs))
             gc3libs.utils.mkdir(ricc2_dir)
             gc3libs.utils.copyfile(ridft_coord, ricc2_dir)
             ricc2_define_in = self._make_define_in(ricc2_dir, ricc2_in)
-            gc3libs.log.info("Created RICC2 input files in directory '%s'",
-                             ricc2_dir)
-
+            gc3libs.log.info("Created RICC2 input files in directory '%s'", ricc2_dir)
 
     def main(self):
         coords = self._search_for_input_files(self.params.args)
@@ -350,20 +365,22 @@ controlled with the ``--bas``, ``--jkbas``, ``--cbas`` and
             name = os.path.basename(os.path.dirname(coord))
 
             ridft_define_in = Template(
-                RIDFT_DEFINE_IN, acceptable_ridft_basis_set,
+                RIDFT_DEFINE_IN,
+                acceptable_ridft_basis_set,
                 TITLE=name,
                 ORB_BASIS=self.params.bas,
                 RIJK_BASIS=self.params.jkbas,
-                RIDFT_MEMORY = [self.params.memory]
-                ) # end of RIDFT template
+                RIDFT_MEMORY=[self.params.memory],
+            )  # end of RIDFT template
 
             ricc2_define_in = Template(
-                RICC2_DEFINE_IN, acceptable_ricc2_basis_set,
+                RICC2_DEFINE_IN,
+                acceptable_ricc2_basis_set,
                 # the ORB_BASIS will be derived from the RIDFT_DEFINE_IN template
                 CBAS_BASIS=self.params.cbas,
                 CABS_BASIS=self.params.cabs,
-                RICC2_MEMORY = [self.params.memory],
-                ) # end of RICC2 template
+                RICC2_MEMORY=[self.params.memory],
+            )  # end of RICC2 template
 
             for ridft_in in expansions(ridft_define_in):
                 orb_basis = ridft_in._keywords['ORB_BASIS']
@@ -371,10 +388,9 @@ controlled with the ``--bas``, ``--jkbas``, ``--cbas`` and
                     coord,
                     ridft_in,
                     # ricc2_ins
-                    list(expansions(ricc2_define_in,
-                                    ORB_BASIS=orb_basis)),
-                    os.path.join(self.params.output_dir, name))
-
+                    list(expansions(ricc2_define_in, ORB_BASIS=orb_basis)),
+                    os.path.join(self.params.output_dir, name),
+                )
 
 
 # run script

@@ -33,23 +33,29 @@ try:
     import boto.exception
 except ImportError as err:
     from gc3libs.exceptions import ConfigurationError
+
     raise ConfigurationError(
         "The EC2 backend is used but the `boto` module"
         " cannot be used: {err}. Please, either install it with"
         "`pip install boto` and verify that it works"
         " by running `python -c 'import boto'`,"
         " then try again, or update your configuration file and"
-        " disable any EC2-based resources."
-        .format(err=err))
+        " disable any EC2-based resources.".format(err=err)
+    )
 
 import Crypto.PublicKey.DSA
 import Crypto.PublicKey.RSA
 
 # GC3Pie imports
 import gc3libs
-from gc3libs.exceptions import UnrecoverableError, \
-    ConfigurationError, MaximumCapacityReached, ResourceNotReady, \
-    UnrecoverableAuthError, TransportError
+from gc3libs.exceptions import (
+    UnrecoverableError,
+    ConfigurationError,
+    MaximumCapacityReached,
+    ResourceNotReady,
+    UnrecoverableAuthError,
+    TransportError,
+)
 import gc3libs.url
 from gc3libs import Run
 from gc3libs.utils import same_docstring_as, insert_char_every_n_chars
@@ -68,11 +74,11 @@ available_subresource_types = [gc3libs.Default.SHELLCMD_LRMS]
 # example Boto error message:
 # <Response><Errors><Error><Code>TooManyInstances</Code><Message>Quota exceeded for ram: Requested 8000, but already used 16000 of 16384 ram</Message></Error></Errors><RequestID>req-c219213b-88d2-42dc-a3ab-10ac80aa7df7</RequestID></Response>  # noqa
 #
-_BOTO_ERRMSG_RE = re.compile(r'<Code>(?P<code>[A-Za-z0-9]+)</Code>'
-                             '<Message>(?P<message>.*)</Message>', re.X)
+_BOTO_ERRMSG_RE = re.compile(r'<Code>(?P<code>[A-Za-z0-9]+)</Code>' '<Message>(?P<message>.*)</Message>', re.X)
 
 
 ## code
+
 
 class EC2VMPool(VMPool):
 
@@ -96,21 +102,17 @@ class EC2VMPool(VMPool):
                 raise UnrecoverableError(
                     "Error getting info on VM %s: EC2ResponseError/%s: %s"
                     % (vm_id, match.group('code'), match.group('message')),
-                    do_log=True)
+                    do_log=True,
+                )
             else:
                 # fall back to normal reporting...
-                raise UnrecoverableError(
-                    "Error getting VM %s: %s" % (vm_id, err),
-                    do_log=True)
+                raise UnrecoverableError("Error getting VM %s: %s" % (vm_id, err), do_log=True)
         if not reservations:
-            raise InstanceNotFound(
-                "No instance with id %s has been found." % vm_id)
+            raise InstanceNotFound("No instance with id %s has been found." % vm_id)
 
-        instances = dict((i.id, i) for i in reservations[0].instances
-                         if reservations)
+        instances = dict((i.id, i) for i in reservations[0].instances if reservations)
         if vm_id not in instances:
-            raise UnrecoverableError(
-                "No instance with id %s has been found." % vm_id)
+            raise UnrecoverableError("No instance with id %s has been found." % vm_id)
 
         return instances[vm_id]
 
@@ -120,21 +122,43 @@ class EC2Lrms(LRMS):
     """
     EC2 resource.
     """
+
     RESOURCE_DIR = '$HOME/.gc3/ec2.d'
 
-    def __init__(self, name,
-                 # these parameters are inherited from the `LRMS` class
-                 architecture, max_cores, max_cores_per_job,
-                 max_memory_per_core, max_walltime,
-                 # these are specific of the EC2Lrms class
-                 ec2_region, keypair_name, public_key, vm_auth,
-                 image_id=None, image_name=None, ec2_url=None,
-                 instance_type=None, auth=None, vm_pool_max_size=None,
-                 user_data=None, **extra_args):
+    def __init__(
+        self,
+        name,
+        # these parameters are inherited from the `LRMS` class
+        architecture,
+        max_cores,
+        max_cores_per_job,
+        max_memory_per_core,
+        max_walltime,
+        # these are specific of the EC2Lrms class
+        ec2_region,
+        keypair_name,
+        public_key,
+        vm_auth,
+        image_id=None,
+        image_name=None,
+        ec2_url=None,
+        instance_type=None,
+        auth=None,
+        vm_pool_max_size=None,
+        user_data=None,
+        **extra_args
+    ):
         LRMS.__init__(
-            self, name,
-            architecture, max_cores, max_cores_per_job,
-            max_memory_per_core, max_walltime, auth, **extra_args)
+            self,
+            name,
+            architecture,
+            max_cores,
+            max_cores_per_job,
+            max_memory_per_core,
+            max_walltime,
+            auth,
+            **extra_args
+        )
 
         self.free_slots = int(max_cores)
         self.user_run = 0
@@ -146,8 +170,8 @@ class EC2Lrms(LRMS):
                 self.vm_pool_max_size = int(self.vm_pool_max_size)
             except ValueError:
                 raise ConfigurationError(
-                    "Value for `vm_pool_max_size` must be an integer,"
-                    " was %s instead." % vm_pool_max_size)
+                    "Value for `vm_pool_max_size` must be an integer," " was %s instead." % vm_pool_max_size
+                )
 
         self.subresource_type = self.type.split('+', 1)[1]
         if self.subresource_type not in available_subresource_types:
@@ -167,17 +191,18 @@ class EC2Lrms(LRMS):
             raise gc3libs.exceptions.InvalidArgument(
                 "Cannot connect to the EC2 API:"
                 " No 'EC2_URL' environment variable defined,"
-                " and no 'ec2_url' argument passed to the EC2 backend.")
+                " and no 'ec2_url' argument passed to the EC2 backend."
+            )
         self.ec2_url = gc3libs.url.Url(ec2_url)
 
         # Keypair names can only contain alphanumeric chars!
         if re.match(r'.*\W.*', keypair_name):
             raise ConfigurationError(
                 "Keypair name `%s` is invalid: keypair names can only contain "
-                "alphanumeric chars: [a-zA-Z0-9_]" % keypair_name)
+                "alphanumeric chars: [a-zA-Z0-9_]" % keypair_name
+            )
         self.keypair_name = keypair_name
-        self.public_key = os.path.expanduser(
-            os.path.expandvars(public_key.strip()))
+        self.public_key = os.path.expanduser(os.path.expandvars(public_key.strip()))
         self.image_id = image_id
         self.image_name = image_name
         self.instance_type = instance_type
@@ -193,8 +218,7 @@ class EC2Lrms(LRMS):
         self.subresource_args['architecture'] = self['architecture']
         self.subresource_args['max_cores'] = self['max_cores']
         self.subresource_args['max_cores_per_job'] = self['max_cores_per_job']
-        self.subresource_args['max_memory_per_core'] = \
-            self['max_memory_per_core']
+        self.subresource_args['max_memory_per_core'] = self['max_memory_per_core']
         self.subresource_args['max_walltime'] = self['max_walltime']
         # SSH-specific configuration
         self.subresource_args['transport'] = 'ssh'
@@ -203,8 +227,7 @@ class EC2Lrms(LRMS):
         self.subresource_args['ignore_ssh_host_keys'] = True
         self.subresource_args['keyfile'] = self.public_key
         if self.subresource_args['keyfile'].endswith('.pub'):
-            self.subresource_args['keyfile'] = \
-              self.subresource_args['keyfile'][:-len('.pub')]
+            self.subresource_args['keyfile'] = self.subresource_args['keyfile'][: -len('.pub')]
         # ShellcmdLrms by default trusts the configuration, instead of
         # checking the real amount of memory and number of cpus, but
         # we need the real values instead.
@@ -212,9 +235,7 @@ class EC2Lrms(LRMS):
             self.subresource_args['override'] = 'True'
 
         if not image_name and not image_id:
-            raise ConfigurationError(
-                "No `image_id` or `image_name` has been specified in the"
-                " configuration file.")
+            raise ConfigurationError("No `image_id` or `image_name` has been specified in the" " configuration file.")
 
     def _connect(self):
         """
@@ -224,16 +245,10 @@ class EC2Lrms(LRMS):
         if self._conn is not None:
             return
 
-        args = {
-            'aws_access_key_id': self.ec2_access_key,
-            'aws_secret_access_key': self.ec2_secret_key,
-        }
+        args = {'aws_access_key_id': self.ec2_access_key, 'aws_secret_access_key': self.ec2_secret_key}
 
         if self.ec2_url:
-            region = boto.ec2.regioninfo.RegionInfo(
-                name=self.region,
-                endpoint=self.ec2_url.hostname,
-            )
+            region = boto.ec2.regioninfo.RegionInfo(name=self.region, endpoint=self.ec2_url.hostname)
             args['region'] = region
             args['port'] = self.ec2_url.port
             args['host'] = self.ec2_url.hostname
@@ -244,8 +259,7 @@ class EC2Lrms(LRMS):
         self._conn = boto.connect_ec2(**args)
         # Set up the VMPool persistent class. This has been delayed
         # until here because otherwise self._conn is None
-        pooldir = os.path.join(os.path.expandvars(EC2Lrms.RESOURCE_DIR),
-                               'vmpool', self.name)
+        pooldir = os.path.join(os.path.expandvars(EC2Lrms.RESOURCE_DIR), 'vmpool', self.name)
         self._vmpool = EC2VMPool(pooldir, self._conn)
 
         try:
@@ -256,28 +270,28 @@ class EC2Lrms(LRMS):
                 raise RuntimeError(
                     "Unable to contact the EC2 endpoint at `%s`. Please, "
                     "verify that the URL in the configuration file is "
-                    "correct." % (self.ec2_url,))
-            raise RuntimeError(
-                "Unknown error while connecting to the EC2 endpoint `%s`: "
-                "%s" % (self.ec2_url, ex))
+                    "correct." % (self.ec2_url,)
+                )
+            raise RuntimeError("Unknown error while connecting to the EC2 endpoint `%s`: " "%s" % (self.ec2_url, ex))
         if self.image_id:
             if self.image_id not in [i.id for i in all_images]:
                 raise RuntimeError(
                     "Image with id `%s` not found. Please specify a valid"
-                    " image name or image id in the configuration file."
-                    % self.image_id)
+                    " image name or image id in the configuration file." % self.image_id
+                )
         else:
             images = [i for i in all_images if i.name == self.image_name]
             if not images:
                 raise RuntimeError(
                     "Image with name `%s` not found. Please specify a valid"
-                    " image name or image id in the configuration file."
-                    % self.image_name)
+                    " image name or image id in the configuration file." % self.image_name
+                )
             elif len(images) != 1:
                 raise RuntimeError(
                     "Multiple images found with name `%s`: %s"
                     " Please specify an unique image id in configuration"
-                    " file." % (self.image_name, [i.id for i in images]))
+                    " file." % (self.image_name, [i.id for i in images])
+                )
             self.image_id = images[0].id
 
     def _create_instance(self, image_id, instance_type=None, user_data=None):
@@ -291,11 +305,7 @@ class EC2Lrms(LRMS):
         """
         self._connect()
 
-        args = {
-            'key_name': self.keypair_name,
-            'min_count': 1,
-            'max_count': 1
-        }
+        args = {'key_name': self.keypair_name, 'min_count': 1, 'max_count': 1}
         if instance_type:
             args['instance_type'] = instance_type
 
@@ -306,8 +316,8 @@ class EC2Lrms(LRMS):
         keypairs = dict((k.name, k) for k in self._conn.get_all_key_pairs())
         if self.keypair_name not in keypairs:
             gc3libs.log.info(
-                "Keypair `%s` not found: creating it using public key `%s`"
-                % (self.keypair_name, self.public_key))
+                "Keypair `%s` not found: creating it using public key `%s`" % (self.keypair_name, self.public_key)
+            )
             # Create keypair if it does not exist and give an error if it
             # exists but have different fingerprint
             self._import_keypair()
@@ -334,8 +344,8 @@ class EC2Lrms(LRMS):
             match = _BOTO_ERRMSG_RE.search(str(err))
             if match:
                 raise UnrecoverableError(
-                    "Error starting instance: EC2ResponseError/%s: %s"
-                    % (match.group('code'), match.group('message')))
+                    "Error starting instance: EC2ResponseError/%s: %s" % (match.group('code'), match.group('message'))
+                )
             else:
                 # fall back to normal reporting...
                 raise UnrecoverableError("Error starting instance: %s" % err)
@@ -343,9 +353,7 @@ class EC2Lrms(LRMS):
             raise UnrecoverableError("Error starting instance: %s" % ex)
         vm = reservation.instances[0]
         self._vmpool.add_vm(vm)
-        gc3libs.log.info(
-            "VM with id `%s` has been created and is in %s state.",
-            vm.id, vm.state)
+        gc3libs.log.info("VM with id `%s` has been created and is in %s state.", vm.id, vm.state)
         return vm
 
     def _get_subresource(self, vm):
@@ -356,8 +364,7 @@ class EC2Lrms(LRMS):
 
         """
         if vm.id not in self.subresources:
-            self.subresources[vm.id] = self._make_subresource(
-                vm.id, vm.preferred_ip)
+            self.subresources[vm.id] = self._make_subresource(vm.id, vm.preferred_ip)
         return self.subresources[vm.id]
 
     def _get_vm(self, vm_id):
@@ -379,12 +386,10 @@ class EC2Lrms(LRMS):
         because that's the way the fingerprint is returned from the
         EC2 API.
         """
-        return ':'.join((i.encode('hex')
-                              for i in privkey.get_fingerprint()))
+        return ':'.join((i.encode('hex') for i in privkey.get_fingerprint()))
 
     @staticmethod
-    def __pubkey_aws_fingerprint(privkeypath,
-                                 reader=Crypto.PublicKey.RSA.importKey):
+    def __pubkey_aws_fingerprint(privkeypath, reader=Crypto.PublicKey.RSA.importKey):
         """
         Compute SSH public key fingerprint like AWS EC2 does.
 
@@ -397,8 +402,7 @@ class EC2Lrms(LRMS):
         """
         with open(privkeypath, 'r') as keydata:
             pubkey = reader(keydata).publickey()
-            return insert_char_every_n_chars(
-                hashlib.md5(pubkey.exportKey('DER')).hexdigest(), ':', 2)
+            return insert_char_every_n_chars(hashlib.md5(pubkey.exportKey('DER')).hexdigest(), ':', 2)
 
     def _have_keypair(self, ec2_key):
         """
@@ -411,10 +415,7 @@ class EC2Lrms(LRMS):
         # try with SSH agent first
         gc3libs.log.debug("Checking if keypair is registered in SSH agent...")
         agent = paramiko.Agent()
-        fingerprints_from_agent = [
-            self.__pubkey_ssh_fingerprint(privkey)
-            for privkey in agent.get_keys()
-        ]
+        fingerprints_from_agent = [self.__pubkey_ssh_fingerprint(privkey) for privkey in agent.get_keys()]
         if ec2_key.fingerprint in fingerprints_from_agent:
             gc3libs.log.debug("Found remote key fingerprint in SSH agent.")
             return True
@@ -428,24 +429,19 @@ class EC2Lrms(LRMS):
                 "Option `public_key` in configuration file should contain"
                 " the path to a public key file (with `.pub` ending),"
                 " but `%s` was found instead. Continuing anyway.",
-                self.public_key)
+                self.public_key,
+            )
 
         privkey = None
         local_fingerprints = []
         for format, privkey_reader, pubkey_reader in [
-                ('DSS', paramiko.DSSKey.from_private_key_file,
-                 Crypto.PublicKey.DSA.importKey),
-                ('RSA', paramiko.RSAKey.from_private_key_file,
-                 Crypto.PublicKey.RSA.importKey),
+            ('DSS', paramiko.DSSKey.from_private_key_file, Crypto.PublicKey.DSA.importKey),
+            ('RSA', paramiko.RSAKey.from_private_key_file, Crypto.PublicKey.RSA.importKey),
         ]:
             try:
-                gc3libs.log.debug(
-                    "Trying to load key file `%s` as SSH %s key...",
-                    keyfile, format)
+                gc3libs.log.debug("Trying to load key file `%s` as SSH %s key...", keyfile, format)
                 privkey = privkey_reader(keyfile)
-                gc3libs.log.info(
-                    "Successfully loaded key file `%s` as SSH %s key.",
-                    keyfile, format)
+                gc3libs.log.info("Successfully loaded key file `%s` as SSH %s key.", keyfile, format)
                 # compute public key fingerprints, for comparing them
                 # with the remote one
                 localkey_fingerprints = [
@@ -465,32 +461,27 @@ class EC2Lrms(LRMS):
                     "Key %s is encripted with a password, so we cannot check "
                     " if it matches the remote keypair (maybe you should"
                     " start `ssh-agent`?). Continuing without consistency"
-                    " check with remote fingerprint.", keyfile)
+                    " check with remote fingerprint.",
+                    keyfile,
+                )
                 return False
             except paramiko.SSHException as ex:
-                gc3libs.log.debug(
-                    "File `%s` is not a valid %s private key: %s",
-                    keyfile, format, ex)
+                gc3libs.log.debug("File `%s` is not a valid %s private key: %s", keyfile, format, ex)
                 # try with next format
                 continue
         if privkey is None:
-            raise ValueError("Public key `%s` is neither a valid"
-                             " RSA key nor a DSS key" % self.public_key)
+            raise ValueError("Public key `%s` is neither a valid" " RSA key nor a DSS key" % self.public_key)
 
         # check key fingerprint
-        if (local_fingerprints
-                and ec2_key.fingerprint not in localkey_fingerprints):
+        if local_fingerprints and ec2_key.fingerprint not in localkey_fingerprints:
             raise UnrecoverableAuthError(
                 "Keypair `%s` exists but has different fingerprint than"
                 " local one: local public key file `%s` has fingerprint(s)"
                 " `%s`, whereas EC2 API reports fingerprint `%s`."
-                " Aborting!" % (
-                    self.public_key,
-                    self.keypair_name,
-                    '/'.join(localkey_fingerprints),
-                    ec2_key.fingerprint,
-                ),
-                do_log=True)
+                " Aborting!"
+                % (self.public_key, self.keypair_name, '/'.join(localkey_fingerprints), ec2_key.fingerprint),
+                do_log=True,
+            )
 
     def _import_keypair(self):
         """
@@ -500,25 +491,22 @@ class EC2Lrms(LRMS):
         with open(os.path.expanduser(self.public_key)) as fd:
             try:
                 key_material = fd.read()
-                imported_key = self._conn.import_key_pair(
-                    self.keypair_name, key_material)
+                imported_key = self._conn.import_key_pair(self.keypair_name, key_material)
                 gc3libs.log.info(
-                    "Successfully imported key `%s`"
-                    " with fingerprint `%s` as keypair `%s`",
-                    imported_key.name, imported_key.fingerprint,
-                    self.keypair_name)
+                    "Successfully imported key `%s`" " with fingerprint `%s` as keypair `%s`",
+                    imported_key.name,
+                    imported_key.fingerprint,
+                    self.keypair_name,
+                )
             except Exception as ex:
-                raise UnrecoverableError("Error importing keypair %s: %s"
-                                         % (self.keypair_name, ex))
+                raise UnrecoverableError("Error importing keypair %s: %s" % (self.keypair_name, ex))
 
     def _make_subresource(self, id, remote_ip):
         """
         Create a resource associated to the instance with `remote_ip`
         ip using configuration file parameters.
         """
-        gc3libs.log.debug(
-            "Creating remote ShellcmdLrms resource for IP address %s",
-            remote_ip)
+        gc3libs.log.debug("Creating remote ShellcmdLrms resource for IP address %s", remote_ip)
         args = self.subresource_args.copy()
         args['frontend'] = remote_ip
         args['name'] = "%s@%s" % (id, self.name)
@@ -534,15 +522,16 @@ class EC2Lrms(LRMS):
         for rule in rules:
             rulesplit = rule.strip().split(':')
             if len(rulesplit) != 4:
-                gc3libs.log.warning("Invalid rule specification in"
-                                    " `security_group_rules`: %s" % rule)
+                gc3libs.log.warning("Invalid rule specification in" " `security_group_rules`: %s" % rule)
                 continue
-            self.security_group_rules.append({
-                'ip_protocol': rulesplit[0],
-                'from_port': int(rulesplit[1]),
-                'to_port': int(rulesplit[2]),
-                'cidr_ip': rulesplit[3],
-            })
+            self.security_group_rules.append(
+                {
+                    'ip_protocol': rulesplit[0],
+                    'from_port': int(rulesplit[1]),
+                    'to_port': int(rulesplit[2]),
+                    'cidr_ip': rulesplit[3],
+                }
+            )
 
     def _setup_security_groups(self):
         """
@@ -550,53 +539,48 @@ class EC2Lrms(LRMS):
         if it does not exist.
         """
         if not self.security_group_name:
-            gc3libs.log.error("Group name in `security_group_name`"
-                              " configuration option cannot be empty!")
+            gc3libs.log.error("Group name in `security_group_name`" " configuration option cannot be empty!")
             return
         security_groups = self._conn.get_all_security_groups()
         groups = dict((g.name, g) for g in security_groups)
         # Check if the security group exists already
         if self.security_group_name not in groups:
             try:
-                gc3libs.log.info("Creating security group %s",
-                                 self.security_group_name)
+                gc3libs.log.info("Creating security group %s", self.security_group_name)
                 security_group = self._conn.create_security_group(
-                    self.security_group_name,
-                    "GC3Pie_%s" % self.security_group_name)
+                    self.security_group_name, "GC3Pie_%s" % self.security_group_name
+                )
             except Exception as ex:
-                gc3libs.log.error("Error creating security group %s: %s",
-                                  self.security_group_name, ex)
-                raise UnrecoverableError(
-                    "Error creating security group %s: %s"
-                    % (self.security_group_name, ex))
+                gc3libs.log.error("Error creating security group %s: %s", self.security_group_name, ex)
+                raise UnrecoverableError("Error creating security group %s: %s" % (self.security_group_name, ex))
 
             for rule in self.security_group_rules:
                 try:
-                    gc3libs.log.debug(
-                        "Adding rule %s to security group %s.",
-                        rule, self.security_group_name)
+                    gc3libs.log.debug("Adding rule %s to security group %s.", rule, self.security_group_name)
                     security_group.authorize(**rule)
                 except Exception as ex:
                     if gc3libs.error_ignored(
-                            # context:
-                            # - module
-                            'ec2',
-                            # - class
-                            'EC2Lrms',
-                            # - method
-                            'setup_security_groups',
-                            # - actual error class
-                            ex.__class__.__name__,
-                            # - additional keywords
-                            'setup',
-                            'security',
-                            'network',
-                            'cloud',
+                        # context:
+                        # - module
+                        'ec2',
+                        # - class
+                        'EC2Lrms',
+                        # - method
+                        'setup_security_groups',
+                        # - actual error class
+                        ex.__class__.__name__,
+                        # - additional keywords
+                        'setup',
+                        'security',
+                        'network',
+                        'cloud',
                     ):
                         gc3libs.log.info(
-                            "Ignoring error adding rule %s"
-                            " to security group %s: %s",
-                            rule, self.security_group_name, ex)
+                            "Ignoring error adding rule %s" " to security group %s: %s",
+                            rule,
+                            self.security_group_name,
+                            ex,
+                        )
                     else:
                         # propagate exception to caller
                         raise
@@ -673,8 +657,8 @@ class EC2Lrms(LRMS):
                 vm = self._vmpool.get_vm(vm_id)
             except UnrecoverableError as ex:
                 gc3libs.log.warning(
-                    "Removing stale information on VM `%s`. It has probably"
-                    " been deleted from outside GC3Pie.", vm_id)
+                    "Removing stale information on VM `%s`. It has probably" " been deleted from outside GC3Pie.", vm_id
+                )
                 self._vmpool.remove_vm(vm_id)
                 continue
 
@@ -685,23 +669,21 @@ class EC2Lrms(LRMS):
                 continue
             elif vm.state == 'error':
                 # The VM is in error state: exit.
-                gc3libs.log.error(
-                    "VM with id `%s` is in ERROR state."
-                    " Terminating it!", vm.id)
+                gc3libs.log.error("VM with id `%s` is in ERROR state." " Terminating it!", vm.id)
                 vm.terminate()
                 self._vmpool.remove_vm(vm.id)
             elif vm.state == 'terminated':
                 gc3libs.log.info(
                     "VM `%s` in TERMINATED state. It has probably been"
                     " terminated from outside GC3Pie. Removing it from the"
-                    " list of VM.", vm.id)
+                    " list of VM.",
+                    vm.id,
+                )
                 self._vmpool.remove_vm(vm.id)
             elif vm.state in ['shutting-down', 'stopped']:
                 # The VM has probably ben stopped or shut down from
                 # outside GC3Pie.
-                gc3libs.log.error(
-                    "VM with id `%s` is in terminal state `%s`.",
-                    vm.id, vm.state)
+                gc3libs.log.error("VM with id `%s` is in terminal state `%s`.", vm.id, vm.state)
 
             # Get or create a resource associated to the vm
             resource = self._get_subresource(vm)
@@ -713,9 +695,7 @@ class EC2Lrms(LRMS):
                         continue
                     vm.preferred_ip = ip
                     resource.frontend = ip
-                    gc3libs.log.info(
-                        "Connection error. Trying with secondary IP"
-                        " address %s", vm.preferred_ip)
+                    gc3libs.log.info("Connection error. Trying with secondary IP" " address %s", vm.preferred_ip)
                     try:
                         resource.get_resource_status()
                         break
@@ -726,9 +706,10 @@ class EC2Lrms(LRMS):
                         # not booted up yet or if we're hunting for the correct
                         # address.
                         gc3libs.log.debug(
-                            "Ignoring error in updating resource %s: %s"
-                            " The corresponding VM may not be ready yet.",
-                            resource.name, ex)
+                            "Ignoring error in updating resource %s: %s" " The corresponding VM may not be ready yet.",
+                            resource.name,
+                            ex,
+                        )
             except Exception as ex:
                 # FIXME: Actually, we should try to identify the kind of
                 # error we are getting. For instance, if the
@@ -737,22 +718,23 @@ class EC2Lrms(LRMS):
                 # to them, thus causing an increasing number of
                 # useless VMs created on the cloud.
                 if gc3libs.error_ignored(
-                        # context:
-                        # - module
-                        'ec2',
-                        # - class
-                        'EC2Lrms',
-                        # - method
-                        'get_resource_status',
-                        # - actual error class
-                        ex.__class__.__name__,
-                        # - additional keywords
-                        'vm',
+                    # context:
+                    # - module
+                    'ec2',
+                    # - class
+                    'EC2Lrms',
+                    # - method
+                    'get_resource_status',
+                    # - actual error class
+                    ex.__class__.__name__,
+                    # - additional keywords
+                    'vm',
                 ):
                     gc3libs.log.info(
-                        "Ignoring error in updating resource %s: %s"
-                        "The corresponding VM may not be ready yet.",
-                        resource.name, ex)
+                        "Ignoring error in updating resource %s: %s" "The corresponding VM may not be ready yet.",
+                        resource.name,
+                        ex,
+                    )
                 else:
                     # propagate exception to caller
                     raise
@@ -771,30 +753,29 @@ class EC2Lrms(LRMS):
         return self
 
     @same_docstring_as(LRMS.get_results)
-    def get_results(self, app, download_dir, overwrite=False,
-                    changed_only=True):
+    def get_results(self, app, download_dir, overwrite=False, changed_only=True):
         subresource = self._get_subresource(self._get_vm(app.execution._lrms_vm_id))
-        return subresource.get_results(app, download_dir,
-                                       overwrite=overwrite,
-                                       changed_only=changed_only)
+        return subresource.get_results(app, download_dir, overwrite=overwrite, changed_only=changed_only)
 
     @same_docstring_as(LRMS.update_job_state)
     def update_job_state(self, app):
         if app.execution._lrms_vm_id not in self.subresources:
             try:
                 self.subresources[app.execution._lrms_vm_id] = self._get_subresource(
-                    self._get_vm(app.execution._lrms_vm_id))
+                    self._get_vm(app.execution._lrms_vm_id)
+                )
             except InstanceNotFound as ex:
                 gc3libs.log.error(
-                    "Changing state of task '%s' to TERMINATED since EC2 "
-                    "instance '%s' does not exist anymore.",
-                    app.execution.lrms_jobid, app.execution._lrms_vm_id)
+                    "Changing state of task '%s' to TERMINATED since EC2 " "instance '%s' does not exist anymore.",
+                    app.execution.lrms_jobid,
+                    app.execution._lrms_vm_id,
+                )
                 app.execution.state = Run.State.TERMINATED
                 raise ex
             except UnrecoverableError as ex:
                 gc3libs.log.error(
-                    "Changing state of task '%s' to UNKNOWN because of "
-                    "an EC2 error.", app.execution.lrms_jobid)
+                    "Changing state of task '%s' to UNKNOWN because of " "an EC2 error.", app.execution.lrms_jobid
+                )
                 app.execution.state = Run.State.UNKNOWN
                 raise ex
 
@@ -840,8 +821,7 @@ class EC2Lrms(LRMS):
         #     https://github.com/uzh/gc3pie/issues/386
         self.get_resource_status()
 
-        pending_vms = set(vm.id for vm in self._vmpool.get_all_vms()
-                          if vm.state == 'pending')
+        pending_vms = set(vm.id for vm in self._vmpool.get_all_vms() if vm.state == 'pending')
 
         image_id = self.get_image_id_for_job(job)
         instance_type = self.get_instance_type_for_job(job)
@@ -851,14 +831,13 @@ class EC2Lrms(LRMS):
             specs = self._instance_type_specs
             max_mem = specs['max_memory_per_core']
             max_cpus = specs['max_cores_per_job']
-            if (job.requested_memory is not None and
-                job.requested_memory > max_mem) \
-                or (job.requested_cores is not None and
-                    job.requested_cores > max_cpus):
+            if (job.requested_memory is not None and job.requested_memory > max_mem) or (
+                job.requested_cores is not None and job.requested_cores > max_cpus
+            ):
                 raise gc3libs.exceptions.LRMSSubmitError(
                     "EC2 flavor %s does not have enough memory/cpus "
-                    "to run application %s" % (
-                        self.instance_type, job.jobname))
+                    "to run application %s" % (self.instance_type, job.jobname)
+                )
 
         # First of all, try to submit to one of the subresources.
         for vm_id, resource in list(self.subresources.items()):
@@ -871,33 +850,28 @@ class EC2Lrms(LRMS):
                 # Check that the required image id and instance type
                 # are correct
                 vm = self._get_vm(vm_id)
-                if (vm.image_id != image_id
-                        or vm.instance_type != instance_type):
+                if vm.image_id != image_id or vm.instance_type != instance_type:
                     continue
                 resource.submit_job(job)
                 job.execution._lrms_vm_id = vm_id
                 job.changed = True
-                gc3libs.log.info(
-                    "Job successfully submitted to remote resource %s.",
-                    resource.name)
+                gc3libs.log.info("Job successfully submitted to remote resource %s.", resource.name)
                 return job
             except gc3libs.exceptions.LRMSSubmitError as ex:
                 if gc3libs.error_ignored(
-                        # context:
-                        # - module
-                        'ec2',
-                        # - class
-                        'EC2Lrms',
-                        # - method
-                        'submit_job',
-                        # - actual error class
-                        ex.__class__.__name__,
-                        # - additional keywords
-                        'submit',
+                    # context:
+                    # - module
+                    'ec2',
+                    # - class
+                    'EC2Lrms',
+                    # - method
+                    'submit_job',
+                    # - actual error class
+                    ex.__class__.__name__,
+                    # - additional keywords
+                    'submit',
                 ):
-                    gc3libs.log.debug(
-                        "Ignoring error in submitting to resource %s: %s. ",
-                        resource.name, ex)
+                    gc3libs.log.debug("Ignoring error in submitting to resource %s: %s. ", resource.name, ex)
                 else:
                     # propagate exception to caller
                     raise
@@ -905,12 +879,9 @@ class EC2Lrms(LRMS):
         # Couldn't submit to any resource.
         if not pending_vms:
             # No pending VM, and no resource available. Create a new VM
-            if not self.vm_pool_max_size \
-                    or len(self._vmpool) < self.vm_pool_max_size:
+            if not self.vm_pool_max_size or len(self._vmpool) < self.vm_pool_max_size:
                 user_data = self.get_user_data_for_job(job)
-                vm = self._create_instance(image_id,
-                                           instance_type=instance_type,
-                                           user_data=user_data)
+                vm = self._create_instance(image_id, instance_type=instance_type, user_data=user_data)
                 pending_vms.add(vm.id)
 
                 self._vmpool.add_vm(vm)
@@ -919,7 +890,8 @@ class EC2Lrms(LRMS):
                     "Already running the maximum number of VM on resource %s:"
                     " %d VMs started, but max %d allowed by configuration."
                     % (self.name, len(self._vmpool), self.vm_pool_max_size),
-                    do_log=True)
+                    do_log=True,
+                )
 
         # If we reached this point, we are waiting for a VM to be
         # ready, so delay the submission until we wither can submit to
@@ -928,15 +900,17 @@ class EC2Lrms(LRMS):
         gc3libs.log.debug(
             "No available resource was found, but some VM is still in"
             " `pending` state. Waiting until the next iteration before"
-            " creating a new VM. Pending VM ids: %s", pending_vms)
+            " creating a new VM. Pending VM ids: %s",
+            pending_vms,
+        )
         raise ResourceNotReady(
             "Delaying submission until one of the VMs currently pending"
-            " is ready. (Pending VM ids: %r)" % (pending_vms,))
+            " is ready. (Pending VM ids: %r)" % (pending_vms,)
+        )
 
     @same_docstring_as(LRMS.peek)
     def peek(self, app, remote_filename, local_file, offset=0, size=None):
-        resource = self._get_subresource(
-            self._get_vm(app.execution._lrms_vm_id))
+        resource = self._get_subresource(self._get_vm(app.execution._lrms_vm_id))
         return resource.peek(app, remote_filename, local_file, offset, size)
 
     def validate_data(self, data_file_list=None):
@@ -976,8 +950,7 @@ class EC2Lrms(LRMS):
         if not resource.has_running_tasks():
             # turn VM off
             vm = self._get_vm(app.execution._lrms_vm_id)
-            gc3libs.log.info("VM instance %s at %s is no longer needed."
-                             " Terminating.", vm.id, vm.public_dns_name)
+            gc3libs.log.info("VM instance %s at %s is no longer needed." " Terminating.", vm.id, vm.public_dns_name)
             del self.subresources[vm.id]
             vm.terminate()
             del self._vmpool[vm.id]
@@ -985,8 +958,7 @@ class EC2Lrms(LRMS):
 
     @same_docstring_as(LRMS.close)
     def close(self):
-        gc3libs.log.info("Closing connection to cloud '%s'...",
-                         self.name)
+        gc3libs.log.info("Closing connection to cloud '%s'...", self.name)
         if self._conn is None and not self.enabled:
             # The resources was most probably disabled by command
             # line. We didn't update it before, so we don't care about
@@ -998,9 +970,10 @@ class EC2Lrms(LRMS):
             if resource.updated and not resource.has_running_tasks():
                 vm = self._get_vm(vm_id)
                 gc3libs.log.warning(
-                    "VM instance %s at %s is no longer needed. "
-                    "You may need to terminate it manually.",
-                    vm.id, vm.public_dns_name)
+                    "VM instance %s at %s is no longer needed. " "You may need to terminate it manually.",
+                    vm.id,
+                    vm.public_dns_name,
+                )
                 del self._vmpool[vm.id]
             resource.close()
         # self._session.save_all()
@@ -1010,5 +983,5 @@ class EC2Lrms(LRMS):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="ec2",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="ec2", optionflags=doctest.NORMALIZE_WHITESPACE)

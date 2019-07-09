@@ -19,6 +19,7 @@
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 import os
@@ -107,10 +108,7 @@ class VMPool(object):
     def __getstate__(self):
         # only save path and list of IDs, the rest can be
         # reconstructed from these two (see `__setstate__`)
-        return dict(
-            path=self.path,
-            _vm_ids=self._vm_ids,
-        )
+        return dict(path=self.path, _vm_ids=self._vm_ids)
 
     def __iter__(self):
         """
@@ -142,8 +140,7 @@ class VMPool(object):
         """
         if not hasattr(vm, 'preferred_ip'):
             vm.preferred_ip = ''
-        gc3libs.utils.write_contents(
-            os.path.join(self.path, vm.id), vm.preferred_ip)
+        gc3libs.utils.write_contents(os.path.join(self.path, vm.id), vm.preferred_ip)
         self._vm_ids.add(vm.id)
         if cache:
             self._vm_cache[vm.id] = vm
@@ -175,8 +172,8 @@ class VMPool(object):
         a VM id and return an instance object.
         """
         raise NotImplementedError(
-            "Abstract method `VMPool._get_instance()` called "
-            "- this should have been defined in a derived class.")
+            "Abstract method `VMPool._get_instance()` called " "- this should have been defined in a derived class."
+        )
 
     def get_vm(self, vm_id, force_reload=False):
         """
@@ -192,14 +189,12 @@ class VMPool(object):
 
         # XXX: should this be an `assert` instead?
         if not self.conn:
-            raise UnrecoverableError(
-                "No connection set for `VMPool('%s')`" % self.path)
+            raise UnrecoverableError("No connection set for `VMPool('%s')`" % self.path)
 
         vm = self._get_instance(vm_id)
         if not hasattr(vm, 'preferred_ip'):
             # read from file
-            vm.preferred_ip = gc3libs.utils.read_contents(
-                os.path.join(self.path, vm.id))
+            vm.preferred_ip = gc3libs.utils.read_contents(os.path.join(self.path, vm.id))
         self._vm_cache[vm_id] = vm
         if vm_id not in self._vm_ids:
             self._vm_ids.add(vm_id)
@@ -217,22 +212,18 @@ class VMPool(object):
             except UnrecoverableError as ex:
                 gc3libs.log.warning(
                     "Cloud resource `%s`: ignoring error while trying to "
-                    "get information on VM wiht id `%s`: %s"
-                    % (self.name, vm_id, ex))
+                    "get information on VM wiht id `%s`: %s" % (self.name, vm_id, ex)
+                )
         return vms
 
     def load(self):
         """Populate list of VM IDs from the data saved on disk."""
-        self._vm_ids = set([
-            entry for entry in os.listdir(self.path)
-            if not entry.startswith('.')
-        ])
+        self._vm_ids = set([entry for entry in os.listdir(self.path) if not entry.startswith('.')])
 
     def save(self):
         """Ensure all VM IDs will be found by the next `load()` call."""
         for vm_id in self._vm_ids:
-            gc3libs.utils.write_contents(os.path.join(self.path, vm_id),
-                                         self.get_vm(vm_id).preferred_ip)
+            gc3libs.utils.write_contents(os.path.join(self.path, vm_id), self.get_vm(vm_id).preferred_ip)
 
     def update(self, remove=False):
         """
@@ -241,10 +232,7 @@ class VMPool(object):
         If optional argument `remove` is true, then remove VMs whose
         ID is no longer present in the on-disk storage.
         """
-        ids_on_disk = set([
-            entry for entry in os.listdir(self.path)
-            if not entry.startswith('.')
-        ])
+        ids_on_disk = set([entry for entry in os.listdir(self.path) if not entry.startswith('.')])
         added = ids_on_disk - self._vm_ids
         for vm_id in added:
             self._vm_ids.add(vm_id)
@@ -259,5 +247,5 @@ class VMPool(object):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="vmpool",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="vmpool", optionflags=doctest.NORMALIZE_WHITESPACE)

@@ -46,8 +46,7 @@ def main():
     # use docstrings for providing help to users,
     # so complain if they were removed by excessive optimization
     if __doc__ is None:
-        sys.stderr.write(
-            "%s does not support python -OO; aborting now.\n" % PROG)
+        sys.stderr.write("%s does not support python -OO; aborting now.\n" % PROG)
         sys.exit(2)
 
     # ensure we run on a supported Python version
@@ -67,8 +66,9 @@ def main():
                     os.execvp(python, [python] + sys.argv)
                 except OSError:
                     pass
-        sys.stderr.write("%s: error: cannot find a suitable python interpreter"
-                         " (need %d.%d or later)" % (PROG, NEED_VERS))
+        sys.stderr.write(
+            "%s: error: cannot find a suitable python interpreter" " (need %d.%d or later)" % (PROG, NEED_VERS)
+        )
         return 1
     if hasattr(os, "unsetenv"):
         os.unsetenv(REINVOKE)
@@ -104,8 +104,8 @@ def main():
             '  could not set the application locale.\n'
             '  This might cause problems with some commands.\n'
             '  To investigate the issue, look at the output\n'
-            '  of the locale(1p) tool available on POSIX systems.\n'
-            % (PROG, e))
+            '  of the locale(1p) tool available on POSIX systems.\n' % (PROG, e)
+        )
 
     if PROG == 'gc3utils':
         # the real command name is the first non-option argument
@@ -120,7 +120,8 @@ def main():
 
         # no command name found, print usage text and exit
         if PROG == 'gc3utils':
-            sys.stderr.write("""Usage: gc3utils COMMAND [options]
+            sys.stderr.write(
+                """Usage: gc3utils COMMAND [options]
 
 Command `gc3utils` is a unified front-end to computing resources.
 You can get more help on a specific sub-command by typing::
@@ -128,21 +129,22 @@ You can get more help on a specific sub-command by typing::
   gc3utils COMMAND --help
 
 where command is one of these:
-""")
+"""
+            )
             import gc3utils.commands
-            for cmd in [sym[5:] for sym in dir(gc3utils.commands)
-                        if sym.startswith("cmd_")]:
+
+            for cmd in [sym[5:] for sym in dir(gc3utils.commands) if sym.startswith("cmd_")]:
                 sys.stderr.write('  ' + cmd + '\n')
             return 1
 
     # find command as function in the `commands.py` module
     PROG.replace('-', '_')
     import gc3utils.commands
+
     try:
         cmd = getattr(gc3utils.commands, 'cmd_' + PROG)
     except AttributeError:
-        sys.stderr.write(
-            "Cannot find command '%s' in gc3utils; aborting now.\n" % PROG)
+        sys.stderr.write("Cannot find command '%s' in gc3utils; aborting now.\n" % PROG)
         return 1
     rc = cmd().run()  # (*sys.argv[1:])
     return rc

@@ -20,10 +20,21 @@ Deal with GC3Pie configuration files.
 #
 from __future__ import absolute_import, print_function, unicode_literals
 
+import inspect
+import os
+import re
+from builtins import str, zip
+from collections import defaultdict
+
+# GC3Pie imports
+import gc3libs
+import gc3libs.authentication
+import gc3libs.utils
 from future import standard_library
+from gc3libs.quantity import GB, MB, Duration, Memory, MiB, hours
+from gc3libs.utils import defproperty
+
 standard_library.install_aliases()
-from builtins import zip
-from builtins import str
 
 # stdlib imports
 try:
@@ -32,18 +43,6 @@ try:
 except ImportError:
     # Python 3
     import configparser
-import inspect
-import os
-import re
-
-# GC3Pie imports
-import gc3libs
-import gc3libs.authentication
-from collections import defaultdict
-import gc3libs.utils
-
-from gc3libs.quantity import Memory, GB, MB, MiB, Duration, hours
-from gc3libs.utils import defproperty
 
 
 # module metadata
@@ -68,12 +67,12 @@ _architecture_value_map = {
     re.compile('x86[ _-]+64([ _-]*bits?)?', re.I): gc3libs.Run.Arch.X86_64,
     re.compile('64[ _-]*bits? +[ix]86', re.I): gc3libs.Run.Arch.X86_64,
     # also accept commercial arch names
-    re.compile('(amd[ -]*64|x64|emt64|intel[ -]*64)( *bits?)?', re.I):
-    gc3libs.Run.Arch.X86_64,
+    re.compile('(amd[ -]*64|x64|emt64|intel[ -]*64)( *bits?)?', re.I): gc3libs.Run.Arch.X86_64,
     # finally, map "32-bit" and "64-bit" to i686 and x86_64
     re.compile('32[ _-]*bits?', re.I): gc3libs.Run.Arch.X86_32,
     re.compile('64[ _-]*bits?', re.I): gc3libs.Run.Arch.X86_64,
 }
+
 
 def _matching_architecture(value):
     """Return first matching entry from `_architecture_value_map`."""
@@ -81,6 +80,7 @@ def _matching_architecture(value):
         if matcher.match(value):
             return arch
     raise ValueError("Unknown architecture '%s'." % value)
+
 
 def _parse_architecture(arch_str):
     """Return set of values in `Run.Arch` corresponding to a comma-separated list of architecture strings."""
@@ -94,9 +94,9 @@ def _legacy_parse_duration(duration_str):
     try:
         # old-style config: integral number of hours
         val = int(duration_str) * hours
-        gc3libs.log.warning("'max_walltime' should always have a "
-                            "valid unit format (e.g. '24 hours'). Using "
-                            "default unit: hours")
+        gc3libs.log.warning(
+            "'max_walltime' should always have a " "valid unit format (e.g. '24 hours'). Using " "default unit: hours"
+        )
         return val
     except ValueError:
         # apply `Duration` parsing rules; if this fails, users will
@@ -109,8 +109,8 @@ def _legacy_parse_memory(memory_str, name, unit=GB, unit_name='GB'):
         # old-style config: integral number of "unit"
         val = int(memory_str) * unit
         gc3libs.log.warning(
-            "'%s' should always have a valid unit format (e.g. '2 GB')."
-            " Using default unit: %s", name, unit_name)
+            "'%s' should always have a valid unit format (e.g. '2 GB')." " Using default unit: %s", name, unit_name
+        )
         return val
     except ValueError:
         # apply usual quantity parsing rules; if this fails, users
@@ -122,14 +122,15 @@ def _legacy_parse_os_overhead(os_overhead_str):
     try:
         # old-style config: integral number of MiBs
         val = int(os_overhead_str) * MiB
-        gc3libs.log.warning("'vm_os_overhead' should always have a "
-                            "valid unit format (e.g. '512 MiB'). Using "
-                            "default unit: MiB")
+        gc3libs.log.warning(
+            "'vm_os_overhead' should always have a " "valid unit format (e.g. '512 MiB'). Using " "default unit: MiB"
+        )
         return val
     except ValueError:
         # apply usual quantity parsing rules; if this fails, users
         # will see the error message from the `Memory`/`Quantity` parser.
         return Memory(os_overhead_str)
+
 
 # the main class of this module
 
@@ -212,7 +213,6 @@ class Configuration(gc3libs.utils.Struct):
         # actual resource constructor classes
         self._resource_constructors_cache = {}
 
-
     def load(self, *locations):
         """
         Merge settings from configuration files into this `Configuration`
@@ -236,14 +236,10 @@ class Configuration(gc3libs.utils.Struct):
             filename = os.path.expandvars(os.path.expanduser(filename))
             if os.path.exists(filename):
                 if not os.access(filename, os.R_OK):
-                    gc3libs.log.debug(
-                        "Configuration.load(): File '%s' cannot be read,"
-                        " ignoring.", filename)
+                    gc3libs.log.debug("Configuration.load(): File '%s' cannot be read," " ignoring.", filename)
                     continue  # with next `filename`
             else:
-                gc3libs.log.debug(
-                    "Configuration.load(): File '%s' does not exist,"
-                    " ignoring.", filename)
+                gc3libs.log.debug("Configuration.load(): File '%s' does not exist," " ignoring.", filename)
                 continue  # with next `filename`
 
             filename = os.path.abspath(filename)
@@ -259,14 +255,14 @@ class Configuration(gc3libs.utils.Struct):
 
         if files_successfully_read == 0:
             raise gc3libs.exceptions.NoAccessibleConfigurationFile(
-                "Could not read any configuration file; tried location '%s'."
-                % "', '".join(locations))
+                "Could not read any configuration file; tried location '%s'." % "', '".join(locations)
+            )
         if files_successfully_parsed == 0:
             raise gc3libs.exceptions.NoValidConfigurationFile(
                 "Could not parse any configuration file;"
                 " tried location(s) '%s' but they all had errors."
-                " (Which see in previous log messages.)"
-                % "', '".join(locations))
+                " (Which see in previous log messages.)" % "', '".join(locations)
+            )
 
     def merge_file(self, filename):
         """
@@ -291,9 +287,7 @@ class Configuration(gc3libs.utils.Struct):
             configuration file does not exist, cannot be read, is
             corrupt or has wrong format.
         """
-        gc3libs.log.debug(
-            "Configuration.merge_file(): Reading file '%s' ...",
-            filename)
+        gc3libs.log.debug("Configuration.merge_file(): Reading file '%s' ...", filename)
         with open(filename, 'r') as stream:
             defaults, resources, auths = self._parse(stream, filename)
         for name, values in resources.items():
@@ -342,8 +336,8 @@ class Configuration(gc3libs.utils.Struct):
                 except AttributeError:
                     filename = repr(stream)
             raise gc3libs.exceptions.ConfigurationError(
-                "Configuration file '%s' is unreadable or malformed: %s: %s"
-                % (filename, err.__class__.__name__, err))
+                "Configuration file '%s' is unreadable or malformed: %s: %s" % (filename, err.__class__.__name__, err)
+            )
 
         # update `defaults` with the contents of the `[DEFAULTS]` section
         defaults.update(parser.defaults())
@@ -353,10 +347,7 @@ class Configuration(gc3libs.utils.Struct):
                 # handle auth section
                 name = sectname.split('/', 1)[1]
                 config_items = dict(parser.items(sectname))
-                gc3libs.log.debug(
-                    "Config._parse():"
-                    " Read configuration stanza for auth '%s'",
-                    name)
+                gc3libs.log.debug("Config._parse():" " Read configuration stanza for auth '%s'", name)
 
                 # minimal sanity check
                 for key in self._auth_required_keys:
@@ -365,12 +356,10 @@ class Configuration(gc3libs.utils.Struct):
                             "Missing mandatory configuration key `{key}`"
                             " in section [{sectname}]"
                             " of the configuration file `{filename}`."
-                            " This configuration file will be ignored."
-                            .format(
-                                key=key,
-                                sectname=sectname,
-                                filename=filename
-                            ))
+                            " This configuration file will be ignored.".format(
+                                key=key, sectname=sectname, filename=filename
+                            )
+                        )
 
                 auths[name].update(config_items)
                 auths[name]['name'] = name
@@ -378,26 +367,19 @@ class Configuration(gc3libs.utils.Struct):
             elif sectname.startswith('resource/'):
                 # handle resource section
                 name = sectname.split('/', 1)[1]
-                gc3libs.log.debug(
-                    "Config._parse():"
-                    " Read configuration stanza for resource '%s'." %
-                    name)
+                gc3libs.log.debug("Config._parse():" " Read configuration stanza for resource '%s'." % name)
 
                 config_items = dict(parser.items(sectname))
-                self._perform_key_renames(
-                    config_items, self._renamed_keys, filename)
-                self._perform_value_updates(
-                    config_items, self._updated_values, filename)
-                self._perform_filename_conversion(
-                    config_items, self._path_key_regexp, filename)
+                self._perform_key_renames(config_items, self._renamed_keys, filename)
+                self._perform_value_updates(config_items, self._updated_values, filename)
+                self._perform_filename_conversion(config_items, self._path_key_regexp, filename)
                 try:
-                    self._perform_type_conversions(
-                        config_items, self._convert, filename)
+                    self._perform_type_conversions(config_items, self._convert, filename)
                 except Exception as err:
                     raise gc3libs.exceptions.ConfigurationError(
                         "Incorrect entry for resource '%s' in configuration"
-                        " file '%s': %s"
-                        % (name, filename, str(err)))
+                        " file '%s': %s" % (name, filename, str(err))
+                    )
 
                 # minimal sanity checks
                 for key in self._resource_required_keys:
@@ -406,44 +388,36 @@ class Configuration(gc3libs.utils.Struct):
                             "Missing mandatory configuration key `{key}`"
                             " in section [{sectname}]"
                             " of the configuration file `{filename}`."
-                            " This configuration file will be ignored."
-                            .format(
-                                key=key,
-                                sectname=sectname,
-                                filename=filename
-                            ))
+                            " This configuration file will be ignored.".format(
+                                key=key, sectname=sectname, filename=filename
+                            )
+                        )
 
                 for key in self._resource_keys_value_required:
                     if key in config_items and not config_items[key]:
                         raise gc3libs.exceptions.ConfigurationError(
                             "Found empty configuration key `{key}`"
-                            " in section [{sectname}]"
-                            .format(key=key, sectname=sectname))
+                            " in section [{sectname}]".format(key=key, sectname=sectname)
+                        )
 
                 resources[name].update(config_items)
                 resources[name]['name'] = name
                 if __debug__:
                     gc3libs.log.debug(
-                        "Config._parse(): Resource '%s' defined by: %s.", name,
-                        ', '.join([
-                            ("%s=%r" %
-                             (k, v)) for k, v in sorted(
-                                 resources[name].items())]))
+                        "Config._parse(): Resource '%s' defined by: %s.",
+                        name,
+                        ', '.join([("%s=%r" % (k, v)) for k, v in sorted(resources[name].items())]),
+                    )
 
             else:
                 # Unhandled sectname
-                gc3libs.log.warning(
-                    "Config._parse(): unknown configuration section '%s'"
-                    " -- ignoring!",
-                    sectname)
+                gc3libs.log.warning("Config._parse(): unknown configuration section '%s'" " -- ignoring!", sectname)
 
         return (defaults, resources, auths)
 
     # config keys common to every kind of `[auth/*]` section;
     # if any of these is missing, the section is clearly invalid
-    _auth_required_keys = (
-        'type',
-    )
+    _auth_required_keys = ('type',)
 
     # config keys common to every kind of `[resource/*]` section;
     # if any of these is missing, the section is clearly invalid
@@ -457,15 +431,13 @@ class Configuration(gc3libs.utils.Struct):
     )
 
     # config keys that are not allowed to have empty values
-    _resource_keys_value_required = (
-        'keypair_name',
-    )
+    _resource_keys_value_required = ('keypair_name',)
 
     _renamed_keys = {
         # old key name           new key name
         # ===================    ===================
-        'ncores'               : 'max_cores',
-        'sge_accounting_delay' : 'accounting_delay',
+        'ncores': 'max_cores',
+        'sge_accounting_delay': 'accounting_delay',
     }
 
     @staticmethod
@@ -476,7 +448,12 @@ class Configuration(gc3libs.utils.Struct):
                     "Configuration item '%s' was renamed to '%s',"
                     " please change occurrences of '%s' to '%s'"
                     " in configuration file '%s'.",
-                    oldkey, newkey, oldkey, newkey, filename)
+                    oldkey,
+                    newkey,
+                    oldkey,
+                    newkey,
+                    filename,
+                )
                 if newkey in config_items:
                     # drop
                     gc3libs.log.error(
@@ -486,7 +463,8 @@ class Configuration(gc3libs.utils.Struct):
                         oldkey,
                         newkey,
                         filename,
-                        config_items[oldkey])
+                        config_items[oldkey],
+                    )
                 else:
                     config_items[newkey] = config_items[oldkey]
                 del config_items[oldkey]
@@ -495,10 +473,10 @@ class Configuration(gc3libs.utils.Struct):
         # key name  old value             new value
         # ========  ===================   ==================
         'type': {
-                    'arc'               : gc3libs.Default.ARC0_LRMS,
-                    'ssh'               : gc3libs.Default.SGE_LRMS,
-                    'subprocess'        : gc3libs.Default.SHELLCMD_LRMS,
-        },
+            'arc': gc3libs.Default.ARC0_LRMS,
+            'ssh': gc3libs.Default.SGE_LRMS,
+            'subprocess': gc3libs.Default.SHELLCMD_LRMS,
+        }
     }
 
     @staticmethod
@@ -511,9 +489,14 @@ class Configuration(gc3libs.utils.Struct):
                         "Configuration value '%s' was renamed to '%s',"
                         " please change occurrences of '%s=%s' to '%s=%s'"
                         " in configuration file '%s'.",
-                        value, changed[value],
-                        key, value, key, changed[value],
-                        filename)
+                        value,
+                        changed[value],
+                        key,
+                        value,
+                        key,
+                        changed[value],
+                        filename,
+                    )
                     config_items[key] = changed[value]
 
     _path_key_regexp = re.compile('^(\w+_)?(prologue|epilogue)$')
@@ -522,27 +505,25 @@ class Configuration(gc3libs.utils.Struct):
     def _perform_filename_conversion(config_items, path_regexp, filename):
         for key, value in config_items.items():
             if path_regexp.match(key):
-                basedir = (os.path.dirname(value)
-                           if os.path.isfile(value)
-                           else os.path.dirname(filename))
+                basedir = os.path.dirname(value) if os.path.isfile(value) else os.path.dirname(filename)
                 config_items[key] = os.path.join(basedir, value)
 
     # type transforms for well-known configuration keys
     _convert = {
         # item name             converter
         # ===================   ==================================
-        'enabled'             : gc3libs.utils.string_to_boolean,
-        'accounting_delay'    : int,
-        'architecture'        : _parse_architecture,
-        'max_cores'           : int,
-        'max_cores_per_job'   : int,
-        'max_memory_per_core' : (lambda val: _legacy_parse_memory(val, 'max_memory_per_core')),
-        'max_walltime'        : _legacy_parse_duration,
-        'override'            : gc3libs.utils.string_to_boolean,
-        'port'                : int,
-        'vm_os_overhead'      : _legacy_parse_os_overhead,
+        'enabled': gc3libs.utils.string_to_boolean,
+        'accounting_delay': int,
+        'architecture': _parse_architecture,
+        'max_cores': int,
+        'max_cores_per_job': int,
+        'max_memory_per_core': (lambda val: _legacy_parse_memory(val, 'max_memory_per_core')),
+        'max_walltime': _legacy_parse_duration,
+        'override': gc3libs.utils.string_to_boolean,
+        'port': int,
+        'vm_os_overhead': _legacy_parse_os_overhead,
         'large_file_threshold': (lambda val: _legacy_parse_memory(val, 'large_file_threshold', MB, 'MB')),
-        'large_file_chunk_size':(lambda val: _legacy_parse_memory(val, 'large_file_chunk_size', MB, 'MB')),
+        'large_file_chunk_size': (lambda val: _legacy_parse_memory(val, 'large_file_chunk_size', MB, 'MB')),
         # LSF-specific
         'lsf_continuation_line_prefix_length': int,
     }
@@ -555,8 +536,8 @@ class Configuration(gc3libs.utils.Struct):
                     config_items[key] = converter(config_items[key])
                 except Exception as err:
                     raise gc3libs.exceptions.ConfigurationError(
-                        "Error parsing configuration item '%s': %s: %s"
-                        % (key, err.__class__.__name__, err))
+                        "Error parsing configuration item '%s': %s: %s" % (key, err.__class__.__name__, err)
+                    )
 
     @property
     def auth_factory(self):
@@ -569,15 +550,11 @@ class Configuration(gc3libs.utils.Struct):
         """
         if self._auth_factory is None:
             try:
-                self._auth_factory = gc3libs.authentication.Auth(
-                    self.auths, self.auto_enable_auth)
+                self._auth_factory = gc3libs.authentication.Auth(self.auths, self.auto_enable_auth)
             except Exception as err:
-                gc3libs.log.critical(
-                    "Failed initializing Auth module: %s: %s",
-                    err.__class__.__name__, str(err))
+                gc3libs.log.critical("Failed initializing Auth module: %s: %s", err.__class__.__name__, str(err))
                 raise
         return self._auth_factory
-
 
     def make_auth(self, name):
         """
@@ -585,28 +562,20 @@ class Configuration(gc3libs.utils.Struct):
         ``[auth/name]``.
         """
         # use `lambda` for delayed evaluation
-        return (lambda **extra_args: self.auth_factory.get(name, **extra_args))
+        return lambda **extra_args: self.auth_factory.get(name, **extra_args)
 
-    _removed_resource_types = (
-        gc3libs.Default.ARC0_LRMS,
-        gc3libs.Default.ARC1_LRMS,
-    )
+    _removed_resource_types = (gc3libs.Default.ARC0_LRMS, gc3libs.Default.ARC1_LRMS)
 
     # map resource type name (e.g., 'sge' or 'openstack') to module
     # name + class/function within that module
     TYPE_CONSTRUCTOR_MAP = {
-        gc3libs.Default.EC2_LRMS:  ("gc3libs.backends.ec2",  "EC2Lrms"),
-        gc3libs.Default.LSF_LRMS:  ("gc3libs.backends.lsf",  "LsfLrms"),
-        gc3libs.Default.PBS_LRMS:  ("gc3libs.backends.pbs",  "PbsLrms"),
-        gc3libs.Default.OPENSTACK_LRMS:
-                                   ("gc3libs.backends.openstack",
-                                    "OpenStackLrms"),
-        gc3libs.Default.SGE_LRMS:  ("gc3libs.backends.sge",  "SgeLrms"),
-        gc3libs.Default.SHELLCMD_LRMS:
-                                   ("gc3libs.backends.shellcmd",
-                                    "ShellcmdLrms"),
-        gc3libs.Default.SLURM_LRMS:("gc3libs.backends.slurm",
-                                    "SlurmLrms"),
+        gc3libs.Default.EC2_LRMS: ("gc3libs.backends.ec2", "EC2Lrms"),
+        gc3libs.Default.LSF_LRMS: ("gc3libs.backends.lsf", "LsfLrms"),
+        gc3libs.Default.PBS_LRMS: ("gc3libs.backends.pbs", "PbsLrms"),
+        gc3libs.Default.OPENSTACK_LRMS: ("gc3libs.backends.openstack", "OpenStackLrms"),
+        gc3libs.Default.SGE_LRMS: ("gc3libs.backends.sge", "SgeLrms"),
+        gc3libs.Default.SHELLCMD_LRMS: ("gc3libs.backends.shellcmd", "ShellcmdLrms"),
+        gc3libs.Default.SLURM_LRMS: ("gc3libs.backends.slurm", "SlurmLrms"),
     }
 
     def _get_resource_constructor(self, resource_type):
@@ -616,29 +585,26 @@ class Configuration(gc3libs.utils.Struct):
         """
         if resource_type not in self._resource_constructors_cache:
             if resource_type not in self.TYPE_CONSTRUCTOR_MAP:
-                raise gc3libs.exceptions.ConfigurationError(
-                    "Unknown resource type '%s'" % resource_type)
+                raise gc3libs.exceptions.ConfigurationError("Unknown resource type '%s'" % resource_type)
             else:
                 modname, clsname = self.TYPE_CONSTRUCTOR_MAP[resource_type]
                 try:
-                    mod = __import__(modname,
-                                     globals(), locals(),
-                                     [clsname], -1)
+                    mod = __import__(modname, globals(), locals(), [clsname], -1)
                     cls = getattr(mod, clsname)
                 except (ImportError, AttributeError) as err:
                     raise gc3libs.exceptions.Error(
-                        ("Could not instanciate"
-                         " resource type '{type}': {errcls}: {errmsg}"
-                         .format(
-                             type=resource_type,
-                             errcls=err.__class__.__name__,
-                             errmsg=err)),
-                        do_log=True)
+                        (
+                            "Could not instanciate"
+                            " resource type '{type}': {errcls}: {errmsg}".format(
+                                type=resource_type, errcls=err.__class__.__name__, errmsg=err
+                            )
+                        ),
+                        do_log=True,
+                    )
                 self._resource_constructors_cache[resource_type] = cls
                 gc3libs.log.debug(
-                    "Using class %r from module %r"
-                    " to instanciate resources of type %s",
-                    cls, mod, resource_type)
+                    "Using class %r from module %r" " to instanciate resources of type %s", cls, mod, resource_type
+                )
                 return cls
         return self._resource_constructors_cache[resource_type]
 
@@ -668,17 +634,13 @@ class Configuration(gc3libs.utils.Struct):
                 # more.
                 exc_info = gc3libs.log.level <= gc3libs.logging.DEBUG
                 gc3libs.log.warning(
-                    "Failed creating backend for resource '%s' of type '%s':"
-                    " %s: %s",
-                    resdict.get(
-                        'name',
-                        '(unknown name)'),
-                    resdict.get(
-                        'type',
-                        '(unknown type)'),
+                    "Failed creating backend for resource '%s' of type '%s':" " %s: %s",
+                    resdict.get('name', '(unknown name)'),
+                    resdict.get('type', '(unknown type)'),
                     err.__class__.__name__,
                     str(err),
-                    exc_info=exc_info)
+                    exc_info=exc_info,
+                )
                 if ignore_errors:
                     continue
                 else:
@@ -692,18 +654,15 @@ class Configuration(gc3libs.utils.Struct):
         """
         # name' should have been defined by the caller, so if it's
         # missing it's an internal coherency error
-        assert 'name' in resdict, (
-            "Invalid resource definition '%s': missing required key 'name'."
-            % resdict)
+        assert 'name' in resdict, "Invalid resource definition '%s': missing required key 'name'." % resdict
 
         # default values
         resdict.setdefault('enabled', True)
         if not resdict['enabled']:
             gc3libs.log.info(
-                "Dropping computational resource '%s'"
-                " because of 'enabled=False' setting"
-                " in configuration file.",
-                resdict['name'])
+                "Dropping computational resource '%s'" " because of 'enabled=False' setting" " in configuration file.",
+                resdict['name'],
+            )
             return None
 
         # minimal sanity check
@@ -711,30 +670,30 @@ class Configuration(gc3libs.utils.Struct):
             if key not in resdict:
                 raise gc3libs.exceptions.ConfigurationError(
                     "Missing required parameter '{key}'"
-                    " in definition of resource '{name}'."
-                    .format(key=key, name=resdict['name']))
+                    " in definition of resource '{name}'.".format(key=key, name=resdict['name'])
+                )
         for key in self._resource_keys_value_required:
             if key in resdict and not resdict[key]:
                 raise gc3libs.exceptions.ConfigurationError(
                     "Found empty configuration key `{key}`"
-                    " in definition of resource '{name}'."
-                    .format(key=key, name=resdict['name']))
+                    " in definition of resource '{name}'.".format(key=key, name=resdict['name'])
+                )
 
         if resdict['type'] in self._removed_resource_types:
             resdict['enabled'] = False
             gc3libs.log.warning(
                 "Dropping computational resource '{name}':"
                 " resource type '{type}' is no longer supported."
-                " Please update your configuration file."
-                .format(**resdict))
+                " Please update your configuration file.".format(**resdict)
+            )
             return None
 
         if __debug__:
             gc3libs.log.debug(
                 "Creating resource '%s' defined by: %s.",
-                resdict['name'], ', '.join([
-                    ("%s=%r" % (k, v)) for k, v in sorted(resdict.items())
-                ]))
+                resdict['name'],
+                ', '.join([("%s=%r" % (k, v)) for k, v in sorted(resdict.items())]),
+            )
 
         for auth_param in 'auth', 'vm_auth':
             if auth_param in resdict:
@@ -754,13 +713,10 @@ class Configuration(gc3libs.utils.Struct):
             #       problem?
             #
             # which gives no clue about what to correct!
-            args, varargs, keywords, defaults = inspect.getargspec(
-                cls.__init__)
+            args, varargs, keywords, defaults = inspect.getargspec(cls.__init__)
             if defaults is not None:
                 # `defaults` is a list of default values for the last N args
-                defaulted = dict((argname, value)
-                                 for argname, value in zip(reversed(args),
-                                                           reversed(defaults)))
+                defaulted = dict((argname, value) for argname, value in zip(reversed(args), reversed(defaults)))
             else:
                 # no default values at all
                 defaulted = {}
@@ -768,15 +724,16 @@ class Configuration(gc3libs.utils.Struct):
                 if argname not in resdict and argname not in defaulted:
                     raise gc3libs.exceptions.ConfigurationError(
                         "Missing required configuration parameter '%s'"
-                        " for resource '%s'" % (argname, resdict['name']))
+                        " for resource '%s'" % (argname, resdict['name'])
+                    )
 
             # finally, try to construct backend class...
             return cls(**dict(resdict))
 
         except Exception as err:
             gc3libs.log.error(
-                "Could not create resource '%s': %s. Configuration file"
-                " problem?" % (resdict['name'], str(err)))
+                "Could not create resource '%s': %s. Configuration file" " problem?" % (resdict['name'], str(err))
+            )
             raise
 
 
@@ -784,5 +741,5 @@ class Configuration(gc3libs.utils.Struct):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="config",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="config", optionflags=doctest.NORMALIZE_WHITESPACE)

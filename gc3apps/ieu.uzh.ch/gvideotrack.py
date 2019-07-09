@@ -57,6 +57,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gvideotrack
+
     gvideotrack.GVideoTrackingScript().run()
 
 import os
@@ -85,6 +86,7 @@ class GVideoTrackingApplication(Application):
     """
     Custom class to wrap the execution of the Matlab script.
     """
+
     application_name = 'video_track'
 
     def __init__(self, video_file, **extra_args):
@@ -115,7 +117,7 @@ class GVideoTrackingApplication(Application):
             os.path.basename(video_file),
             extra_args['linkrange'],
             extra_args['displacement'],
-            memory
+            memory,
         )
 
         inputs[video_file] = os.path.basename(video_file)
@@ -123,16 +125,16 @@ class GVideoTrackingApplication(Application):
         # Set output
         outputs['result/'] = 'result/'
 
-
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gstrj.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout='gstrj.log',
             join=True,
-            executables = executables,
-            **extra_args)
+            executables=executables,
+            **extra_args
+        )
 
 
 class GVideoTrackingScript(SessionBasedScript):
@@ -156,37 +158,58 @@ class GVideoTrackingScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GVideoTrackingApplication,
+            version=__version__,  # module version == script version
+            application=GVideoTrackingApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GVideoTrackingApplication,
-            )
+            stats_only_for=GVideoTrackingApplication,
+        )
 
     def setup_args(self):
 
-        self.add_param('videos', type=str,
-                       help="Path to the video trajectory files files.")
+        self.add_param('videos', type=str, help="Path to the video trajectory files files.")
 
     def setup_options(self):
-        self.add_param("-R", "--Rscript", metavar="[STRING]",
-                       dest="R_master", default=None,
-                       help="Location of the R script that implements the "
-                       "'link_particles' function.")
+        self.add_param(
+            "-R",
+            "--Rscript",
+            metavar="[STRING]",
+            dest="R_master",
+            default=None,
+            help="Location of the R script that implements the " "'link_particles' function.",
+        )
 
-        self.add_param("-j", "--jarfile", type=str, metavar="[STRING]",
-                       dest="jarfile", default=None,
-                       help="Location of the 'ParticleLinker.jar'.")
+        self.add_param(
+            "-j",
+            "--jarfile",
+            type=str,
+            metavar="[STRING]",
+            dest="jarfile",
+            default=None,
+            help="Location of the 'ParticleLinker.jar'.",
+        )
 
-        self.add_param("-L", "--linkrange", type=int, metavar="[INT]",
-                       dest="linkrange", default=1,
-                       help="Linkrange value. Default: 1.")
+        self.add_param(
+            "-L",
+            "--linkrange",
+            type=int,
+            metavar="[INT]",
+            dest="linkrange",
+            default=1,
+            help="Linkrange value. Default: 1.",
+        )
 
-        self.add_param("-D", "--displacement", type=int, metavar="[INT]",
-                       dest="displacement", default=10,
-                       help="Displacement value. Default: 10.")
+        self.add_param(
+            "-D",
+            "--displacement",
+            type=int,
+            metavar="[INT]",
+            dest="displacement",
+            default=10,
+            help="Displacement value. Default: 10.",
+        )
 
     def parse_args(self):
         """
@@ -194,21 +217,17 @@ class GVideoTrackingScript(SessionBasedScript):
         """
 
         if not os.path.isdir(self.params.videos):
-            raise OSError("No such file or directory: %s ",
-                          os.path.abspath(self.params.videos))
+            raise OSError("No such file or directory: %s ", os.path.abspath(self.params.videos))
 
         if self.params.R_master:
             if not os.path.isfile(self.params.R_master):
-                raise gc3libs.exceptions.InvalidUsage("link_particle function "
-                                                      " file %s not found"
-                                                      % self.params.R_master)
+                raise gc3libs.exceptions.InvalidUsage(
+                    "link_particle function " " file %s not found" % self.params.R_master
+                )
 
         if self.params.jarfile:
             if not os.path.isfile(self.params.jarfile):
-                raise gc3libs.exceptions.InvalidUsage("ParticleLinker jar "
-                                                      " file %s not found"
-                                                      % self.params.jarfile)
-
+                raise gc3libs.exceptions.InvalidUsage("ParticleLinker jar " " file %s not found" % self.params.jarfile)
 
         assert int(self.params.linkrange)
         assert int(self.params.displacement)
@@ -225,9 +244,7 @@ class GVideoTrackingScript(SessionBasedScript):
         for video_file in os.listdir(self.params.videos):
 
             if not video_file.endswith(TRAJECTORY_FILE_EXTENSION):
-                gc3libs.log.info("Ingoring input file %s. "
-                                 "Not compliant with expected file extension."
-                                 % video_file)
+                gc3libs.log.info("Ingoring input file %s. " "Not compliant with expected file extension." % video_file)
                 continue
 
             # Extract filename
@@ -246,8 +263,6 @@ class GVideoTrackingScript(SessionBasedScript):
 
             extra_args['jobname'] = jobname
 
-            tasks.append(GVideoTrackingApplication(
-                os.path.join(self.params.videos,video_file),
-                **extra_args))
+            tasks.append(GVideoTrackingApplication(os.path.join(self.params.videos, video_file), **extra_args))
 
         return tasks

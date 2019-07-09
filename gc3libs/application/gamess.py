@@ -20,6 +20,7 @@ Specialized support for computational jobs running GAMESS-US.
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import str
+
 __docformat__ = 'reStructuredText'
 
 
@@ -74,12 +75,11 @@ class GamessApplication(gc3libs.Application):
             "rungms",
             input_file_name,
             str(extra_args.get('verno') or ""),
-            str(extra_args.get('requested_cores') or "")
+            str(extra_args.get('requested_cores') or ""),
         ]
         if 'extbas' in extra_args:
             other_input_files += extra_args['extbas']
-            arguments.extend(
-                ['--extbas', os.path.basename(extra_args['extbas'])])
+            arguments.extend(['--extbas', os.path.basename(extra_args['extbas'])])
         # set job name
         extra_args['jobname'] = input_file_name_sans
         # issue WARNING about memory handling
@@ -89,22 +89,25 @@ class GamessApplication(gc3libs.Application):
                 "Requested %s of memory per core; depending on how the execution site"
                 " handles memory limits, this may lead to an error in the ``ddikick``"
                 " startup.  In that case, re-run without memory specification.",
-                extra_args['requested_memory'])
+                extra_args['requested_memory'],
+            )
         # build generic `Application` obj
-        gc3libs.Application.__init__(self,
-                                     arguments=arguments,
-                                     inputs=[inp_file_path] +
-                                     list(other_input_files),
-                                     outputs=[output_file_name],
-                                     join=True,
-                                     # needed by `ggamess`
-                                     inp_file_path=inp_file_path,
-                                     **extra_args)
+        gc3libs.Application.__init__(
+            self,
+            arguments=arguments,
+            inputs=[inp_file_path] + list(other_input_files),
+            outputs=[output_file_name],
+            join=True,
+            # needed by `ggamess`
+            inp_file_path=inp_file_path,
+            **extra_args
+        )
 
     _termination_re = re.compile(
         r'EXECUTION \s+ OF \s+ GAMESS \s+ TERMINATED \s+-?(?P<gamess_outcome>NORMALLY|ABNORMALLY)-?'
         r'|ddikick.x: .+ (exited|quit) \s+ (?P<ddikick_outcome>gracefully|unexpectedly)',
-        re.X)
+        re.X,
+    )
 
     def terminated(self):
         """
@@ -134,11 +137,8 @@ class GamessApplication(gc3libs.Application):
             output_filename = os.path.join(output_dir, self.stdout)
         else:
             output_filename = os.path.join(
-                output_dir,
-                os.path.splitext(
-                    os.path.basename(
-                        self.inp_file_path))[0] +
-                '.out')
+                output_dir, os.path.splitext(os.path.basename(self.inp_file_path))[0] + '.out'
+            )
         if not os.path.exists(output_filename):
             # no output file, override exit code if it indicates success
             if self.execution.exitcode == os.EX_OK:
@@ -147,8 +147,7 @@ class GamessApplication(gc3libs.Application):
             # output file exists, start with pessimistic default and
             # override if we find a "success" keyword
             self.execution.exitcode = os.EX_SOFTWARE  # internal software error
-            gc3libs.log.debug("Trying to read GAMESS termination status"
-                              " off output file '%s' ..." % output_filename)
+            gc3libs.log.debug("Trying to read GAMESS termination status" " off output file '%s' ..." % output_filename)
             output_file = open(output_filename, 'r')
             for line in output_file:
                 match = self._termination_re.search(line)
@@ -177,12 +176,12 @@ class GamessApplication(gc3libs.Application):
                         raise AssertionError(
                             "Input line '%s' matched,"
                             " but neither group 'gamess_outcome'"
-                            " nor 'ddikick_outcome' did!")
+                            " nor 'ddikick_outcome' did!"
+                        )
             output_file.close()
 
 
-class GamessAppPotApplication(GamessApplication,
-                              gc3libs.application.apppot.AppPotApplication):
+class GamessAppPotApplication(GamessApplication, gc3libs.application.apppot.AppPotApplication):
 
     """
     Specialized `AppPotApplication` object to submit computational
@@ -234,19 +233,20 @@ class GamessAppPotApplication(GamessApplication,
                 "localgms",
                 input_file_name,
                 str(extra_args.get('verno') or "00"),
-                str(extra_args.get('requested_cores') or "")
+                str(extra_args.get('requested_cores') or ""),
             ],
             inputs=[inp_file_path] + list(other_input_files),
             outputs=[output_file_name],
             join=True,
             # needed by `ggamess`
             inp_file_path=inp_file_path,
-            **extra_args)
+            **extra_args
+        )
 
 
 # main: run tests
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="gamess",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="gamess", optionflags=doctest.NORMALIZE_WHITESPACE)

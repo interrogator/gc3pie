@@ -44,6 +44,7 @@ __docformat__ = 'reStructuredText'
 # workaround Issue 95, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == '__main__':
     import grosetta
+
     grosetta.GRosettaScript().run()
 
 
@@ -58,8 +59,8 @@ from gc3libs.application.rosetta import RosettaApplication
 from gc3libs.cmdline import SessionBasedScript, positive_int
 
 
-
 ## the script class
+
 
 class GRosettaScript(SessionBasedScript):
     """
@@ -86,35 +87,52 @@ Note: the list of INPUT and OUTPUT files must be separated by ':'
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            usage = "%(prog)s [options] FLAGSFILE INPUT ... [: OUTPUT ...]",
-            version = __version__, # module version == script version
-            application = RosettaApplication,
-            )
+            usage="%(prog)s [options] FLAGSFILE INPUT ... [: OUTPUT ...]",
+            version=__version__,  # module version == script version
+            application=RosettaApplication,
+        )
 
     def setup_options(self):
-        self.add_param("-P", "--total-decoys", dest="total_decoys",
-                       type=positive_int, default=1,
-                       metavar="NUM",
-                       help="Compute NUM decoys per input file (default: %(default)s)."
-                       )
-        self.add_param("-p", "--decoys-per-job", dest="decoys_per_job",
-                       type=positive_int, default=1,
-                       metavar="NUM",
-                       help="Compute NUM decoys in a single job (default: %(default)s)."
-                       " This parameter should be tuned so that the running time"
-                       " of a single job does not exceed the maximum wall-clock time."
-                       )
-        self.add_param("-x", "--protocol", dest="protocol",
-                       type=str, default="minirosetta.static",
-                       metavar="PROTOCOL",
-                       help="Run the specified Rosetta protocol/application; default: %(default)s")
-        self.add_param("-R", "--release",
-                       type=str, dest="rosetta_release", default="3.1",
-                       metavar="NAME",
-                       help="Numerical suffix to identify which version of Rosetta should be requested."
-                       " For example: '-e 20110622' will run rosetta-svn20110622."
-                       " (default: %(default)s)"
-                       )
+        self.add_param(
+            "-P",
+            "--total-decoys",
+            dest="total_decoys",
+            type=positive_int,
+            default=1,
+            metavar="NUM",
+            help="Compute NUM decoys per input file (default: %(default)s).",
+        )
+        self.add_param(
+            "-p",
+            "--decoys-per-job",
+            dest="decoys_per_job",
+            type=positive_int,
+            default=1,
+            metavar="NUM",
+            help="Compute NUM decoys in a single job (default: %(default)s)."
+            " This parameter should be tuned so that the running time"
+            " of a single job does not exceed the maximum wall-clock time.",
+        )
+        self.add_param(
+            "-x",
+            "--protocol",
+            dest="protocol",
+            type=str,
+            default="minirosetta.static",
+            metavar="PROTOCOL",
+            help="Run the specified Rosetta protocol/application; default: %(default)s",
+        )
+        self.add_param(
+            "-R",
+            "--release",
+            type=str,
+            dest="rosetta_release",
+            default="3.1",
+            metavar="NAME",
+            help="Numerical suffix to identify which version of Rosetta should be requested."
+            " For example: '-e 20110622' will run rosetta-svn20110622."
+            " (default: %(default)s)",
+        )
 
     def parse_args(self):
         self.instances_per_file = self.params.total_decoys
@@ -126,8 +144,8 @@ Note: the list of INPUT and OUTPUT files must be separated by ':'
         if len(args) == 0:
             # no args given, so no new jobs added to the session
             self.flags_file = 'PLEASE GIVE FLAGS FILE ON THE COMMAND LINE'
-            inputs = [ ]
-            self.outputs = [ ]
+            inputs = []
+            self.outputs = []
         else:
             # if FLAGS is given, then we want at least one input file
             if len(args) < 2:
@@ -138,10 +156,10 @@ Note: the list of INPUT and OUTPUT files must be separated by ':'
                 if ':' in args:
                     separator = args.index(':')
                     inputs = args[:separator]
-                    self.outputs = args[(separator+1):]
+                    self.outputs = args[(separator + 1) :]
                 else:
                     inputs = args
-                    self.outputs = [ ]
+                    self.outputs = []
             except:
                 raise RuntimeError("Incorrect usage; please run '%s --help' to read instructions." % self.name)
 
@@ -153,7 +171,7 @@ Note: the list of INPUT and OUTPUT files must be separated by ':'
             self.log.info("Using flags file '%s'", self.flags_file)
 
         # massage input file list to have only absolute paths
-        inputs_ = [ ]
+        inputs_ = []
         for path in inputs:
             if not os.path.exists(path):
                 self.log.error("Cannot access input path '%s' - aborting.", path)
@@ -164,7 +182,7 @@ Note: the list of INPUT and OUTPUT files must be separated by ':'
                     path = os.path.abspath(path)
                 inputs_.append(path)
         self.inputs = inputs_
-        #self.log.debug("Gathered input files: '%s'" % str.join("', '", inputs))
+        # self.log.debug("Gathered input files: '%s'" % str.join("', '", inputs))
 
     def new_tasks(self, extra):
         ## compute number of decoys already being computed in this session
@@ -178,20 +196,18 @@ Note: the list of INPUT and OUTPUT files must be separated by ':'
         # XXX: if the number of requested decoys is lowered, we should cancel jobs!
         if decoys < self.params.total_decoys:
             if decoys > 0:
-                self.log.info("Already computing %d decoys, requested %d more.",
-                              decoys, self.params.total_decoys - decoys)
+                self.log.info(
+                    "Already computing %d decoys, requested %d more.", decoys, self.params.total_decoys - decoys
+                )
             # create new jobs and add them to session
             for nr in range(decoys, self.params.total_decoys, self.params.decoys_per_job):
-                jobname = ("%d--%d"
-                           % (nr, min(self.params.total_decoys,
-                                      nr + self.params.decoys_per_job - 1)))
+                jobname = "%d--%d" % (nr, min(self.params.total_decoys, nr + self.params.decoys_per_job - 1))
                 # yield new job to construct to `self._main()`
                 yield (
-                    jobname, RosettaApplication,
+                    jobname,
+                    RosettaApplication,
                     # args
                     (self.params.protocol, self.params.rosetta_release, self.inputs, self.outputs),
                     # kwargs
-                    {'arguments':[ '-out:nstruct', str(self.params.decoys_per_job) ],
-                     'flags_file':self.flags_file,
-                     },
-                    )
+                    {'arguments': ['-out:nstruct', str(self.params.decoys_per_job)], 'flags_file': self.flags_file},
+                )

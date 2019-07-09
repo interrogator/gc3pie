@@ -8,6 +8,7 @@ its own version of `OrderedDict` only if missing.
 
 from __future__ import absolute_import, print_function, unicode_literals
 from future import standard_library
+
 standard_library.install_aliases()
 from collections import *  # noqa
 
@@ -51,13 +52,11 @@ except:
 
             '''
             if len(args) > 1:
-                raise TypeError(
-                    'expected at most 1 arguments, got %d' %
-                    len(args))
+                raise TypeError('expected at most 1 arguments, got %d' % len(args))
             try:
                 self.__root
             except AttributeError:
-                self.__root = root = []                     # sentinel node
+                self.__root = root = []  # sentinel node
                 root[:] = [root, root, None]
                 self.__map = {}
             self.__update(*args, **kwds)
@@ -185,8 +184,7 @@ except:
 
             '''
             if len(args) > 2:
-                raise TypeError('update() takes at most 2 positional '
-                                'arguments (%d given)' % (len(args),))
+                raise TypeError('update() takes at most 2 positional ' 'arguments (%d given)' % (len(args),))
             elif not args:
                 raise TypeError('update() takes at least 1 argument (0 given)')
             self = args[0]
@@ -282,8 +280,7 @@ except:
 
             '''
             if isinstance(other, OrderedDict):
-                return len(self) == len(
-                    other) and list(self.items()) == list(other.items())
+                return len(self) == len(other) and list(self.items()) == list(other.items())
             return dict.__eq__(self, other)
 
         def __ne__(self, other):

@@ -36,15 +36,14 @@ from applicake.applications.proteomics.tpp.proteinprophet import ProteinProphet
 from applicake.applications.proteomics.sybit.protxml2spectralcount import ProtXml2SpectralCount
 from applicake.applications.proteomics.sybit.protxml2modifications import ProtXml2Modifications
 from applicake.applications.proteomics.sybit.protxml2openbis import ProtXml2Openbis
-from applicake.applications.proteomics.openbis.dropbox import Copy2Dropbox,\
-    Copy2IdentDropbox
+from applicake.applications.proteomics.openbis.dropbox import Copy2Dropbox, Copy2IdentDropbox
 from applicake.applications.commons.inifile import Unifier
 from applicake.framework.interfaces import IApplication, IWrapper
 
 cwd = None
 
-#helper function
-def wrap(applic,  input_file_name, output_file_name,opts=None):
+# helper function
+def wrap(applic, input_file_name, output_file_name, opts=None):
     argv = ['', '-i', input_file_name, '-o', output_file_name]
     if opts is not None:
         argv.extend(opts)
@@ -55,7 +54,7 @@ def wrap(applic,  input_file_name, output_file_name,opts=None):
     elif isinstance(application, IWrapper):
         runner = WrapperRunner()
     else:
-        raise Exception('could not identfy [%s]' % applic.__name__)   
+        raise Exception('could not identfy [%s]' % applic.__name__)
     application = applic()
     exit_code = runner(argv, application)
     if exit_code != 0:
@@ -63,8 +62,8 @@ def wrap(applic,  input_file_name, output_file_name,opts=None):
 
 
 def execute(command):
-    p = Popen(command, shell=True, stdout=PIPE, stderr=PIPE)           
-    output, error = p.communicate()                                                                                                                                                                           
+    p = Popen(command, shell=True, stdout=PIPE, stderr=PIPE)
+    output, error = p.communicate()
     out_stream = StringIO(output)
     err_stream = StringIO(error)
 
@@ -77,10 +76,11 @@ def setup():
     execute('rm *.out')
     execute('rm *.log')
     execute('rm *ini*')
-#    execute('rm jobid.txt')
-    execute('rm flowchart.*')   
+    #    execute('rm jobid.txt')
+    execute('rm flowchart.*')
     with open("input.ini", 'w+') as f:
-        f.write("""BASEDIR = /cluster/scratch/malars/workflows
+        f.write(
+            """BASEDIR = /cluster/scratch/malars/workflows
 LOG_LEVEL = DEBUG
 STORAGE = file
 TEMPLATE = template.tpl
@@ -103,94 +103,104 @@ FDR=0.01
 SPACE = QUANDTAN
 PROJECT = TEST
 DROPBOX = /cluster/scratch/malars/drop-box_prot_ident
-""" 
-)      
-       
+"""
+        )
+
 
 @follows(setup)
 @split("input.ini", "generate.ini_*")
 def generator(input_file_name, notused_output_file_names):
-    argv = ['', '-i', input_file_name, '--GENERATORS', 'generate.ini','-o','generator.ini','-l','DEBUG']
+    argv = ['', '-i', input_file_name, '--GENERATORS', 'generate.ini', '-o', 'generator.ini', '-l', 'DEBUG']
     runner = IniFileRunner()
     application = GuseGenerator()
     exit_code = runner(argv, application)
     if exit_code != 0:
         raise Exception("generator failed [%s]" % exit_code)
-   
+
+
 @transform(generator, regex("generate.ini_"), "dss.ini_")
-def dss(input_file_name, output_file_name):  
-    wrap(Dss,input_file_name, output_file_name,['--PREFIX', 'getmsdata'])
+def dss(input_file_name, output_file_name):
+    wrap(Dss, input_file_name, output_file_name, ['--PREFIX', 'getmsdata'])
 
 
 @transform(dss, regex("dss.ini_"), "xtandem.ini_")
 def tandem(input_file_name, output_file_name):
-    wrap(Xtandem,input_file_name, output_file_name,['--PREFIX', 'tandem.exe','-s','file','-l','DEBUG'])
+    wrap(Xtandem, input_file_name, output_file_name, ['--PREFIX', 'tandem.exe', '-s', 'file', '-l', 'DEBUG'])
+
 
 @transform(tandem, regex("xtandem.ini_"), "xtandem2xml.ini_")
 def tandem2xml(input_file_name, output_file_name):
-    wrap(Tandem2Xml,input_file_name, output_file_name) 
+    wrap(Tandem2Xml, input_file_name, output_file_name)
+
 
 @transform(tandem2xml, regex("xtandem2xml.ini_"), "xinteract.ini_")
 def xinteract(input_file_name, output_file_name):
-    wrap(Xinteract,input_file_name, output_file_name)  
+    wrap(Xinteract, input_file_name, output_file_name)
 
-   
+
 @merge(xinteract, "collector.ini")
 def collector(notused_input_file_names, output_file_name):
-    argv = ['', '--COLLECTORS', 'xinteract.ini', '-o', output_file_name,'-s','file']
+    argv = ['', '--COLLECTORS', 'xinteract.ini', '-o', output_file_name, '-s', 'file']
     runner = CollectorRunner()
     application = GuseCollector()
     exit_code = runner(argv, application)
     if exit_code != 0:
-        raise Exception("[%s] failed [%s]" % ('collector',exit_code))    
+        raise Exception("[%s] failed [%s]" % ('collector', exit_code))
+
 
 @follows(collector)
 def unifier():
-    argv = ['', '-i', 'collector.ini', '-o','unifier.ini','-p','--UNIFIER_REDUCE']
+    argv = ['', '-i', 'collector.ini', '-o', 'unifier.ini', '-p', '--UNIFIER_REDUCE']
     runner = IniFileRunner()
     application = Unifier()
     exit_code = runner(argv, application)
     if exit_code != 0:
-        raise Exception("unifier [%s]" % exit_code) 
+        raise Exception("unifier [%s]" % exit_code)
+
 
 @follows(unifier)
 def interprophet():
-    wrap(InterProphet,'unifier.ini','interprophet.ini')   
+    wrap(InterProphet, 'unifier.ini', 'interprophet.ini')
+
 
 @follows(interprophet)
 def pepxml2csv():
-    wrap(Pepxml2Csv,'interprophet.ini','pepxml2csv.ini')   
+    wrap(Pepxml2Csv, 'interprophet.ini', 'pepxml2csv.ini')
+
 
 @follows(pepxml2csv)
 def fdr2probability():
-    wrap(Fdr2Probability,'pepxml2csv.ini','fdr2probability.ini')        
+    wrap(Fdr2Probability, 'pepxml2csv.ini', 'fdr2probability.ini')
+
 
 @follows(fdr2probability)
 def proteinprophet():
-    wrap(ProteinProphet,'fdr2probability.ini','proteinprophet.ini')
+    wrap(ProteinProphet, 'fdr2probability.ini', 'proteinprophet.ini')
+
 
 @follows(proteinprophet)
 def protxml2spectralcount():
-    wrap(ProtXml2SpectralCount,'proteinprophet.ini','protxml2spectralcount.ini')
+    wrap(ProtXml2SpectralCount, 'proteinprophet.ini', 'protxml2spectralcount.ini')
+
 
 @follows(protxml2spectralcount)
 def protxml2modifications():
-    wrap(ProtXml2Modifications,'protxml2spectralcount.ini','protxml2modifications.ini')
+    wrap(ProtXml2Modifications, 'protxml2spectralcount.ini', 'protxml2modifications.ini')
+
 
 @follows(protxml2modifications)
 def protxml2openbis():
-    wrap(ProtXml2Openbis,'protxml2modifications.ini','protxml2openbis.ini') 
+    wrap(ProtXml2Openbis, 'protxml2modifications.ini', 'protxml2openbis.ini')
+
 
 @follobws(protxml2openbis)
 def copy2dropbox():
-    argv = ['', '-i', 'protxml2openbis.ini', '-o','copy2dropbox.ini','-p']
+    argv = ['', '-i', 'protxml2openbis.ini', '-o', 'copy2dropbox.ini', '-p']
     runner = IniFileRunner()
     application = Copy2IdentDropbox()
     exit_code = runner(argv, application)
     if exit_code != 0:
-        raise Exception("unifier [%s]" % exit_code) 
+        raise Exception("unifier [%s]" % exit_code)
+
 
 pipeline_run([copy2dropbox])
-
-
-

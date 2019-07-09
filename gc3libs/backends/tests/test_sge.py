@@ -19,6 +19,7 @@
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 import datetime
@@ -41,33 +42,45 @@ files_to_remove = []
 
 
 def correct_submit(jobid=123):
-    out = """Your job %s ("DemoSGEApp") has been submitted
-""" % jobid
+    out = (
+        """Your job %s ("DemoSGEApp") has been submitted
+"""
+        % jobid
+    )
     return (0, out, "")
 
 
 def correct_qstat_queued(jobid=123):
-    out = """  %s 0.00000 DemoSGEApp antonio      qw    03/15/2012 08:53:34 \
+    out = (
+        """  %s 0.00000 DemoSGEApp antonio      qw    03/15/2012 08:53:34 \
                                    1
-""" % jobid
+"""
+        % jobid
+    )
     return (0, out, "")
 
 
 def correct_qstat_running(jobid=123):
-    out = """  %s 0.55500 DemoSGEApp antonio      r     03/15/2012 08:53:42 \
+    out = (
+        """  %s 0.55500 DemoSGEApp antonio      r     03/15/2012 08:53:42 \
 all.q@compute-0-2.local            1
-""" % jobid
+"""
+        % jobid
+    )
     return (0, out, "")
 
 
 def qacct_notfound(jobid=123):
-    err = """error: job id %s not found
-""" % jobid
+    err = (
+        """error: job id %s not found
+"""
+        % jobid
+    )
     return (1, "", err)
 
 
 def qdel_notfound(jobid=123):
-    return (1, "",  """denied: job "%s" does not exist""" % jobid)
+    return (1, "", """denied: job "%s" does not exist""" % jobid)
 
 
 def qstat_notfound(jobid=123):
@@ -75,7 +88,8 @@ def qstat_notfound(jobid=123):
 
 
 def correct_qacct_done(jobid=123):
-    out = """
+    out = (
+        """
 ==============================================================
 qname        all.q
 hostname     compute-0-2.local
@@ -119,18 +133,24 @@ io           0.006
 iow          0.000
 maxvmem      13.152M
 arid         undefined
-""" % jobid
+"""
+        % jobid
+    )
 
     return (0, out, "")
 
 
 def qsub_failed_jobnamestartswithdigit(jobname='123DemoSGEApp'):
     out = ""
-    err = """Unable to run job: denied: "%s" is not a valid object name \
+    err = (
+        """Unable to run job: denied: "%s" is not a valid object name \
 (cannot start with a digit).
 Exiting.
-""" % jobname
+"""
+        % jobname
+    )
     return (1, out, err)
+
 
 # def qsub_failed_acl():
 #     out = ""
@@ -145,25 +165,29 @@ def qdel_success(jobid=123):
 
 
 def qdel_failed_acl(jobid=123):
-    err = """antonio - you do not have the necessary privileges to delete \
+    err = (
+        """antonio - you do not have the necessary privileges to delete \
 the job "%s"
-""" % jobid
+"""
+        % jobid
+    )
     out = ""
     return (1, out, err)
 
 
 class FakeApp(gc3libs.Application):
-
     def __init__(self, **extra_args):
         gc3libs.Application.__init__(
             self,
             arguments=['/bin/hostname'],  # mandatory
-            inputs=[],                    # mandatory
-            outputs=[],                   # mandatory
-            output_dir="./fakedir",       # mandatory
+            inputs=[],  # mandatory
+            outputs=[],  # mandatory
+            output_dir="./fakedir",  # mandatory
             stdout="stdout.txt",
             stderr="stderr.txt",
-            requested_cores=1, **extra_args)
+            requested_cores=1,
+            **extra_args
+        )
 
 
 class TestBackendSge(object):
@@ -216,8 +240,7 @@ username=NONEXISTENT
         # at https://github.com/uzh/gc3pie/issues/250) This
         # first test will show the answer you would get if the job name
         # starts with a digit.
-        self.transport.expected_answer['qsub'] = \
-            qsub_failed_jobnamestartswithdigit()
+        self.transport.expected_answer['qsub'] = qsub_failed_jobnamestartswithdigit()
         try:
             self.core.submit(app)
             assert False
@@ -285,27 +308,9 @@ username=NONEXISTENT
         # SGE-specific values
         assert job.sge_queue == 'all.q'
         assert job.sge_jobname == 'DemoSGEApp'
-        assert (job.sge_submission_time ==
-                     datetime.datetime(year=2012,
-                                       month=3,
-                                       day=15,
-                                       hour=8,
-                                       minute=42,
-                                       second=46))
-        assert (job.sge_start_time ==
-                     datetime.datetime(year=2012,
-                                       month=3,
-                                       day=15,
-                                       hour=8,
-                                       minute=43,
-                                       second=0))
-        assert (job.sge_completion_time ==
-                     datetime.datetime(year=2012,
-                                       month=3,
-                                       day=15,
-                                       hour=8,
-                                       minute=43,
-                                       second=10))
+        assert job.sge_submission_time == datetime.datetime(year=2012, month=3, day=15, hour=8, minute=42, second=46)
+        assert job.sge_start_time == datetime.datetime(year=2012, month=3, day=15, hour=8, minute=43, second=0)
+        assert job.sge_completion_time == datetime.datetime(year=2012, month=3, day=15, hour=8, minute=43, second=10)
         assert job.sge_failed == 0
 
     def test_delete_job(self):
@@ -340,7 +345,8 @@ def test_get_command():
     (fd, tmpfile) = tempfile.mkstemp()
     files_to_remove.append(tmpfile)
     f = os.fdopen(fd, 'w+')
-    f.write("""
+    f.write(
+        """
 [auth/ssh]
 type=ssh
 username=NONEXISTENT
@@ -362,7 +368,8 @@ qsub = /usr/local/bin/qsub -q testing
 qacct = /usr/local/sbin/qacct
 qstat = /usr/local/bin/qstat
 qdel = /usr/local/bin/qdel # comments are ignored!
-""")
+"""
+    )
     f.close()
 
     cfg = gc3libs.config.Configuration()
@@ -378,4 +385,5 @@ qdel = /usr/local/bin/qdel # comments are ignored!
 
 if __name__ == "__main__":
     import pytest
+
     pytest.main(["-v", __file__])

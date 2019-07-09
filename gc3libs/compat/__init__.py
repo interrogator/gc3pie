@@ -17,6 +17,7 @@ the packages in the `gc3libs.compat` namespace.
 # This file is only present so that the `compat/` directory is
 # recognized as a Python package.
 from __future__ import absolute_import, print_function, unicode_literals
+
 __docformat__ = 'reStructuredText'
 
 
@@ -24,5 +25,5 @@ __docformat__ = 'reStructuredText'
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="__init__",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="__init__", optionflags=doctest.NORMALIZE_WHITESPACE)

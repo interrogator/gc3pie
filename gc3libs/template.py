@@ -22,22 +22,21 @@ expansions generated recursviely.
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+__docformat__ = 'reStructuredText'
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
-from builtins import range
-from builtins import object
-__docformat__ = 'reStructuredText'
-
 
 import string
 
+#
+# You should have received a copy of the GNU Lesser General Public License
+from builtins import object, range, str
 
 try:
     import itertools
+
     SetProductIterator = itertools.product
 except:
     # use our own implementation, in case `itertools` does not (yet)
@@ -87,11 +86,10 @@ except:
             else:
                 if self.__i < self.__L:
                     # will return element corresponding to current multi-index
-                    result = [s[self.__m[i]]
-                              for (i, s) in enumerate(self.__factors)]
+                    result = [s[self.__m[i]] for (i, s) in enumerate(self.__factors)]
                     # advance multi-index
                     i = 0
-                    while (i < self.__L):
+                    while i < self.__L:
                         if self.__m[i] == self.__M[i]:
                             self.__m[i] = 0
                             i += 1
@@ -122,8 +120,7 @@ class Template(object):
     The default validator passes any combination of keywords/values.
     """
 
-    def __init__(self, template,
-                 validator=(lambda kws: True), **extra_args):
+    def __init__(self, template, validator=(lambda kws: True), **extra_args):
         self._template = template
         self._keywords = extra_args
         self._valid = validator
@@ -149,17 +146,12 @@ class Template(object):
             try:
                 return self._template.substitute(**keywords)
             except AttributeError:
-                return string.Template(
-                    str(self._template)).safe_substitute(keywords)
+                return string.Template(str(self._template)).safe_substitute(keywords)
         else:
             raise ValueError("Invalid substitution values in template.")
 
     def __eq__(self, other):
-        return (
-            self._template == other._template
-            and self._keywords == other._keywords
-            and self._valid == other._valid
-        )
+        return self._template == other._template and self._keywords == other._keywords and self._valid == other._valid
 
     def __str__(self):
         """Alias for `Template.substitute`."""
@@ -169,11 +161,13 @@ class Template(object):
         """
         Return a string representation such that `x == eval(repr(x))`.
         """
-        return ''.join(["Template(",
-                             ', '.join([repr(self._template)] +
-                                      [("%s=%s" % (k, v))
-                                       for k, v in list(self._keywords.items())]),
-                             ')'])
+        return ''.join(
+            [
+                "Template(",
+                ', '.join([repr(self._template)] + [("%s=%s" % (k, v)) for k, v in list(self._keywords.items())]),
+                ')',
+            ]
+        )
 
     def expansions(self, **keywords):
         """
@@ -276,13 +270,10 @@ def expansions(obj, **extra_args):
     """
     if isinstance(obj, dict):
         keys = tuple(obj.keys())  # fix a key order
-        for items in SetProductIterator(
-                *[list(expansions(obj[keys[i]], **extra_args))
-                  for i in range(len(keys))]):
+        for items in SetProductIterator(*[list(expansions(obj[keys[i]], **extra_args)) for i in range(len(keys))]):
             yield dict((keys[i], items[i]) for i in range(len(keys)))
     elif isinstance(obj, tuple):
-        for items in SetProductIterator(
-                *[list(expansions(u, **extra_args)) for u in obj]):
+        for items in SetProductIterator(*[list(expansions(u, **extra_args)) for u in obj]):
             yield tuple(items)
     elif isinstance(obj, list):
         for item in obj:
@@ -299,5 +290,5 @@ def expansions(obj, **extra_args):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="template",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="template", optionflags=doctest.NORMALIZE_WHITESPACE)

@@ -23,18 +23,18 @@ created inside that URL.
 
 # stdlib imports
 from __future__ import absolute_import, print_function, unicode_literals
-from builtins import str
-from builtins import object
-from abc import ABCMeta, abstractmethod
-from collections import defaultdict
+
 import os
 import stat
+from abc import ABCMeta, abstractmethod
+from builtins import object, str
+from collections import defaultdict
 from warnings import warn
 
 # GC3Pie imports
 import gc3libs
-from gc3libs.url import Url
 from future.utils import with_metaclass
+from gc3libs.url import Url
 
 
 # Some pollers depend on the presence of specific Python modules;
@@ -42,16 +42,19 @@ from future.utils import with_metaclass
 class _Unavailable(object):
     def __init__(self, missing):
         self.__missing = missing
-        warn("Trying to initialize `{module}` which is not available."
-             " A placeholder object will be used instead, but it will raise"
-             " `ImportError` later if there is any actual attempt at using it."
-             .format(module=self.__missing),
-             ImportWarning)
+        warn(
+            "Trying to initialize `{module}` which is not available."
+            " A placeholder object will be used instead, but it will raise"
+            " `ImportError` later if there is any actual attempt at using it.".format(module=self.__missing),
+            ImportWarning,
+        )
+
     def __getattr__(self, name):
         raise ImportError(
             "Trying to actually use module `{module}`"
-            " which could not be imported. Aborting."
-            .format(module=self.__missing))
+            " which could not be imported. Aborting.".format(module=self.__missing)
+        )
+
 
 try:
     import inotify_simple as inotify
@@ -72,6 +75,7 @@ except ImportError:
 
 _AVAILABLE_POLLERS = defaultdict(list)
 
+
 def make_poller(url, **extra):
     """
     Factory method that returns the registered poller for the specified
@@ -82,27 +86,22 @@ def make_poller(url, **extra):
     try:
         registered = _AVAILABLE_POLLERS[url.scheme]
     except KeyError:
-        raise ValueError(
-            "No poller associated with scheme `{0}`"
-            .format(url.scheme))
+        raise ValueError("No poller associated with scheme `{0}`".format(url.scheme))
     for cls in registered:
         try:
             poller = cls(url, **extra)
             gc3libs.log.debug("Using class %s to poll URL %s", cls, url)
             return poller
         except Exception as err:
-            gc3libs.log.debug(
-                "Could not create poller for scheme `%s` with class %s: %s",
-                url.scheme, cls, err)
-    raise ValueError(
-        "No registered class could be instanciated to poll URL {0}"
-        .format(url))
+            gc3libs.log.debug("Could not create poller for scheme `%s` with class %s: %s", url.scheme, cls, err)
+    raise ValueError("No registered class could be instanciated to poll URL {0}".format(url))
 
 
 def register_poller(scheme):
     def register_class(cls):
         _AVAILABLE_POLLERS[scheme].append(cls)
         return cls
+
     return register_class
 
 
@@ -153,8 +152,8 @@ class Poller(with_metaclass(ABCMeta, object)):
         meaningful ``modified`` events.
         """
         raise NotImplementedError(
-            "Abstract method `Poller.get_events()` called "
-            " - this should have been defined in a derived class.")
+            "Abstract method `Poller.get_events()` called " " - this should have been defined in a derived class."
+        )
 
 
 ##
@@ -162,6 +161,7 @@ class Poller(with_metaclass(ABCMeta, object)):
 # Filesystem polling
 #
 ##
+
 
 @register_poller('file')
 class INotifyPoller(Poller):
@@ -187,10 +187,7 @@ class INotifyPoller(Poller):
         See also the `inotify(7) manpage <http://linux.die.net/man/7/inotify>`_
     """
 
-    __slots__ = [
-        '_ifd',
-        '_recurse',
-    ]
+    __slots__ = ['_ifd', '_recurse']
 
     def __init__(self, url, recurse=False, **kw):
         # normalize filesystem paths by removing trailing slashes;
@@ -207,9 +204,7 @@ class INotifyPoller(Poller):
 
         # Ensure inbox directory exists
         if not os.path.exists(self.url.path):
-            gc3libs.log.info(
-                "Inbox directory `%s` does not exist,"
-                " creating it ...", self.url.path)
+            gc3libs.log.info("Inbox directory `%s` does not exist," " creating it ...", self.url.path)
             os.makedirs(self.url.path)
 
         self.watch(self.url.path)
@@ -233,21 +228,25 @@ class INotifyPoller(Poller):
         # FIXME: this is not enough, as we might be adding a watch to
         # a file located in a subdirectory of `self.url` without *recurse*
         assert path.startswith(self.url.path), (
-            "Request to watch path `%s`"
-            " which does not lie in directory tree rooted at `%s`",
-            path, self.url.path)
+            "Request to watch path `%s`" " which does not lie in directory tree rooted at `%s`",
+            path,
+            self.url.path,
+        )
         gc3libs.log.debug("Adding watch for path %s", path)
-        self._ifd.add_watch(path,
-                            # only watch for inotify(7) events that
-                            # translate to something we can report
-                            (0
-                             |inotify.flags.CLOSE_WRITE
-                             |inotify.flags.CREATE
-                             |inotify.flags.DELETE
-                             |inotify.flags.EXCL_UNLINK
-                             |inotify.flags.MODIFY
-                             |inotify.flags.OPEN
-                            ))
+        self._ifd.add_watch(
+            path,
+            # only watch for inotify(7) events that
+            # translate to something we can report
+            (
+                0
+                | inotify.flags.CLOSE_WRITE
+                | inotify.flags.CREATE
+                | inotify.flags.DELETE
+                | inotify.flags.EXCL_UNLINK
+                | inotify.flags.MODIFY
+                | inotify.flags.OPEN
+            ),
+        )
 
     def get_new_events(self):
         new_events = []
@@ -260,19 +259,14 @@ class INotifyPoller(Poller):
             # we want to dispatch a single `created` or `modified`
             # event, so check once the file is closed what past events
             # have been recorded
-            if (ievent.mask & inotify.flags.CLOSE_WRITE):
-                if (accumulated & inotify.flags.CREATE):
-                    new_events.append(
-                        self.__make_event(ievent.name, 'created'))
-                elif (accumulated & inotify.flags.MODIFY):
-                    new_events.append(
-                        self.__make_event(ievent.name, 'modified'))
-            if (ievent.mask & inotify.flags.DELETE):
-                new_events.append(
-                    self.__make_event(ievent.name, 'deleted'))
-            if (self._recurse
-                and ievent.mask & inotify.flags.ISDIR
-                and ievent.mask & inotify.flags.CREATE):
+            if ievent.mask & inotify.flags.CLOSE_WRITE:
+                if accumulated & inotify.flags.CREATE:
+                    new_events.append(self.__make_event(ievent.name, 'created'))
+                elif accumulated & inotify.flags.MODIFY:
+                    new_events.append(self.__make_event(ievent.name, 'modified'))
+            if ievent.mask & inotify.flags.DELETE:
+                new_events.append(self.__make_event(ievent.name, 'deleted'))
+            if self._recurse and ievent.mask & inotify.flags.ISDIR and ievent.mask & inotify.flags.CREATE:
                 # A new directory has been created. Add a watch
                 # for it too and for all its subdirectories. Also,
                 # we need to trigger new events for any file
@@ -283,9 +277,7 @@ class INotifyPoller(Poller):
                         self.watch(os.path.join(rootdir, dirname))
                     for filename in filenames:
                         # report creation event
-                        new_events.append(
-                            (Url(os.path.join(rootdir, filename)),
-                             'created'))
+                        new_events.append((Url(os.path.join(rootdir, filename)), 'created'))
         return new_events
 
     def __make_event(self, relpath, event):
@@ -317,19 +309,14 @@ class FilePoller(Poller):
     whenever the :py:mod:`inotify_simple` module is not available.
     """
 
-    __slots__ = [
-        '_recurse',
-        '_watched'
-    ]
+    __slots__ = ['_recurse', '_watched']
 
     def __init__(self, url, recurse=False, **kw):
         super(FilePoller, self).__init__(url, **kw)
 
         root = self.url.path
         if not os.path.exists(root):
-            gc3libs.log.warning(
-                "Inbox root directory `%s` does not exist,"
-                " creating it ...", root)
+            gc3libs.log.warning("Inbox root directory `%s` does not exist," " creating it ...", root)
             os.makedirs(root)
         self._recurse = recurse
         self._watched = {}
@@ -354,7 +341,6 @@ class FilePoller(Poller):
                 child_path = os.path.join(path, entry)
                 self.watch(child_path)
 
-
     def get_new_events(self):
         new_events = []
         # take a copy of the list of watched files, since
@@ -365,7 +351,6 @@ class FilePoller(Poller):
             else:
                 new_events += self._get_events_file(path)
         return new_events
-
 
     def _get_events_file(self, path):
         if not os.path.exists(path):
@@ -383,16 +368,11 @@ class FilePoller(Poller):
         else:
             return []
 
-
     def _get_events_dir(self, dirpath):
         new_events = []
 
         # check for new files
-        contents = set(
-            os.path.join(dirpath, entry)
-            for entry in os.listdir(dirpath)
-            if entry not in ['.', '..']
-        )
+        contents = set(os.path.join(dirpath, entry) for entry in os.listdir(dirpath) if entry not in ['.', '..'])
         for path in contents:
             if path not in self._watched:
                 new_events.append((Url(path), 'created'))
@@ -423,22 +403,19 @@ class SwiftPoller(Poller):
 
     We assume that keystone auth version 2 is used.
     """
+
     def __init__(self, url, **kw):
         super(SwiftPoller, self).__init__(url, **kw)
 
         try:
             self.username, self.project_name = self.url.username.split('+')
         except ValueError:
-            raise gc3libs.exceptions.InvalidValue(
-                "Missing project/tenant name in SWIFT URL '{0}'"
-                .format(self.url))
+            raise gc3libs.exceptions.InvalidValue("Missing project/tenant name in SWIFT URL '{0}'".format(self.url))
         self.password = self.url.password
         self.container = self.url.query
 
         if not self.container:
-            raise gc3libs.exceptions.InvalidValue(
-                "Missing bucket name in SWIFT URL '{0}'"
-                .format(self.url))
+            raise gc3libs.exceptions.InvalidValue("Missing bucket name in SWIFT URL '{0}'".format(self.url))
         # FIXME: also check for hostname and password?
 
         if url.scheme in ['swifts', 'swts']:
@@ -455,22 +432,22 @@ class SwiftPoller(Poller):
             authurl=self.auth_url,
             user=self.username,
             key=self.password,
-            os_options = {
+            os_options={
                 "auth_url": self.auth_url,
                 "project_name": self.project_name,
                 "username": self.username,
-                "password": self.password},
-            auth_version='2')
+                "password": self.password,
+            },
+            auth_version='2',
+        )
 
         # List containers
         _, containers = self.conn.get_account()
         gc3libs.log.debug(
-            "Successfully connected to SWIFT storage '%s':"
-            " %d containers found", self.conn.url, len(containers))
+            "Successfully connected to SWIFT storage '%s':" " %d containers found", self.conn.url, len(containers)
+        )
         if self.container not in [a.get('name') for a in containers]:
-            gc3libs.log.warning(
-                "Container %s not found at SWIFT URL '%s'",
-                self.container, self.url)
+            gc3libs.log.warning("Container %s not found at SWIFT URL '%s'", self.container, self.url)
 
         _, objects = self.conn.get_container(self.container)
         self._known_objects = {}
@@ -485,9 +462,7 @@ class SwiftPoller(Poller):
 
         objurls = []
         for obj in objects:
-            url = Url('{baseurl}&name={objname}'
-                      .format(baseurl=self.url,
-                              objname=obj['name']))
+            url = Url('{baseurl}&name={objname}'.format(baseurl=self.url, objname=obj['name']))
             objurls.append(url)
             if url not in self._known_objects:
                 self._known_objects[url] = obj
@@ -497,6 +472,7 @@ class SwiftPoller(Poller):
                 newevents.append((url, 'deleted'))
                 self._known_objects.pop(url)
         return newevents
+
 
 # register for multiple schemes
 register_poller('swift')(SwiftPoller)
@@ -509,5 +485,5 @@ register_poller('swts')(SwiftPoller)
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="poller",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="poller", optionflags=doctest.NORMALIZE_WHITESPACE)

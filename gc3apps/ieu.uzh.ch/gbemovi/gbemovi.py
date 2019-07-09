@@ -57,13 +57,15 @@ class BemoviCSVConf(object):
             for line in cr:
                 lineno += 1
                 if len(line) != 9:
-                    log.warning("Ignoring line '%d' in csv configuration file %s: wrong number of fields (%d != 9)",
-                    lineno, path, len(line))
+                    log.warning(
+                        "Ignoring line '%d' in csv configuration file %s: wrong number of fields (%d != 9)",
+                        lineno,
+                        path,
+                        len(line),
+                    )
                     continue
                 if line[0] in self.cfg:
-                    log.warning(
-                        "Overwriting dupliacate key in '%s' csv configuration file: '%s'",
-                        csvcfgfile, line[0])
+                    log.warning("Overwriting dupliacate key in '%s' csv configuration file: '%s'", csvcfgfile, line[0])
 
                 try:
                     # Check if this is an header line. These values
@@ -73,8 +75,11 @@ class BemoviCSVConf(object):
                     int(line[4])
                     int(line[5])
                 except ValueError:
-                    log.debug("Ignoring line '%d' of file %s, some values do not convert to integer as expected.",
-                              lineno, path)
+                    log.debug(
+                        "Ignoring line '%d' of file %s, some values do not convert to integer as expected.",
+                        lineno,
+                        path,
+                    )
                     continue
                 data = {
                     'fps': line[1],
@@ -88,9 +93,14 @@ class BemoviCSVConf(object):
                 try:
                     data['requested_walltime'] = Duration(line[6])
                 except ValueError as ex:
-                    log.error("Unable to parse walltime '%s' for key %s in file"
-                              " %s: %s. Using default value of %s",
-                              line[6], line[0], path, ex, default_walltime)
+                    log.error(
+                        "Unable to parse walltime '%s' for key %s in file" " %s: %s. Using default value of %s",
+                        line[6],
+                        line[0],
+                        path,
+                        ex,
+                        default_walltime,
+                    )
                     data['requested_walltime'] = Duration(default_walltime)
                 key = line[0]
                 if key.lower() == "default":
@@ -112,6 +122,7 @@ class BemoviCSVConf(object):
 
     def __iter__(self):
         return iter(self.keys())
+
 
 class BemoviApp(gc3libs.Application):
     def update_configuration(self, extra):
@@ -138,17 +149,11 @@ class ParticleLocator(BemoviApp):
 
         scriptdir = os.path.dirname(__file__)
 
-        self.ijoutbase = extra['videoname']+'.ijout.txt'
-        outputfile = os.path.join('data',
-                                  '2-particle',
-                                  self.ijoutbase)
-        rdatafile = os.path.join('data',
-                                 '2-particle',
-                                 'particle.RData')
-        self.rdatafile = os.path.join(extra['output_dir'],
-                                      'particle.RData')
-        self.logfile = os.path.join(extra['output_dir'],
-                                    'plocator.log')
+        self.ijoutbase = extra['videoname'] + '.ijout.txt'
+        outputfile = os.path.join('data', '2-particle', self.ijoutbase)
+        rdatafile = os.path.join('data', '2-particle', 'particle.RData')
+        self.rdatafile = os.path.join(extra['output_dir'], 'particle.RData')
+        self.logfile = os.path.join(extra['output_dir'], 'plocator.log')
         self.fps = extra['rparams']['fps']
         self.pixel_to_scale = extra['rparams']['pixel_to_scale']
         self.difference_lag = extra['rparams']['difference_lag']
@@ -165,16 +170,17 @@ class ParticleLocator(BemoviApp):
         ]
         gc3libs.Application.__init__(
             self,
-            arguments = ["./plocator.sh", "locator"] + extra_params,
-            inputs = {
+            arguments=["./plocator.sh", "locator"] + extra_params,
+            inputs={
                 os.path.join(scriptdir, 'plocator.sh'): 'plocator.sh',
                 os.path.join(scriptdir, 'bemovi.R'): 'bemovi.R',
-                videofile: os.path.join('data', '1-raw', videofilename)},
-            outputs = {outputfile : self.ijoutbase,
-                       rdatafile: 'particle.RData'},
-            stdout = 'plocator.log',
-            join = True,
-            **extra)
+                videofile: os.path.join('data', '1-raw', videofilename),
+            },
+            outputs={outputfile: self.ijoutbase, rdatafile: 'particle.RData'},
+            stdout='plocator.log',
+            join=True,
+            **extra
+        )
 
 
 class ParticleLinker(BemoviApp):
@@ -185,13 +191,9 @@ class ParticleLinker(BemoviApp):
         extra['jobname'] = "%s.%s" % (self.application, extra['videoname'])
         extra['output_dir'] = os.path.join(extra['base_output_dir'], self.application)
         scriptdir = os.path.dirname(__file__)
-        rdatafile = os.path.join('data',
-                                 '3-trajectory',
-                                 'trajectory.RData')
-        self.rdatafile = os.path.join(extra['output_dir'],
-                                      'trajectory.RData')
-        self.logfile = os.path.join(extra['output_dir'],
-                                    'plinker.log')
+        rdatafile = os.path.join('data', '3-trajectory', 'trajectory.RData')
+        self.rdatafile = os.path.join(extra['output_dir'], 'trajectory.RData')
+        self.logfile = os.path.join(extra['output_dir'], 'plinker.log')
         self.fps = extra['rparams']['fps']
         self.pixel_to_scale = extra['rparams']['pixel_to_scale']
         self.difference_lag = extra['rparams']['difference_lag']
@@ -208,25 +210,22 @@ class ParticleLinker(BemoviApp):
         ]
         gc3libs.Application.__init__(
             self,
-            arguments = ["./plocator.sh", "linker"] + extra_params,
-            inputs = {
-                particlefile: os.path.join("data",
-                                           "2-particle",
-                                           os.path.basename(particlefile)),
+            arguments=["./plocator.sh", "linker"] + extra_params,
+            inputs={
+                particlefile: os.path.join("data", "2-particle", os.path.basename(particlefile)),
                 os.path.join(scriptdir, 'plocator.sh'): 'plocator.sh',
                 os.path.join(scriptdir, 'bemovi.R'): 'bemovi.R',
             },
-            outputs = {os.path.join('data',
-                                    '3-trajectory',
-                                    'ParticleLinker_' + ijoutname),
-                       rdatafile},
-            stdout = 'plinker.log',
-            join = True,
-            **extra)
+            outputs={os.path.join('data', '3-trajectory', 'ParticleLinker_' + ijoutname), rdatafile},
+            stdout='plinker.log',
+            join=True,
+            **extra
+        )
 
 
 class BemoviWorkflow(SequentialTaskCollection):
     appname = 'bemoviworkflow'
+
     def __init__(self, videofile, email_from, smtp_server, **extra):
         self.videofile = videofile
         videofilename = os.path.basename(videofile)
@@ -248,18 +247,15 @@ class BemoviWorkflow(SequentialTaskCollection):
         extra['jobname'] = 'BemoviWorkflow_%s' % videoname
         extra['videoname'] = videoname
 
-        extra['base_output_dir'] = os.path.join(
-            inboxdir + '.out',
-            extra['jobname'])
+        extra['base_output_dir'] = os.path.join(inboxdir + '.out', extra['jobname'])
 
         self.update_configuration()
 
         plocator = ParticleLocator(videofile, **extra)
         plinker = ParticleLinker(
-            os.path.join(extra['base_output_dir'],
-                         ParticleLocator.application,
-                         extra['videoname'] + '.ijout.txt',),
-            **extra)
+            os.path.join(extra['base_output_dir'], ParticleLocator.application, extra['videoname'] + '.ijout.txt'),
+            **extra
+        )
         SequentialTaskCollection.__init__(self, [plocator, plinker], **extra)
 
     def update_configuration(self):
@@ -279,17 +275,12 @@ class BemoviWorkflow(SequentialTaskCollection):
         except IOError:
             pass
         except Exception as ex:
-            log.warning(
-                "Error while reading CSV configuration file %s: Ignoring."
-                " Error was: %s",
-                csvcfgfile, ex)
-
+            log.warning("Error while reading CSV configuration file %s: Ignoring." " Error was: %s", csvcfgfile, ex)
 
     def should_resubmit(self):
         """Return True or False if the job should be resubmitted or not"""
         for task in self.tasks:
-            if task.execution.state == Run.State.TERMINATED and \
-               task.execution.exitcode != 0:
+            if task.execution.state == Run.State.TERMINATED and task.execution.exitcode != 0:
                 return True
         return False
 
@@ -308,24 +299,18 @@ class BemoviWorkflow(SequentialTaskCollection):
                 if attachments:
                     for attachment in attachments:
                         with open(attachment) as fd:
-                            msg.attach(
-                                MIMEApplication(fd.read(),
-                                                name=attachment)
-                            )
+                            msg.attach(MIMEApplication(fd.read(), name=attachment))
                 s = smtplib.SMTP(self.smtp_server)
                 s.sendmail(self.email_from, [self.email_to], msg.as_string())
                 s.quit()
                 log.info("Successfully sent email to %s", self.email_to)
             except Exception as ex:
-                log.error("Error while sending an email to %s via %s: %s",
-                          self.email_to, self.smtp_server, ex)
-
+                log.error("Error while sending an email to %s via %s: %s", self.email_to, self.smtp_server, ex)
 
     def terminated(self):
         """Check if the processing went fine, otherwise send an email."""
         plocator, plinker = self.tasks
-        if plocator.execution.exitcode != 0 or \
-           plinker.execution.exitcode != 0:
+        if plocator.execution.exitcode != 0 or plinker.execution.exitcode != 0:
             # Send notification
 
             # path of self.videofile should be relative to the inbox dir.
@@ -334,19 +319,15 @@ class BemoviWorkflow(SequentialTaskCollection):
             msg = """File {} failed processing.
 ParticleLocator exited with status {}
 ParticleLinker exited with status {}
-""".format(shortvideofile,
-           plocator.execution.exitcode,
-           plinker.execution.exitcode)
-            self._send_notification(
-                subject,
-                msg,
-                attachments=[plocator.logfile,
-                             plinker.logfile]
+""".format(
+                shortvideofile, plocator.execution.exitcode, plinker.execution.exitcode
             )
+            self._send_notification(subject, msg, attachments=[plocator.logfile, plinker.logfile])
 
 
 class Merger(gc3libs.Application):
     appname = "merger"
+
     def __init__(self, vdescrfile, inputs, **extra):
         # Rename files in destination folder
         scriptdir = os.path.dirname(__file__)
@@ -364,19 +345,22 @@ class Merger(gc3libs.Application):
         extra['output_dir'] = os.path.join(self.inboxdir + '.out', extra['jobname'])
         gc3libs.Application.__init__(
             self,
-            arguments = ["./plocator.sh", "merger"],
-            inputs = infiles,
-            outputs = {"data/5-merged/Master.RData": "Master.RData"},
+            arguments=["./plocator.sh", "merger"],
+            inputs=infiles,
+            outputs={"data/5-merged/Master.RData": "Master.RData"},
             # outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'merger.log',
-            join = True,
-            **extra)
+            stdout='merger.log',
+            join=True,
+            **extra
+        )
 
 
 class FinalMerger(Merger):
     """This application is exactly like Merger, but when it's terminated
     it will delete its input files"""
+
     appname = "final_merger"
+
     def __init__(self, vdescrfile, tasks, email_from, email_to, smtp_server, stats, session, **extra):
         self.email_from = email_from
         self.email_to = email_to
@@ -409,10 +393,12 @@ Files processed:
 
 Statistics:
 {}
-""".format(os.path.dirname(self.vdescrfile),
-           os.path.join(self.output_dir, 'merger.log'),
-           str.join('\n', self.videofiles),
-           self.stats)
+""".format(
+                os.path.dirname(self.vdescrfile),
+                os.path.join(self.output_dir, 'merger.log'),
+                str.join('\n', self.videofiles),
+                self.stats,
+            )
             msg = MIMEText(text)
             msg['Subject'] = "GBemovi: Experiment in %s ended successfully." % os.path.dirname(self.vdescrfile)
             msg['From'] = self.email_from
@@ -422,16 +408,14 @@ Statistics:
             s.quit()
             log.info("Successfully sent email to %s", str.join(', ', self.email_to))
         except Exception as ex:
-            log.error("Error while sending an email to %s via %s: %s",
-                      self.email_to, self.smtp_server, ex)
+            log.error("Error while sending an email to %s via %s: %s", self.email_to, self.smtp_server, ex)
 
         for videofile in self.videofiles:
             try:
                 os.remove(videofile)
                 log.info("Removed input file %s", videofile)
             except Exception as ex:
-                log.warning("Ignorinig error while removing input file %s: %s",
-                            videofile, ex)
+                log.warning("Ignorinig error while removing input file %s: %s", videofile, ex)
 
         for task in self.videotasks:
             try:
@@ -442,15 +426,16 @@ Statistics:
         # This is useful when the daemon is restarted...
         del self.videotasks
 
+
 class GBemoviDaemon(SessionBasedDaemon):
     """Daemon to run bemovi workflow"""
+
     version = '1.0'
 
     def setup_options(self):
         self.add_param(
-            '--fps',
-            default='25',
-            help="Framerate of the video in seconds (frame per second). Default: %(default)s")
+            '--fps', default='25', help="Framerate of the video in seconds (frame per second). Default: %(default)s"
+        )
         self.add_param(
             '--pixel-to-scale',
             default='1000/240',
@@ -459,7 +444,8 @@ class GBemoviDaemon(SessionBasedDaemon):
             " be determined by the experimenter by measuring an object of"
             " known size (e.g. micrometer) with the used microscope/video"
             " settings (magnification, resolution etc.)."
-            " Default: %(default)s")
+            " Default: %(default)s",
+        )
         self.add_param(
             '--difference-lag',
             default='10',
@@ -468,38 +454,40 @@ class GBemoviDaemon(SessionBasedDaemon):
             " to create the difference image. Lag is specified in frames, but"
             " can be converted into time (difference-lag of 25 of a video"
             " taken with 25 fps translates into a difference-lag of 1 second)."
-            " Default: %(default)s")
+            " Default: %(default)s",
+        )
         self.add_param(
             '--threshold1',
             default='5',
             help="Threshold applied to the difference image. Threshold has to"
             " be in the range of 0 to 255. The lower the threshold, the more"
             " greyish pixels will be considered when the image is binarized."
-            " Default: %(default)s")
+            " Default: %(default)s",
+        )
         self.add_param(
             '--threshold2',
             default='255',
             help="Upper threshold applied to the difference image. Value of"
             " `--threshold2` has to be larger than `--threshold1` (lower"
-            " threshold). Default: %(default)s")
+            " threshold). Default: %(default)s",
+        )
         self.add_param(
             '--valid-extensions',
             default='avi,cxd,raw',
             help="Comma separated list of valid extensions for video file."
             " Files ending with an extension non listed here will be ignored."
-            " Default: %(default)s")
+            " Default: %(default)s",
+        )
         hostname = socket.gethostname()
         user = pwd.getpwuid(os.getuid()).pw_name
         email_from = '%s+gbemovi@%s' % (user, hostname)
 
         self.add_param(
-            '--email-from',
-            default=email_from,
-            help="Email to use when sending notifications. Default: %(default)s")
+            '--email-from', default=email_from, help="Email to use when sending notifications. Default: %(default)s"
+        )
         self.add_param(
-            '--smtp-server',
-            default='localhost',
-            help="SMTP server to use to send notifications. Default: %(default)s")
+            '--smtp-server', default='localhost', help="SMTP server to use to send notifications. Default: %(default)s"
+        )
 
     def setup_args(self):
         SessionBasedDaemon.setup_args(self)
@@ -516,8 +504,8 @@ class GBemoviDaemon(SessionBasedDaemon):
             self.params.output = os.path.join(self.params.working_dir, 'output')
 
         if int(self.params.threshold2) <= int(self.params.threshold1):
-            gc3libs.exceptions.InvalidUsage(
-                "Value of `--threshold2` should be greater than `--threshold1`")
+            gc3libs.exceptions.InvalidUsage("Value of `--threshold2` should be greater than `--threshold1`")
+
     def before_main_loop(self):
         # Setup new command
         self.comm.server.register_function(self.merge_data, "merge")
@@ -549,8 +537,7 @@ class GBemoviDaemon(SessionBasedDaemon):
             ptracker = task.tasks[1]
             # If linker or tracker failed, skip the rdata file, as
             # it's likely to be empty and bemove will not like it.
-            if plinker.execution.exitcode != 0 or \
-               ptracker.execution.exitcode != 0:
+            if plinker.execution.exitcode != 0 or ptracker.execution.exitcode != 0:
                 continue
             linkerdata = plinker.rdatafile
             trackerdata = ptracker.rdatafile
@@ -558,7 +545,9 @@ class GBemoviDaemon(SessionBasedDaemon):
 
         for vdescrfile, inputs in mergers.items():
             if not os.path.exists(vdescrfile):
-                self.log.warning("Ignoring inbox directory %s as there is no video.description.txt file", os.path.dirname(vdescrfile))
+                self.log.warning(
+                    "Ignoring inbox directory %s as there is no video.description.txt file", os.path.dirname(vdescrfile)
+                )
                 continue
             app = Merger(vdescrfile, inputs, **self.extra)
             newapps.append(app)
@@ -612,7 +601,10 @@ class GBemoviDaemon(SessionBasedDaemon):
                 # Ignoring
                 self.log.error(
                     "Unable to run FinalMerger application when gbemovi.csv is"
-                    " missing or invalid. Ignoring directory %s: %s", inboxdir, ex)
+                    " missing or invalid. Ignoring directory %s: %s",
+                    inboxdir,
+                    ex,
+                )
                 not_completed.add(vdescrfile)
                 continue
             for task in tasks:
@@ -645,28 +637,27 @@ class GBemoviDaemon(SessionBasedDaemon):
                     for descr in descriptions:
                         for key in videofiles:
                             if key.startswith(descr):
-                                fileext = key[len(descr):]
+                                fileext = key[len(descr) :]
                                 break
                         if fileext:
                             break
-                descriptions = [i+fileext for i in descriptions]
+                descriptions = [i + fileext for i in descriptions]
 
                 # Now we know the experiment is complete iff
                 # descriptions is exactly the list of videofiles.
                 if set(descriptions) != set(videofiles):
-                    self.log.info("Inbox %s not yet completed",
-                                  os.path.dirname(vdescrfile))
+                    self.log.info("Inbox %s not yet completed", os.path.dirname(vdescrfile))
                     continue
 
-                self.log.info("Creating FinalMerger for inbox %s",
-                              os.path.dirname(vdescrfile))
+                self.log.info("Creating FinalMerger for inbox %s", os.path.dirname(vdescrfile))
                 inputs = []
                 email_to = set()
                 stats = []
                 for task in tasks:
                     plinker, ptracker = task.tasks
                     email_to.add(bemovicfg.get(task.videofile).get('email_to'))
-                    stats.append("""Video file {}
+                    stats.append(
+                        """Video file {}
   Linker
     duration: {}
     exitcode: {}
@@ -674,23 +665,32 @@ class GBemoviDaemon(SessionBasedDaemon):
   Tracker
     duration: {}
     exitcode: {}
-""".format(task.videofile,
-           plinker.execution.duration, plinker.execution.exitcode,
-           ptracker.execution.duration, ptracker.execution.exitcode))
+""".format(
+                            task.videofile,
+                            plinker.execution.duration,
+                            plinker.execution.exitcode,
+                            ptracker.execution.duration,
+                            ptracker.execution.exitcode,
+                        )
+                    )
 
-                app = FinalMerger(vdescrfile,
-                                  tasks,
-                                  self.params.email_from,
-                                  email_to,
-                                  self.params.smtp_server,
-                                  str.join('\n', stats),
-                                  self.session,
-                                  **self.extra)
+                app = FinalMerger(
+                    vdescrfile,
+                    tasks,
+                    self.params.email_from,
+                    email_to,
+                    self.params.smtp_server,
+                    str.join('\n', stats),
+                    self.session,
+                    **self.extra
+                )
                 newapps.append(app)
                 self._controller.add(app)
                 self.session.add(app)
         if newapps:
-            return "Running FinalMerger for the following inboxes:\n%s" % str.join('\n', [app.inboxdir for app in newapps])
+            return "Running FinalMerger for the following inboxes:\n%s" % str.join(
+                '\n', [app.inboxdir for app in newapps]
+            )
         else:
             return "No experiment is done yet"
 
@@ -727,10 +727,7 @@ class GBemoviDaemon(SessionBasedDaemon):
                             self.log.warning("Ignoring file %s as it starts with '._'", filename)
                             continue
                         if filename not in known_videos:
-                            app = BemoviWorkflow(filename,
-                                                 self.params.email_from,
-                                                 self.params.smtp_server,
-                                                 **extra)
+                            app = BemoviWorkflow(filename, self.params.email_from, self.params.smtp_server, **extra)
                             new_jobs.append(app)
                             known_videos[filename] = app
                         else:
@@ -739,8 +736,11 @@ class GBemoviDaemon(SessionBasedDaemon):
                             # want to resubmit the job anyway
                             job = known_videos[filename]
                             if job.should_resubmit():
-                                self.log.info("File %s might have been overwritten. Resubmitting job %s",
-                                              filename, job.persistent_id)
+                                self.log.info(
+                                    "File %s might have been overwritten. Resubmitting job %s",
+                                    filename,
+                                    job.persistent_id,
+                                )
                                 # self._controller.kill(job)
                                 # self._controller.progress()
                                 # self._controller.redo(job, from_stage=0)
@@ -749,8 +749,11 @@ class GBemoviDaemon(SessionBasedDaemon):
         fpath = epath.path
         if emask & plr.events['IN_CLOSE_WRITE']:
             if fpath.rsplit('.', 1)[-1] not in self.valid_extensions:
-                self.log.info("Ignoring file %s as it does not end with a valid extension (%s)",
-                              fpath, str.join(',', self.valid_extensions))
+                self.log.info(
+                    "Ignoring file %s as it does not end with a valid extension (%s)",
+                    fpath,
+                    str.join(',', self.valid_extensions),
+                )
                 return []
 
             # Only resubmit the job if it failed
@@ -762,8 +765,7 @@ class GBemoviDaemon(SessionBasedDaemon):
                     continue
                 if job.videofile == fpath:
                     if job.should_resubmit():
-                        self.log.info("Re-submitting job %s as file %s has been overwritten",
-                                      job.persistent_id, fpath)
+                        self.log.info("Re-submitting job %s as file %s has been overwritten", job.persistent_id, fpath)
                         job.update_configuration()
                         self._controller.kill(job)
                         self._controller.progress()
@@ -773,13 +775,11 @@ class GBemoviDaemon(SessionBasedDaemon):
                         self.log.info("Ignoring already successfully processed file %s", fpath)
                     # In both case, do not return any new job
                     return []
-            return [BemoviWorkflow(fpath,
-                                   self.params.email_from,
-                                   self.params.smtp_server,
-                                   **extra)]
+            return [BemoviWorkflow(fpath, self.params.email_from, self.params.smtp_server, **extra)]
         return []
 
 
 if "__main__" == __name__:
     from gbemovi import GBemoviDaemon
+
     GBemoviDaemon().run()

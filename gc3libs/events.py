@@ -27,12 +27,12 @@ provided by Python's library `generic`__.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
-__docformat__ = 'reStructuredText'
-
 
 # do not make symbols imported from `blinker` public: use of `blinker`
 # here is an implementation detail
 from blinker import signal as _signal
+
+__docformat__ = 'reStructuredText'
 
 
 TaskStateChange = _signal('task_state_change')

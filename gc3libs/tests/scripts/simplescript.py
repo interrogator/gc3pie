@@ -18,6 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
+
 __docformat__ = 'reStructuredText'
 
 from gc3libs.cmdline import SessionBasedScript
@@ -27,6 +28,7 @@ from gc3libs import Application
 class SimpleScript(SessionBasedScript):
 
     """stupid class"""
+
     version = '1'
 
     def new_tasks(self, extra):
@@ -34,17 +36,19 @@ class SimpleScript(SessionBasedScript):
         default_output_dir = extra.pop('output_dir')
         return [
             # old-style
-            ('MyJob',
-             Application,
-               [
-                   # arguments
-                   ('/bin/bash', '-c', 'echo ciao > SimpleScript.stdout'),
-                   # inputs
-                   [],
-                   # outputs
-                   ['SimpleScript.stdout'],
-               ],
-             dict(output_dir='SimpleScript.out.d', join=True)),
+            (
+                'MyJob',
+                Application,
+                [
+                    # arguments
+                    ('/bin/bash', '-c', 'echo ciao > SimpleScript.stdout'),
+                    # inputs
+                    [],
+                    # outputs
+                    ['SimpleScript.stdout'],
+                ],
+                dict(output_dir='SimpleScript.out.d', join=True),
+            ),
             # new style, with explicit output dir
             Application(
                 # arguments
@@ -72,6 +76,7 @@ class SimpleScript(SessionBasedScript):
                 **extra
             ),
         ]
+
 
 # main: run tests
 

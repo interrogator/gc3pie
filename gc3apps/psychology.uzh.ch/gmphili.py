@@ -39,6 +39,7 @@ from gc3libs.workflow import RetryableTask
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gmphili
+
     gmphili.GMphiliScript().run()
 
 
@@ -74,7 +75,7 @@ class GMphiliScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version=__version__, # module version == script version
+            version=__version__,  # module version == script version
             application=GMphiliApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
@@ -83,16 +84,17 @@ class GMphiliScript(SessionBasedScript):
             stats_only_for=GMphiliApplication,
         )
 
-
     def setup_args(self):
         self.add_param(
-            'scenarios', nargs='+', type=existing_file,
+            'scenarios',
+            nargs='+',
+            type=existing_file,
             help=(
                 "CSV file(s) listing program invocation parameters."
                 " It is expected to have the following 5 columns:"
                 " 'dgp', 'learner', 'cldist', 'dim', 'n'."
-            ))
-
+            ),
+        )
 
     def new_tasks(self, extra):
         tasks = []
@@ -132,22 +134,23 @@ class GMphiliApplication(Application):
                 # GC3Pie wrapper script
                 './run_R.sh',
                 # actual R code invocation
-                'runsim', dgp, learner, cldist, dim, n,
+                'runsim',
+                dgp,
+                learner,
+                cldist,
+                dim,
+                n,
                 # how many cores to use for parallel code
                 extra_args.get('requested_cores', 1),
             ],
             # input files
             inputs=[
-                resource_filename(Requirement.parse('gc3pie'),
-                                  'gc3libs/etc/run_R.sh'),
+                resource_filename(Requirement.parse('gc3pie'), 'gc3libs/etc/run_R.sh'),
                 'stability_v0.1-4.R',
                 'runsim.R',
             ],
             # output files
-            outputs=[
-                'siminfo.rda',
-                'simres.rda'
-            ],
+            outputs=['siminfo.rda', 'simres.rda'],
             stdout='runsim.log',
             stderr='runsim.log',
             # output dir, etc.

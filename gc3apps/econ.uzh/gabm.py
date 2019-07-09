@@ -51,6 +51,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gabm
+
     gabm.GabmScript().run()
 
 import os
@@ -60,6 +61,7 @@ import tempfile
 import re
 
 import shutil
+
 # import csv
 
 from pkg_resources import Requirement, resource_filename
@@ -72,12 +74,13 @@ import gc3libs.utils
 from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
 from gc3libs.workflow import RetryableTask
 
-DEFAULT_REMOTE_BIN="ABM"
+DEFAULT_REMOTE_BIN = "ABM"
 
 ## custom application class
 class GabmApplication(Application):
     """
     """
+
     application_name = 'gabm'
 
     def __init__(self, hunting, **extra_args):
@@ -101,13 +104,15 @@ class GabmApplication(Application):
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'gabm.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout='gabm.log',
             join=True,
-            executables = executables,
-            **extra_args)
+            executables=executables,
+            **extra_args
+        )
+
 
 class GabmScript(SessionBasedScript):
     """
@@ -126,69 +131,73 @@ class GabmScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GabmApplication,
+            version=__version__,  # module version == script version
+            application=GabmApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GabmApplication,
-            )
+            stats_only_for=GabmApplication,
+        )
 
     def setup_args(self):
 
-        self.add_param('range', type=str,
-                       help="hunting pressures range. "
-                       "Format: [int],[int]|[int]:[int]. E.g 1:432|3|6,9")
+        self.add_param(
+            'range', type=str, help="hunting pressures range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3|6,9"
+        )
 
     def setup_options(self):
-        self.add_param("-B", "--binary", metavar="STRING", type=str,
-                       dest="binary",
-                       default=None,
-                       help="Location of statically linked binary to run")
+        self.add_param(
+            "-B",
+            "--binary",
+            metavar="STRING",
+            type=str,
+            dest="binary",
+            default=None,
+            help="Location of statically linked binary to run",
+        )
 
     def parse_args(self):
         try:
             if self.params.binary:
-                assert os.path.isfile(self.params.binary), \
-                    "Input binary file %s not found" % self.params.sources
+                assert os.path.isfile(self.params.binary), "Input binary file %s not found" % self.params.sources
 
             # Validate month range
             try:
                 # Check whether only single value has been passed
                 try:
-                    assert isinstance(int(self.params.range),int)
+                    assert isinstance(int(self.params.range), int)
                     self.input_range = [int(self.params.range)]
                 except ValueError as ex:
                     # Identify the separator
                     if len(self.params.range.split(":")) == 2:
                         # Use ':' as separator
                         try:
-                            start,end = [ int(mrange) for mrange in \
-                                          self.params.range.split(":") \
-                                          if isinstance(int(mrange),int) ]
+                            start, end = [
+                                int(mrange) for mrange in self.params.range.split(":") if isinstance(int(mrange), int)
+                            ]
                             if end <= start:
-                                raise ValueError("No valid input range. "
-                                                 "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
-                            self.input_range = range(start,end+1)
+                                raise ValueError(
+                                    "No valid input range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3"
+                                )
+                            self.input_range = range(start, end + 1)
                         except (TypeError, ValueError) as ex:
                             gc3libs.log.critical(ex.message)
-                            raise ValueError("No valid input range. "
-                                             "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
+                            raise ValueError("No valid input range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
                     elif len(self.params.range.split(",")) > 0:
                         # Use ',' as separator
-                        self.input_range = [ int(mrange) for mrange in \
-                                             self.params.range.split(",") \
-                                             if isinstance(int(self.params.range),int) ]
+                        self.input_range = [
+                            int(mrange)
+                            for mrange in self.params.range.split(",")
+                            if isinstance(int(self.params.range), int)
+                        ]
                     else:
                         # Anything else should fail
-                        raise ValueError("No valid input range. "
-                                         "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
+                        raise ValueError("No valid input range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
 
             except ValueError as ex:
                 gc3libs.log.debug(ex.message)
-                raise AttributeError("No valid input range. "
-                                     "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
+                raise AttributeError("No valid input range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
 
         except AssertionError as ex:
             raise OSError(ex.message)
@@ -207,20 +216,14 @@ class GabmScript(SessionBasedScript):
             extra_args['jobname'] = 'abm-%s' % str(hunting)
 
             extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                        'run_%s' % hunting)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION',
-                                                                        'run_%s' % hunting)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE',
-                                                                        'run_%s' % hunting)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME',
-                                                                        'run_%s' % hunting)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', 'run_%s' % hunting)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', 'run_%s' % hunting)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', 'run_%s' % hunting)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', 'run_%s' % hunting)
 
             if self.params.binary:
                 extra_args['binary'] = os.path.abspath(self.params.binary)
 
-            tasks.append(GabmApplication(
-                hunting,
-                **extra_args))
+            tasks.append(GabmApplication(hunting, **extra_args))
 
         return tasks

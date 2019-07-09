@@ -50,6 +50,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gscr
+
     gscr.GscrScript().run()
 
 import os
@@ -72,13 +73,14 @@ from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, 
 from gc3libs.workflow import RetryableTask
 
 
-EXP_INDEX = [0,1]
+EXP_INDEX = [0, 1]
 
 ## custom application class
 class GscrApplication(Application):
     """
     Custom class to wrap the execution of the Matlab script.
     """
+
     application_name = 'scr_analysis'
 
     def __init__(self, param_file, data_file, **extra_args):
@@ -94,9 +96,10 @@ class GscrApplication(Application):
         if 'run_binary' in extra_args:
             inputs[os.path.abspath(extra_args["run_binary"])] = "estimate_DCM.m"
 
-        arguments = "matlab -nodesktop -nosplash -nodisplay -r \"estimate_DCM " \
-                    "%s %s results;quit;\"" % (os.path.basename(param_file),
-                                          os.path.basename(data_file))
+        arguments = "matlab -nodesktop -nosplash -nodisplay -r \"estimate_DCM " "%s %s results;quit;\"" % (
+            os.path.basename(param_file),
+            os.path.basename(data_file),
+        )
 
         inputs[param_file] = os.path.basename(param_file)
         inputs[data_file] = os.path.basename(data_file)
@@ -106,13 +109,14 @@ class GscrApplication(Application):
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gscr.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout='gscr.log',
             join=True,
-            executables = executables,
-            **extra_args)
+            executables=executables,
+            **extra_args
+        )
 
 
 class GscrScript(SessionBasedScript):
@@ -136,39 +140,51 @@ class GscrScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GscrApplication,
+            version=__version__,  # module version == script version
+            application=GscrApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GscrApplication,
-            )
+            stats_only_for=GscrApplication,
+        )
 
     def setup_args(self):
 
-        self.add_param('params', type=str,
-                       help="Path to the param files. "
-                       " Files with extension .m will be considered.")
+        self.add_param(
+            'params', type=str, help="Path to the param files. " " Files with extension .m will be considered."
+        )
 
-        self.add_param('data', type=str,
-                       help="Path to the data files. "
-                       " Data files will be associated to param files "
-                       "using their index number. Es. param file: "
-                       " .DCM_s24_can_159e-4Hz_bi_depth2_newVBA.mat will "
-                       "be associated to a data file: "
-                       "tscr_soundexp_scbd24.mat (index is 24).")
+        self.add_param(
+            'data',
+            type=str,
+            help="Path to the data files. "
+            " Data files will be associated to param files "
+            "using their index number. Es. param file: "
+            " .DCM_s24_can_159e-4Hz_bi_depth2_newVBA.mat will "
+            "be associated to a data file: "
+            "tscr_soundexp_scbd24.mat (index is 24).",
+        )
 
     def setup_options(self):
-        self.add_param("-b", "--binary", metavar="[STRING]",
-                       dest="run_binary", default=None,
-                       help="Location of the Matlab compiled binary "
-                       "version of the ParRecoveryFun. Default: None.")
+        self.add_param(
+            "-b",
+            "--binary",
+            metavar="[STRING]",
+            dest="run_binary",
+            default=None,
+            help="Location of the Matlab compiled binary " "version of the ParRecoveryFun. Default: None.",
+        )
 
-        self.add_param("-S", "--store_results", type=str, metavar="[STRING]",
-                       dest="store_results", default=None,
-                       help="Location where all results will be aggregated. "
-                       "Default: (session folder).")
+        self.add_param(
+            "-S",
+            "--store_results",
+            type=str,
+            metavar="[STRING]",
+            dest="store_results",
+            default=None,
+            help="Location where all results will be aggregated. " "Default: (session folder).",
+        )
 
     def parse_args(self):
         """
@@ -176,18 +192,16 @@ class GscrScript(SessionBasedScript):
         """
 
         if not os.path.isdir(self.params.params):
-            raise OSError("No such file or directory: %s ",
-                          os.path.abspath(self.params.params))
+            raise OSError("No such file or directory: %s ", os.path.abspath(self.params.params))
 
         if not os.path.isdir(self.params.data):
-            raise OSError("No such file or directory: %s ",
-                          os.path.abspath(self.params.data))
+            raise OSError("No such file or directory: %s ", os.path.abspath(self.params.data))
 
         if self.params.run_binary:
             if not os.path.isfile(self.params.run_binary):
-                raise gc3libs.exceptions.InvalidUsage("Estimate function binary "
-                                                      " file %s not found"
-                                                      % self.params.run_binary)
+                raise gc3libs.exceptions.InvalidUsage(
+                    "Estimate function binary " " file %s not found" % self.params.run_binary
+                )
 
     def new_tasks(self, extra):
         """
@@ -198,7 +212,7 @@ class GscrScript(SessionBasedScript):
         """
         tasks = []
 
-        for (param,data,dcm_index) in self.pair_param_data(self.params.params,self.params.data):
+        for (param, data, dcm_index) in self.pair_param_data(self.params.params, self.params.data):
 
             jobname = "SCR-%d" % (dcm_index)
 
@@ -221,14 +235,8 @@ class GscrScript(SessionBasedScript):
             extra_args['output_dir'] = self.params.output
             extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', 'SCR-%d' % (dcm_index))
 
-            gc3libs.log.info("Creating GscrApplication with: %s %s %d",
-                             param,
-                             data,
-                             dcm_index)
-            tasks.append(GscrApplication(
-                param,
-                data,
-                **extra_args))
+            gc3libs.log.info("Creating GscrApplication with: %s %s %d", param, data, dcm_index)
+            tasks.append(GscrApplication(param, data, **extra_args))
 
         return tasks
 
@@ -249,30 +257,24 @@ class GscrScript(SessionBasedScript):
         data_files = dict()
 
         for data_file in os.listdir(data):
-            if os.path.isfile(os.path.join(data,data_file)) and \
-            re.findall(r'\d+',os.path.basename(data_file)) :
-                index = re.findall(r'\d+',os.path.basename(data_file))[-1]
-                data_files[index] = os.path.join(data,data_file)
+            if os.path.isfile(os.path.join(data, data_file)) and re.findall(r'\d+', os.path.basename(data_file)):
+                index = re.findall(r'\d+', os.path.basename(data_file))[-1]
+                data_files[index] = os.path.join(data, data_file)
 
         processes = []
 
         for param_file in os.listdir(param):
-            if param_file.endswith('.mat') and \
-               re.findall(r'\d+',os.path.basename(param_file)):
+            if param_file.endswith('.mat') and re.findall(r'\d+', os.path.basename(param_file)):
                 # Valid Matlab parameter file found
                 # DCM_s24_can_159e-4Hz_bi_depth2_newVBA.mat
-                index = re.findall(r'\d+',os.path.basename(param_file))[0]
+                index = re.findall(r'\d+', os.path.basename(param_file))[0]
 
                 # Search corresponding file in data folder
                 if index in data_files:
                     # yield (param_file, data_files[index], index)
-                    gc3libs.log.info("Found new parameter/data pair, index %s." %
-                                     index)
-                    processes.append((os.path.join(param,param_file),
-                                      data_files[index],
-                                      int(index)))
+                    gc3libs.log.info("Found new parameter/data pair, index %s." % index)
+                    processes.append((os.path.join(param, param_file), data_files[index], int(index)))
                 else:
-                    gc3libs.log.error("No data file associated to: %s index: %s" %
-                                      (param_file, index))
+                    gc3libs.log.error("No data file associated to: %s index: %s" % (param_file, index))
 
         return processes

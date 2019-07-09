@@ -39,6 +39,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import ggatk
+
     ggatk.GgatkScript().run()
 
 import os
@@ -58,38 +59,40 @@ import gc3libs.exceptions
 from gc3libs import Application, Run, Task
 from gc3libs.cmdline import SessionBasedScript, executable_file
 import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, \
-    hours, minutes, seconds
-from gc3libs.workflow import RetryableTask, StagedTaskCollection, \
-    ParallelTaskCollection, SequentialTaskCollection
+from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
+from gc3libs.workflow import RetryableTask, StagedTaskCollection, ParallelTaskCollection, SequentialTaskCollection
 
-gatk_steps_list = ['0','1','2']
+gatk_steps_list = ['0', '1', '2']
 
 # Utility methods
 def get_bams(input_folder):
     """
     Return list of .bam .bam.bai pairs
     """
-    for bam in [ bams for bams in os.listdir(input_folder) if bams.endswith('.bam')
-                 and os.path.isfile(os.path.join(input_folder,bams+".bai"))]:
-        yield (os.path.join(input_folder,bam),
-               os.path.join(input_folder,bam+".bai"))
+    for bam in [
+        bams
+        for bams in os.listdir(input_folder)
+        if bams.endswith('.bam') and os.path.isfile(os.path.join(input_folder, bams + ".bai"))
+    ]:
+        yield (os.path.join(input_folder, bam), os.path.join(input_folder, bam + ".bai"))
+
 
 def get_vcf_group(input_folder, group_size):
     """
     Return list of .vcf file lists of size `group_size`
 
     """
-    vcf_list = [ os.path.join(input_folder,vcfs) for vcfs in os.listdir(input_folder) \
-                 if vcfs.endswith(".vcf") ]
+    vcf_list = [os.path.join(input_folder, vcfs) for vcfs in os.listdir(input_folder) if vcfs.endswith(".vcf")]
     for i in xrange(0, len(vcf_list), group_size):
-        yield (vcf_list[i:i+group_size],i)
+        yield (vcf_list[i : i + group_size], i)
+
 
 ## custom application class
 class GATKS0Application(Application):
     """
     GATK Stage0: run GATK steps 1,2,3 on a given .bam (and .bai) file
     """
+
     application_name = 'gatks0'
 
     def __init__(self, bam_file, bai_file, **extra_args):
@@ -103,15 +106,16 @@ class GATKS0Application(Application):
         executables = []
 
         # execution wrapper needs to be added anyway
-        gatks0_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gatks0.sh")
+        gatks0_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gatks0.sh")
         inputs[gatks0_wrapper_sh] = os.path.basename(gatks0_wrapper_sh)
 
-        arguments = "./%s %s %s %s -m %s" % (os.path.basename(gatks0_wrapper_sh),
-                                             extra_args['bam_filename'],
-                                             extra_args['bai_filename'],
-                                             extra_args['sample_name'],
-                                             str(extra_args['requested_memory'].amount(conv=int)))
+        arguments = "./%s %s %s %s -m %s" % (
+            os.path.basename(gatks0_wrapper_sh),
+            extra_args['bam_filename'],
+            extra_args['bai_filename'],
+            extra_args['sample_name'],
+            str(extra_args['requested_memory'].amount(conv=int)),
+        )
 
         inputs[bam_file] = extra_args['bam_filename']
         inputs[bai_file] = extra_args['bai_filename']
@@ -119,23 +123,20 @@ class GATKS0Application(Application):
         # Set output
         self.vcf_output_filename = "./%s.g.vcf" % extra_args['sample_name']
         self.vcfindx_output_filename = "./%s.g.vcf.idx" % extra_args['sample_name']
-        outputs[self.vcf_output_filename] = os.path.join(
-            self.S0_output,
-            self.vcf_output_filename)
+        outputs[self.vcf_output_filename] = os.path.join(self.S0_output, self.vcf_output_filename)
 
-        outputs[self.vcfindx_output_filename] = os.path.join(
-            self.S0_output,
-            self.vcfindx_output_filename)
+        outputs[self.vcfindx_output_filename] = os.path.join(self.S0_output, self.vcfindx_output_filename)
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gatks0.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout='gatks0.log',
             join=True,
-            executables = os.path.basename(gatks0_wrapper_sh),
-            **extra_args)
+            executables=os.path.basename(gatks0_wrapper_sh),
+            **extra_args
+        )
 
     def terminated(self):
         """
@@ -144,21 +145,21 @@ class GATKS0Application(Application):
         vcf_output = os.path.join(self.S0_output, self.vcf_output_filename)
         vcf_indx_output = os.path.join(self.S0_output, self.vcfindx_output_filename)
         try:
-            assert os.path.isfile(vcf_output), \
-                "Output file %s not found." % vcf_output
+            assert os.path.isfile(vcf_output), "Output file %s not found." % vcf_output
 
-            assert os.path.isfile(vcf_indx_output), \
-                "Output file %s not found." % vcf_indx_output
+            assert os.path.isfile(vcf_indx_output), "Output file %s not found." % vcf_indx_output
 
         except AssertionError as ex:
             self.execution.returncode = (0, posix.EX_OSFILE)
             gc3libs.log.error(ex.message)
+
 
 class GATKS1Application(Application):
     """
     GATK Stage1: run GATK CombineGVCFs step
     XXX: does the corresponding .vcf.indx file has to be included ? YES
     """
+
     application_name = 'gatks1'
 
     def __init__(self, vcf_group, index, **extra_args):
@@ -171,32 +172,32 @@ class GATKS1Application(Application):
         executables = []
 
         # execution wrapper needs to be added anyway
-        gatks1_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gatks1.sh")
+        gatks1_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gatks1.sh")
         inputs[gatks1_wrapper_sh] = os.path.basename(gatks1_wrapper_sh)
 
-        arguments = "./%s ./input %s -m %s" % (os.path.basename(gatks1_wrapper_sh),
-                                               index,
-                                               str(extra_args['requested_memory'].amount(conv=int)))
+        arguments = "./%s ./input %s -m %s" % (
+            os.path.basename(gatks1_wrapper_sh),
+            index,
+            str(extra_args['requested_memory'].amount(conv=int)),
+        )
 
         for vcf in vcf_group:
-            inputs[vcf] = os.path.join('./input',os.path.basename(vcf))
+            inputs[vcf] = os.path.join('./input', os.path.basename(vcf))
 
         # Set output
         self.vcf_output_filename = "./combined%d.g.vcf" % index
-        outputs[self.vcf_output_filename] = os.path.join(
-            self.S1_output,
-            self.vcf_output_filename)
+        outputs[self.vcf_output_filename] = os.path.join(self.S1_output, self.vcf_output_filename)
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gatks1.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout='gatks1.log',
             join=True,
-            executables = os.path.basename(gatks1_wrapper_sh),
-            **extra_args)
+            executables=os.path.basename(gatks1_wrapper_sh),
+            **extra_args
+        )
 
     def terminated(self):
         """
@@ -204,17 +205,18 @@ class GATKS1Application(Application):
         """
         vcf_output = os.path.join(self.S1_output, self.vcf_output_filename)
         try:
-            assert os.path.isfile(vcf_output), \
-                "Output file %s not found." % vcf_output
+            assert os.path.isfile(vcf_output), "Output file %s not found." % vcf_output
         except AssertionError as ex:
             self.execution.returncode = (0, posix.EX_OSFILE)
             gc3libs.log.ERROR(ex.message)
+
 
 class GATKS2Application(Application):
     """
     GATK Stage2: run GATK CombineGVCFs step
     XXX: does the corresponding .vcf.indx file has to be included ?
     """
+
     application_name = 'gatks2'
 
     def __init__(self, vcf_list, **extra_args):
@@ -227,41 +229,42 @@ class GATKS2Application(Application):
         executables = []
 
         # execution wrapper needs to be added anyway
-        gatks2_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gatks2.sh")
+        gatks2_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gatks2.sh")
         inputs[gatks2_wrapper_sh] = os.path.basename(gatks2_wrapper_sh)
 
-        arguments = "./%s ./input -m %s " % (os.path.basename(gatks2_wrapper_sh),
-                                             str(extra_args['requested_memory'].amount(conv=int)))
+        arguments = "./%s ./input -m %s " % (
+            os.path.basename(gatks2_wrapper_sh),
+            str(extra_args['requested_memory'].amount(conv=int)),
+        )
 
         for vcf in vcf_list:
-            inputs[vcf] = os.path.join('./input',os.path.basename(vcf))
+            inputs[vcf] = os.path.join('./input', os.path.basename(vcf))
 
         # Set output
-        self.vcf_output = os.path.join(self.S2_output,
-                                       'genotyped.gvcf.vcf')
+        self.vcf_output = os.path.join(self.S2_output, 'genotyped.gvcf.vcf')
         outputs['genotyped.gvcf.vcf'] = self.vcf_output
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gatks2.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout='gatks2.log',
             join=True,
-            executables = os.path.basename(gatks2_wrapper_sh),
-            **extra_args)
+            executables=os.path.basename(gatks2_wrapper_sh),
+            **extra_args
+        )
 
     def terminated(self):
         """
         Verify output
         """
         try:
-            assert os.path.isfile(self.vcf_output), \
-                "Output file %s not found." % vcf_output
+            assert os.path.isfile(self.vcf_output), "Output file %s not found." % vcf_output
         except AssertionError as ex:
             self.execution.returncode = (0, posix.EX_OSFILE)
             gc3libs.log.ERROR(ex.message)
+
 
 # class GATKStagedTaskCollection(StagedTaskCollection):
 #     """
@@ -288,6 +291,7 @@ class GATKS2Application(Application):
 #         self.output_dir = extra_args['output_dir']
 #         StagedTaskCollection.__init__(self)
 
+
 class GATKSequentialTaskCollection(SequentialTaskCollection):
     def __init__(self, input_bam_folder, **extra_args):
         self.gatkseq = extra_args['gatk_sequence']
@@ -306,7 +310,7 @@ class GATKSequentialTaskCollection(SequentialTaskCollection):
 
         SequentialTaskCollection.__init__(self, [initial_task])
 
-    def next(self,done):
+    def next(self, done):
         """
         self.tasks[done]
         """
@@ -315,8 +319,7 @@ class GATKSequentialTaskCollection(SequentialTaskCollection):
                 next_gatk = int(self.gatkseq.pop(0))
                 next_stage_fn = getattr(self, "stage%d" % next_gatk)
             except AttributeError:
-                gc3libs.log.debug("GATK sequence '%s' has no stage%d,"
-                                  " ending sequence now.", self, next_gatk)
+                gc3libs.log.debug("GATK sequence '%s' has no stage%d," " ending sequence now.", self, next_gatk)
                 self.execution.returncode = self.tasks[done].execution.returncode
                 return Run.State.TERMINATED
 
@@ -325,9 +328,7 @@ class GATKSequentialTaskCollection(SequentialTaskCollection):
             try:
                 next_stage = next_stage_fn()
             except AttributeError as err:
-                raise AssertionError(
-                    "Invalid `Task` instance %r: %s"
-                    % (self, str(err)))
+                raise AssertionError("Invalid `Task` instance %r: %s" % (self, str(err)))
             # add next stage to the collection, or end graciously
             if isinstance(next_stage, Task):
                 self.add(next_stage)
@@ -339,11 +340,11 @@ class GATKSequentialTaskCollection(SequentialTaskCollection):
                 raise AssertionError(
                     "Invalid return value from method `stage%d()` of"
                     " `StagedTaskCollection` object %r: must return `Task`"
-                    " instance or number" % (done + 1, self))
+                    " instance or number" % (done + 1, self)
+                )
         else:
             self.execution.returncode = self.tasks[done].execution.returncode
             return Run.State.TERMINATED
-
 
     def stage0(self):
         """
@@ -365,32 +366,23 @@ java -jar -d64 ~/programs/GenomeAnalysisTK.jar\
 
         tasks = []
 
-        for (bam_file,bai_file) in get_bams(self.input_bam_folder):
+        for (bam_file, bai_file) in get_bams(self.input_bam_folder):
             extra_args = self.extra.copy()
             extra_args['sample_name'] = os.path.basename(bam_file).split('.')[0]
             extra_args['bam_filename'] = os.path.basename(bam_file)
             extra_args['bai_filename'] = os.path.basename(bai_file)
             extra_args['jobname'] = "gatk-s0-%s" % extra_args['bam_filename']
 
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                        extra_args['jobname'])
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION',
-                                                                        extra_args['jobname'])
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE',
-                                                                        extra_args['jobname'])
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME',
-                                                                        extra_args['jobname'])
+            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', extra_args['jobname'])
+            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', extra_args['jobname'])
+            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', extra_args['jobname'])
+            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', extra_args['jobname'])
 
-            gc3libs.log.debug("Creating Stage0 task for : %s" %
-                              (extra_args['bam_filename']))
+            gc3libs.log.debug("Creating Stage0 task for : %s" % (extra_args['bam_filename']))
 
-            tasks.append(GATKS0Application(
-                bam_file,
-                bai_file,
-                **extra_args))
+            tasks.append(GATKS0Application(bam_file, bai_file, **extra_args))
 
         return ParallelTaskCollection(tasks)
-
 
     def stage1(self):
         """
@@ -447,30 +439,20 @@ java -jar  /home/dleigh/GenomeAnalysisTK-3.1-1/GenomeAnalysisTK-3.4-46/GenomeAna
 
         tasks = []
 
-        for (vcf_group,index) in get_vcf_group(self.extra['S0_output'],
-                                               int(self.extra['S1_group'])):
+        for (vcf_group, index) in get_vcf_group(self.extra['S0_output'], int(self.extra['S1_group'])):
             extra_args = self.extra.copy()
             extra_args['jobname'] = "gatk-s1-%d" % index
 
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                        extra_args['jobname'])
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION',
-                                                                        extra_args['jobname'])
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE',
-                                                                        extra_args['jobname'])
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME',
-                                                                        extra_args['jobname'])
+            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', extra_args['jobname'])
+            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', extra_args['jobname'])
+            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', extra_args['jobname'])
+            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', extra_args['jobname'])
 
-            gc3libs.log.debug("Creating Stage1 task for : %d" %
-                              index)
+            gc3libs.log.debug("Creating Stage1 task for : %d" % index)
 
-            tasks.append(GATKS1Application(
-                vcf_group,
-                index,
-                **extra_args))
+            tasks.append(GATKS1Application(vcf_group, index, **extra_args))
 
         return ParallelTaskCollection(tasks)
-
 
     def stage2(self):
         """
@@ -492,29 +474,24 @@ java -jar /home/dleigh/GenomeAnalysisTK-3.1-1/GenomeAnalysisTK-3.4-46/GenomeAnal
    --variant /home/dleigh/demultiplexed.reads/GATK/combined3.g.vcf \
    -o /home/dleigh/demultiplexed.reads/GATK/genotyped.gvcf.vcf
         """
-        vcfs_list = [ os.path.join(self.extra['S1_output'],vcfs) \
-                      for vcfs in os.listdir(self.extra['S1_output'])]
+        vcfs_list = [os.path.join(self.extra['S1_output'], vcfs) for vcfs in os.listdir(self.extra['S1_output'])]
         if 'S2_extra_input' in self.extra and self.extra['S2_extra_input']:
-            vcfs_list.extend([ os.path.join(self.extra['S2_extra_input'],vcfs) \
-                               for vcfs in os.listdir(self.extra['S2_extra_input']) ])
+            vcfs_list.extend(
+                [os.path.join(self.extra['S2_extra_input'], vcfs) for vcfs in os.listdir(self.extra['S2_extra_input'])]
+            )
 
         extra_args = self.extra.copy()
         extra_args['jobname'] = "gatk-s2"
 
-        extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                    extra_args['jobname'])
-        extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION',
-                                                                    extra_args['jobname'])
-        extra_args['output_dir'] = extra_args['output_dir'].replace('DATE',
-                                                                    extra_args['jobname'])
-        extra_args['output_dir'] = extra_args['output_dir'].replace('TIME',
-                                                                    extra_args['jobname'])
+        extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', extra_args['jobname'])
+        extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', extra_args['jobname'])
+        extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', extra_args['jobname'])
+        extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', extra_args['jobname'])
 
         gc3libs.log.debug("Creating Stage2 task")
 
-        return GATKS2Application(
-            vcfs_list,
-            **extra_args)
+        return GATKS2Application(vcfs_list, **extra_args)
+
 
 class GgatkScript(SessionBasedScript):
     """
@@ -537,88 +514,121 @@ class GgatkScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
+            version=__version__,  # module version == script version
             # application = GATKStagedTaskCollection,
-            application = Application,
-            stats_only_for = Application
-            )
+            application=Application,
+            stats_only_for=Application,
+        )
 
     def setup_args(self):
 
-        self.add_param('bam_folder', type=str,
-                       help="Location of samples files in .bam format.")
+        self.add_param('bam_folder', type=str, help="Location of samples files in .bam format.")
 
-        self.add_param('gatk_sequence', type=str,
-                       help="Comma separated list of GATK steps. "
-                       "Valid values: %s" % gatk_steps_list)
+        self.add_param(
+            'gatk_sequence', type=str, help="Comma separated list of GATK steps. " "Valid values: %s" % gatk_steps_list
+        )
 
     def setup_options(self):
         """
         * gatk
         * goat.genome
         """
-        self.add_param("-g", "--gatk", metavar="PATH",
-                       dest="gatk", default=None,
-                       help="Location of alternative GATK jar file.")
-
-        self.add_param("-G", "--goat", metavar="PATH",
-                       dest="goat", default=None,
-                       help="Location of alternative goat genome folder.")
-
-        self.add_param("-S0O", "--s0-output",
-                       metavar="PATH",
-                       dest="S0_output",
-                       default=os.path.join(os.environ['PWD'],"S0.out"),
-                       help="Location were all outputs from Stage0"
-                       " will be placed. Default: %(default)s.")
+        self.add_param(
+            "-g", "--gatk", metavar="PATH", dest="gatk", default=None, help="Location of alternative GATK jar file."
+        )
 
         self.add_param(
-            "-S0M", "--s0-memory-per-task", dest="S0_memory",
-            type=Memory, default=2 * GB,  # 2 GB
+            "-G",
+            "--goat",
+            metavar="PATH",
+            dest="goat",
+            default=None,
+            help="Location of alternative goat genome folder.",
+        )
+
+        self.add_param(
+            "-S0O",
+            "--s0-output",
+            metavar="PATH",
+            dest="S0_output",
+            default=os.path.join(os.environ['PWD'], "S0.out"),
+            help="Location were all outputs from Stage0" " will be placed. Default: %(default)s.",
+        )
+
+        self.add_param(
+            "-S0M",
+            "--s0-memory-per-task",
+            dest="S0_memory",
+            type=Memory,
+            default=2 * GB,  # 2 GB
             metavar="GIGABYTES",
             help="Set the amount of memory required per S0 task;"
             " default: %(default)s. Specify this as an integral number"
-            " followed by a unit, e.g., '512MB' or '4GB'.")
-
-        self.add_param("-S1O", "--s1-output", metavar="PATH",
-                       dest="S1_output",
-                       default=os.path.join(os.environ['PWD'],"S1.out"),
-                       help="Location were all outputs from Stage1"
-                       " will be placed. Default: %(default)s.")
+            " followed by a unit, e.g., '512MB' or '4GB'.",
+        )
 
         self.add_param(
-            "-S1M", "--s1-memory-per-task", dest="S1_memory",
-            type=Memory, default=2 * GB,  # 2 GB
+            "-S1O",
+            "--s1-output",
+            metavar="PATH",
+            dest="S1_output",
+            default=os.path.join(os.environ['PWD'], "S1.out"),
+            help="Location were all outputs from Stage1" " will be placed. Default: %(default)s.",
+        )
+
+        self.add_param(
+            "-S1M",
+            "--s1-memory-per-task",
+            dest="S1_memory",
+            type=Memory,
+            default=2 * GB,  # 2 GB
             metavar="GIGABYTES",
             help="Set the amount of memory required per S1 task;"
             " default: %(default)s. Specify this as an integral number"
-            " followed by a unit, e.g., '512MB' or '4GB'.")
+            " followed by a unit, e.g., '512MB' or '4GB'.",
+        )
 
-        self.add_param("-S1G", "--s1-group-factor", metavar="NUM",
-                       dest="S1_group", default=30,
-                       help="Group size for S1 aggregate task.")
-
-        self.add_param("-S2O", "--s2-output", metavar="PATH",
-                       dest="S2_output",
-                       default=os.path.join(os.environ['PWD'],"S2.out"),
-                       help="Location were all outputs from Stage2"
-                       " will be placed. Default: %(default)s.")
         self.add_param(
-            "-S2M", "--s2-memory-per-task", dest="S2_memory",
-            type=Memory, default=2 * GB,  # 2 GB
+            "-S1G",
+            "--s1-group-factor",
+            metavar="NUM",
+            dest="S1_group",
+            default=30,
+            help="Group size for S1 aggregate task.",
+        )
+
+        self.add_param(
+            "-S2O",
+            "--s2-output",
+            metavar="PATH",
+            dest="S2_output",
+            default=os.path.join(os.environ['PWD'], "S2.out"),
+            help="Location were all outputs from Stage2" " will be placed. Default: %(default)s.",
+        )
+        self.add_param(
+            "-S2M",
+            "--s2-memory-per-task",
+            dest="S2_memory",
+            type=Memory,
+            default=2 * GB,  # 2 GB
             metavar="GIGABYTES",
             help="Set the amount of memory required per S2 task;"
             " default: %(default)s. Specify this as an integral number"
-            " followed by a unit, e.g., '512MB' or '4GB'.")
+            " followed by a unit, e.g., '512MB' or '4GB'.",
+        )
 
-        self.add_param("-S2E", "--s2-extra", metavar="PATH",
-                       dest="S2_extra_input", default=None,
-                       help="Location of the folder with Stage2 extra input files.")
+        self.add_param(
+            "-S2E",
+            "--s2-extra",
+            metavar="PATH",
+            dest="S2_extra_input",
+            default=None,
+            help="Location of the folder with Stage2 extra input files.",
+        )
 
     def parse_args(self):
         try:
-            assert os.path.isdir(self.params.bam_folder), \
-                "Input BAM folder %s not found." % self.params.bam_folder
+            assert os.path.isdir(self.params.bam_folder), "Input BAM folder %s not found." % self.params.bam_folder
             self.params.bam_folder = os.path.abspath(self.params.bam_folder)
 
             # make all path options ABS path
@@ -627,26 +637,26 @@ class GgatkScript(SessionBasedScript):
             self.params.S2_output = os.path.abspath(self.params.S2_output)
 
             # Check GATK sequence option
-            self.params.gatk_sequence = [gatk_seq for gatk_seq in \
-                                  self.params.gatk_sequence.split(',')
-                                  if gatk_seq in gatk_steps_list]
-            assert len(self.params.gatk_sequence) > 0,"Invalid GATK sequence: [%s]. " \
-                "Please check input GATK sequence. " \
-                "Valid values: %s" % (self.params.gatk_sequence,
-                                      gatk_steps_list)
+            self.params.gatk_sequence = [
+                gatk_seq for gatk_seq in self.params.gatk_sequence.split(',') if gatk_seq in gatk_steps_list
+            ]
+            assert len(self.params.gatk_sequence) > 0, (
+                "Invalid GATK sequence: [%s]. "
+                "Please check input GATK sequence. "
+                "Valid values: %s" % (self.params.gatk_sequence, gatk_steps_list)
+            )
             self.params.gatk_sequence.sort()
 
             if self.params.S2_extra_input:
                 assert os.path.isdir(self.params.S2_extra_input)
                 self.params.S2_extra_input = os.path.abspath(self.params.S2_extra_input)
 
-            assert int(self.params.S1_group), \
-                "Invalid group size for S1 aggregate task: '%s'." % self.params.S1_group
+            assert int(self.params.S1_group), "Invalid group size for S1 aggregate task: '%s'." % self.params.S1_group
 
             if self.params.goat:
-                assert os.path.isdir(self.params.goat), \
-                    "Location of alternative goat genome folder '%s' not found." \
-                    % self.params.goat
+                assert os.path.isdir(self.params.goat), (
+                    "Location of alternative goat genome folder '%s' not found." % self.params.goat
+                )
                 self.params.goat = os.path.abspat(self.params.goat)
 
         except AssertionError as ex:
@@ -679,5 +689,4 @@ class GgatkScript(SessionBasedScript):
         # return [GATKStagedTaskCollection(self.params.bam_folder,
         #                                  **extra_args)]
 
-        return [GATKSequentialTaskCollection(self.params.bam_folder,
-                                             **extra_args)]
+        return [GATKSequentialTaskCollection(self.params.bam_folder, **extra_args)]

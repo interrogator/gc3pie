@@ -20,6 +20,7 @@ Authentication support for accessing resources through the SSH protocol.
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 
@@ -29,18 +30,19 @@ import gc3libs.exceptions
 
 
 class SshAuth(object):
-
-    def __init__(self,
-                 # inherited from the generic `Auth` class
-                 type,
-                 # SSH-specific arguments
-                 username,
-                 keyfile=None,
-                 port=None,
-                 ssh_config=None,
-                 timeout=None,
-                 # extra arguments, if any
-                 **extra):
+    def __init__(
+        self,
+        # inherited from the generic `Auth` class
+        type,
+        # SSH-specific arguments
+        username,
+        keyfile=None,
+        port=None,
+        ssh_config=None,
+        timeout=None,
+        # extra arguments, if any
+        **extra
+    ):
 
         assert type == 'ssh'
 
@@ -65,16 +67,14 @@ class SshAuth(object):
             else:
                 self.port = None
         except (ValueError, TypeError) as err:
-            raise gc3libs.exceptions.ConfigurationError(
-                "Invalid `port` setting in SSH auth section.")
+            raise gc3libs.exceptions.ConfigurationError("Invalid `port` setting in SSH auth section.")
         try:
             if timeout is not None:
                 self.timeout = float(timeout)
             else:
                 self.timeout = None
         except (ValueError, TypeError) as err:
-            raise gc3libs.exceptions.ConfigurationError(
-                "Invalid `timeout` setting in SSH auth section.")
+            raise gc3libs.exceptions.ConfigurationError("Invalid `timeout` setting in SSH auth section.")
 
         # everything else is just stored as-is
         self.__dict__.update(extra)
@@ -85,6 +85,7 @@ class SshAuth(object):
     def enable(self):
         return True
 
+
 Auth.register('ssh', SshAuth)
 
 
@@ -92,5 +93,5 @@ Auth.register('ssh', SshAuth)
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="ssh",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="ssh", optionflags=doctest.NORMALIZE_WHITESPACE)

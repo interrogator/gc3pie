@@ -4,12 +4,13 @@ import sys
 import logging
 from optparse import OptionParser
 
+
 def initialize_logging(options):
     """ Log information based upon users options"""
 
     logger = logging.getLogger('project')
     formatter = logging.Formatter('%(asctime)s %(levelname)s\t%(message)s')
-    level = logging.__dict__.get(options.loglevel.upper(),logging.DEBUG)
+    level = logging.__dict__.get(options.loglevel.upper(), logging.DEBUG)
     logger.setLevel(level)
 
     # Output logging information to screen
@@ -27,6 +28,7 @@ def initialize_logging(options):
     logger.addHandler(hdlr2)
 
     return logger
+
 
 def main(argv=None):
     if argv is None:
@@ -49,6 +51,7 @@ def main(argv=None):
     logger.error("This is an error message.")
     logger.info("This is an info message.")
     logger.debug("This is a debug message.")
+
 
 if __name__ == "__main__":
     sys.exit(main())

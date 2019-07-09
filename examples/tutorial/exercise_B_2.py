@@ -35,6 +35,7 @@ class GDemoSimpleApp(gc3libs.Application):
     and retrive the output in a file named `stdout.txt` into the
     output directory
     """
+
     def __init__(self, **extra):
         # output_dir is automatically passed to the __init__()
         # constructor by the `SessionBasedScript` class, in case no
@@ -44,15 +45,19 @@ class GDemoSimpleApp(gc3libs.Application):
             extra['output_dir'] = "./mygc3job"
         gc3libs.Application.__init__(
             self,
-            arguments = ['/bin/hostname'], # mandatory
-            inputs = [],                  # mandatory
-            outputs = [],                 # mandatory
-            stdout = "stdout.txt", **extra)
+            arguments=['/bin/hostname'],  # mandatory
+            inputs=[],  # mandatory
+            outputs=[],  # mandatory
+            stdout="stdout.txt",
+            **extra
+        )
+
 
 class GDemoScript(gc3libs.cmdline.SessionBasedScript):
     """
     GDemo script
     """
+
     version = '0.1'
 
     def new_tasks(self, extra):
@@ -61,11 +66,11 @@ class GDemoScript(gc3libs.cmdline.SessionBasedScript):
         # `exercise_A` you have to do it by yourself.
         jobs = []
         for i in range(10):
-            jobs.append( ('GDemoApp',
-                   GDemoSimpleApp,
-                   [], extra))
+            jobs.append(('GDemoApp', GDemoSimpleApp, [], extra))
         return jobs
+
 
 if __name__ == "__main__":
     from exercise_B_2 import GDemoScript
+
     GDemoScript().run()

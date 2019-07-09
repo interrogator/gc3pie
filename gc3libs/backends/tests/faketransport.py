@@ -18,6 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
+
 __docformat__ = 'reStructuredText'
 
 
@@ -74,7 +75,8 @@ class FakeTransport(LocalTransport):
         # ``foobar`` but again there's no way we can really parse
         # ``sh`` syntax with regexps...)
         " (?P<cmd>[a-z0-9_+-]+)",
-        re.VERBOSE | re.IGNORECASE)
+        re.VERBOSE | re.IGNORECASE,
+    )
 
     def execute_command(self, cmdline):
         """
@@ -107,5 +109,5 @@ class FakeTransport(LocalTransport):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="faketransport",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="faketransport", optionflags=doctest.NORMALIZE_WHITESPACE)

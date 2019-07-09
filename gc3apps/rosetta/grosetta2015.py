@@ -41,10 +41,10 @@ __author__ = 'Riccardo Murri <riccardo.murri@uzh.ch>'
 __docformat__ = 'reStructuredText'
 
 
-
 # workaround Issue 95, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == '__main__':
     import grosetta2015
+
     grosetta2015.GRosettaScript().run()
 
 
@@ -65,15 +65,16 @@ import gc3libs.utils
 from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
 from gc3libs.workflow import RetryableTask
 
-INPUT_PDB_EXTENSION="pdb"
-ROSETTA_OPTION_FILE="options"
-INPUT_LIST_PATTERNS = [INPUT_PDB_EXTENSION,ROSETTA_OPTION_FILE]
+INPUT_PDB_EXTENSION = "pdb"
+ROSETTA_OPTION_FILE = "options"
+INPUT_LIST_PATTERNS = [INPUT_PDB_EXTENSION, ROSETTA_OPTION_FILE]
 
 ## the application class
 ## custom application class
 class Rosetta2015Application(Application):
     """
     """
+
     application_name = 'grosetta2015'
 
     def __init__(self, input_folder, command_to_run, **extra_args):
@@ -86,18 +87,20 @@ class Rosetta2015Application(Application):
         # inputs[grosetta2015_wrapper_sh] = os.path.basename(grosetta2015_wrapper_sh)
 
         for input in os.listdir(input_folder):
-            inputs[os.path.join(input_folder,input)] = os.path.basename(input)
+            inputs[os.path.join(input_folder, input)] = os.path.basename(input)
 
         # arguments = "./%s --no-tar @options" % (inputs[grosetta2015_wrapper_sh])
 
         Application.__init__(
             self,
-            arguments = command_to_run,
-            inputs = inputs,
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'grosetta2015.log',
+            arguments=command_to_run,
+            inputs=inputs,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout='grosetta2015.log',
             join=True,
-            **extra_args)
+            **extra_args
+        )
+
 
 ## the script class
 class GRosettaScript(SessionBasedScript):
@@ -125,26 +128,30 @@ Note: the list of INPUT and OUTPUT files must be separated by ':'
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            usage = "%(prog)s [options] FLAGSFILE INPUT ... [: OUTPUT ...]",
-            version = __version__, # module version == script version
-            application = RosettaApplication,
-            )
+            usage="%(prog)s [options] FLAGSFILE INPUT ... [: OUTPUT ...]",
+            version=__version__,  # module version == script version
+            application=RosettaApplication,
+        )
 
     def setup_args(self):
 
-        self.add_param('input_pdb', type=str,
-                       help="Root localtion of input .pdb pais.")
+        self.add_param('input_pdb', type=str, help="Root localtion of input .pdb pais.")
 
-        self.add_param('command_to_run', type=str,
-                       help="Rosetta related command to be executed. "
-                       "Note: no control over the consistency nor the availability "
-                       " of the command will be made.")
+        self.add_param(
+            'command_to_run',
+            type=str,
+            help="Rosetta related command to be executed. "
+            "Note: no control over the consistency nor the availability "
+            " of the command will be made.",
+        )
 
     def parse_args(self):
 
         self.input_pdbs = dict()
 
-        self.input_folders = [ os.path.join(self.params.input_pdb,folder) for folder in os.listdir(self.params.input_pdb) ]
+        self.input_folders = [
+            os.path.join(self.params.input_pdb, folder) for folder in os.listdir(self.params.input_pdb)
+        ]
 
         # for r,d,f in os.walk(self.params.input_pdb):
         #     input_pdb = []
@@ -168,19 +175,12 @@ Note: the list of INPUT and OUTPUT files must be separated by ':'
             extra_args['jobname'] = pairname
 
             extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                        'run_%s' % pairname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION',
-                                                                        'run_%s' % pairname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE',
-                                                                        'run_%s' % pairname)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME',
-                                                                        'run_%s' % pairname)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', 'run_%s' % pairname)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', 'run_%s' % pairname)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', 'run_%s' % pairname)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', 'run_%s' % pairname)
 
             gc3libs.log.debug("Adding task for folder %s" % input_folder)
 
-            tasks.append(Rosetta2015Application(
-                input_folder,
-                self.params.command_to_run,
-                **extra_args))
+            tasks.append(Rosetta2015Application(input_folder, self.params.command_to_run, **extra_args))
         return tasks

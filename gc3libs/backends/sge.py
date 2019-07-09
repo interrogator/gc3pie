@@ -20,6 +20,7 @@ Job control on SGE clusters (possibly connecting to the front-end via SSH).
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import str
+
 __docformat__ = 'reStructuredText'
 
 
@@ -38,12 +39,12 @@ import gc3libs.exceptions
 from gc3libs.quantity import Memory, kB, MB, GB
 from gc3libs.quantity import seconds
 import gc3libs.utils
-from gc3libs.utils import (same_docstring_as, sh_quote_safe_cmdline,
-                           sh_quote_unsafe_cmdline)
+from gc3libs.utils import same_docstring_as, sh_quote_safe_cmdline, sh_quote_unsafe_cmdline
 from . import batch
 
 
 # auxiliary functions
+
 
 def _int_floor(val):
     """Return `val` rounded to nearest integer towards 0."""
@@ -57,10 +58,11 @@ def _to_duration(val):
         return float(val) * seconds
     except Exception as err:
         gc3libs.log.warning(
-            "Grid Engine backend:"
-            " Cannot interpret '%s' as a duration (time unit: seconds):"
-            " %s: %s.",
-            err.__class__.__name__, str(err), val)
+            "Grid Engine backend:" " Cannot interpret '%s' as a duration (time unit: seconds):" " %s: %s.",
+            err.__class__.__name__,
+            str(err),
+            val,
+        )
         return None
 
 
@@ -79,9 +81,9 @@ def _to_memory(val):
             # SGE's default is bytes
             return float(val) * Memory.B
     except Exception:
-        gc3libs.log.warning("Grid Engine backend: Cannot interpret '%s' "
-                            "as a MEMORY value.", val)
+        gc3libs.log.warning("Grid Engine backend: Cannot interpret '%s' " "as a MEMORY value.", val)
         return None
+
 
 # `_convert` is a `dict` instance, mapping key names to functions
 # that parse a value from a string into a Python native type.
@@ -130,16 +132,15 @@ def _parse_asctime(val):
     # 8601) is given in XML output... so try them all, one at a time
     # hoping one succeeds!
     for fmt in [
-            '%a %b %d %H:%M:%S %Y',  # standard asctime() format
-            '%m/%d/%Y %H:%M:%S',     # sge_ctime()
-            '%Y-%m-%dT%H:%M:%S',     # ISO 8601 / sge_ctimeXML()
+        '%a %b %d %H:%M:%S %Y',  # standard asctime() format
+        '%m/%d/%Y %H:%M:%S',  # sge_ctime()
+        '%Y-%m-%dT%H:%M:%S',  # ISO 8601 / sge_ctimeXML()
     ]:
         try:
             return datetime.datetime.strptime(val, fmt)
         except ValueError:
             pass  # try next format
-    gc3libs.log.error(
-        "Cannot parse '%s' as a SGE-format time stamp", val)
+    gc3libs.log.error("Cannot parse '%s' as a SGE-format time stamp", val)
     return None
 
 
@@ -152,16 +153,17 @@ def parse_qstat_f(qstat_output):
     # _job_line_re = re.compile(r'^[0-9]+ \s+', re.X)
     # queue report header line starts with queuename@hostname
     _queue_header_re = re.compile(
-        r'^([a-z0-9\._-]+)@([a-z0-9\.-]+) \s+ ([BIPCTN]+) '
-        '\s+ ([0-9]+)?/?([0-9]+)/([0-9]+)',
-        re.I | re.X)
+        r'^([a-z0-9\._-]+)@([a-z0-9\.-]+) \s+ ([BIPCTN]+) ' '\s+ ([0-9]+)?/?([0-9]+)/([0-9]+)', re.I | re.X
+    )
     # property lines always have the form 'xx:propname=value'
     _property_line_re = re.compile(r'^[a-z]{2}:([a-z_]+)=(.+)', re.I | re.X)
 
     def dzdict():
         def zdict():
             return defaultdict(int)
+
         return defaultdict(zdict)
+
     result = defaultdict(dzdict)
     qname = None
     for line in qstat_output.split('\n'):
@@ -170,8 +172,7 @@ def parse_qstat_f(qstat_output):
         # is this a queue header?
         match = _queue_header_re.match(line)
         if match:
-            qname, hostname, kind, slots_resv, slots_used, slots_total \
-                = match.groups()
+            qname, hostname, kind, slots_resv, slots_used, slots_total = match.groups()
             if 'B' not in kind:
                 continue  # ignore non-batch queues
 
@@ -181,12 +182,9 @@ def parse_qstat_f(qstat_output):
             if slots_resv is None:
                 slots_resv = 0
             # key names are taken from 'qstat -xml' output
-            result[qname][hostname]['slots_resv'] = _parse_value(
-                'slots_resv', slots_resv)
-            result[qname][hostname]['slots_used'] = _parse_value(
-                'slots_used', slots_used)
-            result[qname][hostname]['slots_total'] = _parse_value(
-                'slots_total', slots_total)
+            result[qname][hostname]['slots_resv'] = _parse_value('slots_resv', slots_resv)
+            result[qname][hostname]['slots_used'] = _parse_value('slots_used', slots_used)
+            result[qname][hostname]['slots_total'] = _parse_value('slots_total', slots_total)
         # is this a property line?
         match = _property_line_re.match(line)
         if match:
@@ -226,14 +224,14 @@ def compute_nr_of_slots(qstat_output):
 
     def dict_with_zero_initializer():
         return defaultdict(zero_initializer)
+
     result = defaultdict(dict_with_zero_initializer)
     for q in qstat.keys():
         for host in qstat[q].keys():
             r = result[host]
             s = qstat[q][host]
             r['total'] = max(s['slots_total'], r['total'])
-            r['unavailable'] = max(s['slots_used'] + s['slots_resv'],
-                                   r['unavailable'])
+            r['unavailable'] = max(s['slots_used'] + s['slots_resv'], r['unavailable'])
     # compute available slots by subtracting the number of
     # used+reserved from the total
     g = result['global']
@@ -301,8 +299,7 @@ def count_jobs(qstat_output, whoami):
             continue
         jid, prio, name, user, state, rest = re.split(r'\s+', line, 5)
         # skip in error/hold/suspended/deleted state
-        if (('E' in state) or ('h' in state) or ('T' in state)
-                or ('s' in state) or ('S' in state) or ('d' in state)):
+        if ('E' in state) or ('h' in state) or ('T' in state) or ('s' in state) or ('S' in state) or ('d' in state):
             continue
         if 'q' in state:
             total_queued += 1
@@ -334,13 +331,13 @@ def _sge_filename_mapping(jobname, jobid, file_name):
             ('%s.cosmo' % jobname): ('%s.o%s.cosmo' % (jobname, jobid)),
             ('%s.dat' % jobname): ('%s.o%s.dat' % (jobname, jobid)),
             ('%s.inp' % jobname): ('%s.o%s.inp' % (jobname, jobid)),
-            ('%s.irc' % jobname): ('%s.o%s.irc' % (jobname, jobid))}[file_name]
+            ('%s.irc' % jobname): ('%s.o%s.irc' % (jobname, jobid)),
+        }[file_name]
     except KeyError:
         return file_name
 
 
-_qsub_jobid_re = re.compile(r'Your job (?P<jobid>\d+) '
-                            '\("(?P<jobname>.+)"\) has been submitted', re.I)
+_qsub_jobid_re = re.compile(r'Your job (?P<jobid>\d+) ' '\("(?P<jobname>.+)"\) has been submitted', re.I)
 """
 Regex for extracting the job number and name from Grid Engine's `qsub` output.
 """
@@ -355,28 +352,43 @@ class SgeLrms(batch.BatchSystem):
 
     _batchsys_name = 'Grid Engine'
 
-    def __init__(self, name,
-                 # this are inherited from the base LRMS class
-                 architecture, max_cores, max_cores_per_job,
-                 max_memory_per_core, max_walltime,
-                 auth,  # ignored if `transport` is 'local'
-                 # these are inherited from the `BatchSystem` class
-                 frontend, transport,
-                 # these are specific to the SGE class
-                 default_pe=None,
-                 # (Note that optional arguments to the `BatchSystem` class,
-                 # e.g.:
-                 #     keyfile=None, accounting_delay=15,
-                 # are collected into `extra_args` and should not be explicitly
-                 # spelled out in this signature.)
-                 **extra_args):
+    def __init__(
+        self,
+        name,
+        # this are inherited from the base LRMS class
+        architecture,
+        max_cores,
+        max_cores_per_job,
+        max_memory_per_core,
+        max_walltime,
+        auth,  # ignored if `transport` is 'local'
+        # these are inherited from the `BatchSystem` class
+        frontend,
+        transport,
+        # these are specific to the SGE class
+        default_pe=None,
+        # (Note that optional arguments to the `BatchSystem` class,
+        # e.g.:
+        #     keyfile=None, accounting_delay=15,
+        # are collected into `extra_args` and should not be explicitly
+        # spelled out in this signature.)
+        **extra_args
+    ):
 
         # init base class
         batch.BatchSystem.__init__(
-            self, name,
-            architecture, max_cores, max_cores_per_job,
-            max_memory_per_core, max_walltime, auth,
-            frontend, transport, **extra_args)
+            self,
+            name,
+            architecture,
+            max_cores,
+            max_cores_per_job,
+            max_memory_per_core,
+            max_walltime,
+            auth,
+            frontend,
+            transport,
+            **extra_args
+        )
 
         self.default_pe = default_pe
 
@@ -389,42 +401,35 @@ class SgeLrms(batch.BatchSystem):
 
     def _submit_command(self, app):
         sub_argv, app_argv = app.qsub_sge(self)
-        return (sh_quote_safe_cmdline(sub_argv),
-                sh_quote_unsafe_cmdline(app_argv))
+        return (sh_quote_safe_cmdline(sub_argv), sh_quote_unsafe_cmdline(app_argv))
 
     def _parse_submit_output(self, output):
         """Parse the ``qsub`` output for the local jobid."""
         return self.get_jobid_from_submit_output(output, _qsub_jobid_re)
 
     def _stat_command(self, job):
-        return ("%s | egrep  '^ *%s'" % (self._qstat, job.lrms_jobid))
+        return "%s | egrep  '^ *%s'" % (self._qstat, job.lrms_jobid)
 
     def _parse_stat_output(self, stdout, stderr):
         ge_status_code = stdout.split()[4]
-        log.debug(
-            "translating SGE's `qstat` code '%s' to gc3libs.Run.State",
-            ge_status_code)
-        if (ge_status_code in ['s', 'S', 'T']
-            or ge_status_code.startswith('h')):
+        log.debug("translating SGE's `qstat` code '%s' to gc3libs.Run.State", ge_status_code)
+        if ge_status_code in ['s', 'S', 'T'] or ge_status_code.startswith('h'):
             state = Run.State.STOPPED
         elif 'qw' in ge_status_code:
             state = Run.State.SUBMITTED
-        elif ('r' in ge_status_code
-              or 'R' in ge_status_code
-              or 't' in ge_status_code):
+        elif 'r' in ge_status_code or 'R' in ge_status_code or 't' in ge_status_code:
             state = Run.State.RUNNING
         elif ge_status_code == 'E':  # error condition
             state = Run.State.TERMINATING
         else:
-            log.warning("unknown SGE job status '%s', returning `UNKNOWN`",
-                        ge_status_code)
+            log.warning("unknown SGE job status '%s', returning `UNKNOWN`", ge_status_code)
             state = Run.State.UNKNOWN
         # to get the exit status information we'll have to parse
         # `qacct` output so put ``None`` here
         return self._stat_result(state, None)
 
     def _acct_command(self, job):
-        return ("%s -j %s" % (self._qacct, job.lrms_jobid))
+        return "%s -j %s" % (self._qacct, job.lrms_jobid)
 
     _qacct_keyval_mapping = {
         # qacct field name
@@ -434,20 +439,20 @@ class SgeLrms(batch.BatchSystem):
         # |              |                       |
         # |              |                       |
         #   ... common backend attrs (see Issue 78) ...
-        'slots':         ('cores',               int),
-        'exit_status':   ('exitcode',            int),
-        'cpu':           ('used_cpu_time',       _to_duration),
-        'ru_wallclock':  ('duration',            _to_duration),
-        'maxvmem':       ('max_used_memory',     _to_memory),
+        'slots': ('cores', int),
+        'exit_status': ('exitcode', int),
+        'cpu': ('used_cpu_time', _to_duration),
+        'ru_wallclock': ('duration', _to_duration),
+        'maxvmem': ('max_used_memory', _to_memory),
         #   ... SGE-only attrs ...
-        'end_time':      ('sge_completion_time', _parse_asctime),
-        'failed':        ('sge_failed',          int),
-        'granted_pe':    ('sge_granted_pe',      str),
-        'hostname':      ('sge_hostname',        str),
-        'jobname':       ('sge_jobname',         str),
-        'qname':         ('sge_queue',           str),
-        'qsub_time':     ('sge_submission_time', _parse_asctime),
-        'start_time':    ('sge_start_time', _parse_asctime),
+        'end_time': ('sge_completion_time', _parse_asctime),
+        'failed': ('sge_failed', int),
+        'granted_pe': ('sge_granted_pe', str),
+        'hostname': ('sge_hostname', str),
+        'jobname': ('sge_jobname', str),
+        'qname': ('sge_queue', str),
+        'qsub_time': ('sge_submission_time', _parse_asctime),
+        'start_time': ('sge_start_time', _parse_asctime),
     }
 
     def _parse_acct_output(self, stdout, stderr):
@@ -472,16 +477,18 @@ class SgeLrms(batch.BatchSystem):
             except (ValueError, TypeError) as err:
                 log.error(
                     "Cannot parse value '%s' for qacct parameter '%s': %s: %s",
-                    value, key, err.__class__.__name__, str(err))
+                    value,
+                    key,
+                    err.__class__.__name__,
+                    str(err),
+                )
                 acctinfo[dest] = None
-        assert 'exitcode' in acctinfo, (
-            "Could not extract exit code from `tracejob` output")
-        acctinfo['termstatus'] = Run.shellexit_to_returncode(
-            acctinfo.pop('exitcode'))
+        assert 'exitcode' in acctinfo, "Could not extract exit code from `tracejob` output"
+        acctinfo['termstatus'] = Run.shellexit_to_returncode(acctinfo.pop('exitcode'))
         return acctinfo
 
     def _cancel_command(self, jobid):
-        return ("%s %s" % (self._qdel, jobid))
+        return "%s %s" % (self._qdel, jobid)
 
     @same_docstring_as(LRMS.get_resource_status)
     @LRMS.authenticated
@@ -489,56 +496,54 @@ class SgeLrms(batch.BatchSystem):
         try:
             self.transport.connect()
 
-            _command = ("%s -U %s" % (self._qstat, self._username))
+            _command = "%s -U %s" % (self._qstat, self._username)
             log.debug("Running `%s`...", _command)
-            exit_code, qstat_stdout, stderr \
-                = self.transport.execute_command(_command)
+            exit_code, qstat_stdout, stderr = self.transport.execute_command(_command)
             if exit_code != 0:
                 # cannot continue
                 raise gc3libs.exceptions.LRMSError(
                     "SGE backend failed executing '%s':"
-                    "exit code: %d; stdout: '%s'; stderr: '%s'." %
-                    (_command, exit_code, qstat_stdout, stderr))
+                    "exit code: %d; stdout: '%s'; stderr: '%s'." % (_command, exit_code, qstat_stdout, stderr)
+                )
 
-            _command = ("%s -F -U %s" % (self._qstat, self._username))
+            _command = "%s -F -U %s" % (self._qstat, self._username)
             log.debug("Running `%s`...", _command)
-            exit_code, qstat_F_stdout, stderr \
-                = self.transport.execute_command(_command)
+            exit_code, qstat_F_stdout, stderr = self.transport.execute_command(_command)
             if exit_code != 0:
                 # cannot continue
                 raise gc3libs.exceptions.LRMSError(
                     "SGE backend failed executing '%s':"
-                    "exit code: %d; stdout: '%s'; stderr: '%s'." %
-                    (_command, exit_code, qstat_F_stdout, stderr))
+                    "exit code: %d; stdout: '%s'; stderr: '%s'." % (_command, exit_code, qstat_F_stdout, stderr)
+                )
 
-            (total_running, self.queued, self.user_run, self.user_queued) \
-                = count_jobs(qstat_stdout, self._username)
+            (total_running, self.queued, self.user_run, self.user_queued) = count_jobs(qstat_stdout, self._username)
             slots = compute_nr_of_slots(qstat_F_stdout)
             self.free_slots = int(slots['global']['available'])
             self.used_quota = -1
 
-            log.info("Updated resource '%s' status:"
-                     " free slots: %d,"
-                     " own running jobs: %d,"
-                     " own queued jobs: %d,"
-                     " total queued jobs: %d",
-                     self.name,
-                     self.free_slots,
-                     self.user_run,
-                     self.user_queued,
-                     self.queued,
-                     )
+            log.info(
+                "Updated resource '%s' status:"
+                " free slots: %d,"
+                " own running jobs: %d,"
+                " own queued jobs: %d,"
+                " total queued jobs: %d",
+                self.name,
+                self.free_slots,
+                self.user_run,
+                self.user_queued,
+                self.queued,
+            )
             return self
 
         except Exception as ex:
             log.error("Error querying remote LRMS, see debug log for details.")
-            log.debug("Error querying LRMS: %s: %s",
-                      ex.__class__.__name__, str(ex))
+            log.debug("Error querying LRMS: %s: %s", ex.__class__.__name__, str(ex))
             raise
+
 
 # main: run tests
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="sge",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="sge", optionflags=doctest.NORMALIZE_WHITESPACE)

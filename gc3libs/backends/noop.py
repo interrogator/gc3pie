@@ -18,6 +18,7 @@ Fake running applications, only useful for testing.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
+
 __docformat__ = 'reStructuredText'
 
 
@@ -35,8 +36,8 @@ from gc3libs.quantity import Memory, MB
 
 
 NORMAL_TRANSITION_GRAPH = {
-    Run.State.SUBMITTED:   {1.0: Run.State.RUNNING},
-    Run.State.RUNNING:     {1.0: Run.State.TERMINATING},
+    Run.State.SUBMITTED: {1.0: Run.State.RUNNING},
+    Run.State.RUNNING: {1.0: Run.State.TERMINATING},
     Run.State.TERMINATING: {1.0: Run.State.TERMINATED},
 }
 
@@ -93,18 +94,31 @@ class NoOpLrms(LRMS):
     ignored.
     """
 
-    def __init__(self, name,
-                 # these parameters are inherited from the `LRMS` class
-                 architecture, max_cores, max_cores_per_job,
-                 max_memory_per_core, max_walltime,
-                 auth=None,
-                 **extra_args):
+    def __init__(
+        self,
+        name,
+        # these parameters are inherited from the `LRMS` class
+        architecture,
+        max_cores,
+        max_cores_per_job,
+        max_memory_per_core,
+        max_walltime,
+        auth=None,
+        **extra_args
+    ):
 
         # init base class
         LRMS.__init__(
-            self, name,
-            architecture, max_cores, max_cores_per_job,
-            max_memory_per_core, max_walltime, auth, **extra_args)
+            self,
+            name,
+            architecture,
+            max_cores,
+            max_cores_per_job,
+            max_memory_per_core,
+            max_walltime,
+            auth,
+            **extra_args
+        )
 
         self.transition_graph = NORMAL_TRANSITION_GRAPH
 
@@ -149,12 +163,11 @@ class NoOpLrms(LRMS):
         return self
 
     @same_docstring_as(LRMS.get_results)
-    def get_results(self, app, download_dir,
-                    overwrite=False, changed_only=True):
+    def get_results(self, app, download_dir, overwrite=False, changed_only=True):
         if app.outputs:
             raise gc3libs.exceptions.DataStagingError(
-                "Retrieval of output files is not supported"
-                " in the NoOp backend.")
+                "Retrieval of output files is not supported" " in the NoOp backend."
+            )
         return
 
     def update_job_state(self, app):
@@ -164,16 +177,22 @@ class NoOpLrms(LRMS):
         """
         log.debug("No-Op backend updating state of Task %s ...", app)
         transitions = self.transition_graph[app.execution.state]
-        log.debug("Task %s transitions: %s.", app, ", ".join([
-            ("with probability %g to state %s" % (prob, state))
-            for prob, state in list(transitions.items()) if prob > 0
-        ]))
+        log.debug(
+            "Task %s transitions: %s.",
+            app,
+            ", ".join(
+                [
+                    ("with probability %g to state %s" % (prob, state))
+                    for prob, state in list(transitions.items())
+                    if prob > 0
+                ]
+            ),
+        )
         dice = random()
-        #log.debug("Rolled dice, got %g result", dice)
+        # log.debug("Rolled dice, got %g result", dice)
         for prob, to_state in sorted(transitions.items()):
             if dice < prob:
-                log.debug(
-                    "Task %s transitions to state '%s'", app, state)
+                log.debug("Task %s transitions to state '%s'", app, state)
                 # update resource state based on old and new app state
                 if app.execution.state == Run.State.SUBMITTED:
                     self.queued -= 1
@@ -207,21 +226,21 @@ class NoOpLrms(LRMS):
             raise gc3libs.exceptions.MaximumCapacityReached(
                 "Resource %s does not have enough free cores:"
                 " %s requested, but %s available."
-                " Increase 'max_cores' to raise."
-                % (self.name, app.requested_cores, self.free_slots))
+                " Increase 'max_cores' to raise." % (self.name, app.requested_cores, self.free_slots)
+            )
 
-        if (app.requested_memory and
-                 self.available_memory < app.requested_memory):
+        if app.requested_memory and self.available_memory < app.requested_memory:
             raise gc3libs.exceptions.MaximumCapacityReached(
                 "Resource %s does not have enough available memory:"
                 " %s requested, but only %s available."
-                % (self.name,
-                   app.requested_memory.to_str('%g%s', unit=Memory.MB),
-                   available_memory.to_str('%g%s', unit=Memory.MB),)
+                % (
+                    self.name,
+                    app.requested_memory.to_str('%g%s', unit=Memory.MB),
+                    available_memory.to_str('%g%s', unit=Memory.MB),
+                )
             )
 
-        log.debug("Faking execution of command '%s' ...",
-                  " ".join(app.arguments))
+        log.debug("Faking execution of command '%s' ...", " ".join(app.arguments))
 
         # Update application and current resources
         app.execution.lrms_jobid = id(app)
@@ -235,9 +254,7 @@ class NoOpLrms(LRMS):
 
     def peek(self, app, remote_filename, local_file, offset=0, size=None):
         """Not supported on this backend."""
-        raise NotImplementedException(
-            "The `peek` operation is not supported"
-            " by the `NoOp` backend.")
+        raise NotImplementedException("The `peek` operation is not supported" " by the `NoOp` backend.")
 
     def validate_data(self, data_file_list=[]):
         """
@@ -258,5 +275,5 @@ class NoOpLrms(LRMS):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="__init__",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="__init__", optionflags=doctest.NORMALIZE_WHITESPACE)

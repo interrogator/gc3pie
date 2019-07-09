@@ -21,37 +21,40 @@ Implementation of the command-line front-ends.
 #
 from __future__ import absolute_import, print_function, unicode_literals
 
-from builtins import str
-__docformat__ = 'reStructuredText'
-__author__ = ', '.join([
-    "Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>",
-    "Riccardo Murri <riccardo.murri@uzh.ch>",
-    "Antonio Messina <antonio.messina@uzh.ch>",
-])
-
 # stdlib imports
 import csv
-import sys
+import multiprocessing as mp
 import os
 import posix
+import re
+import sys
 import time
 import types
-import re
-import multiprocessing as mp
+from builtins import str
+
+import gc3libs.cmdline
+import gc3libs.exceptions
+import gc3libs.persistence
+import gc3libs.utils as utils
+
+# local modules
+from gc3libs import Run, __version__
+from gc3libs.quantity import Duration, Memory
+from gc3libs.session import Session, TemporarySession
+from gc3libs.url import Url
 
 # 3rd party modules
 from parsedatetime.parsedatetime import Calendar
 from prettytable import PrettyTable
 
-# local modules
-from gc3libs import __version__, Run
-from gc3libs.quantity import Duration, Memory
-from gc3libs.session import Session, TemporarySession
-import gc3libs.cmdline
-import gc3libs.exceptions
-import gc3libs.persistence
-from gc3libs.url import Url
-import gc3libs.utils as utils
+__docformat__ = 'reStructuredText'
+__author__ = ', '.join(
+    [
+        "Sergio Maffioletti <sergio.maffioletti@gc3.uzh.ch>",
+        "Riccardo Murri <riccardo.murri@uzh.ch>",
+        "Antonio Messina <antonio.messina@uzh.ch>",
+    ]
+)
 
 
 class GC3UtilsScript(gc3libs.cmdline._Script):
@@ -75,8 +78,7 @@ class GC3UtilsScript(gc3libs.cmdline._Script):
         Set version string in `gc3libs.cmdline._Script`:class: to
         this package's version.
         """
-        super(GC3UtilsScript, self).__init__(
-            main=self.main, version=__version__, **extra_args)
+        super(GC3UtilsScript, self).__init__(main=self.main, version=__version__, **extra_args)
 
     ##
     # CUSTOMIZATION METHODS
@@ -92,11 +94,7 @@ class GC3UtilsScript(gc3libs.cmdline._Script):
         job ID; actual processing of the IDs is done in
         `parse_args`:meth:
         """
-        self.add_param(
-            'args',
-            nargs='*',
-            metavar='JOBID',
-            help="Job ID string identifying the jobs to operate upon.")
+        self.add_param('args', nargs='*', metavar='JOBID', help="Job ID string identifying the jobs to operate upon.")
 
     def parse_args(self):
         if hasattr(self.params, 'args') and '-' in self.params.args:
@@ -123,12 +121,14 @@ class GC3UtilsScript(gc3libs.cmdline._Script):
         # setup of base classes (creates the argparse stuff)
         super(GC3UtilsScript, self).setup()
         # local additions
-        self.add_param("-s",
-                       "--session",
-                       action="store",
-                       required=True,
-                       default=gc3libs.Default.JOBS_DIR,
-                       help="Directory where job information will be stored.")
+        self.add_param(
+            "-s",
+            "--session",
+            action="store",
+            required=True,
+            default=gc3libs.Default.JOBS_DIR,
+            help="Directory where job information will be stored.",
+        )
 
     def pre_run(self):
         """
@@ -167,8 +167,11 @@ class GC3UtilsScript(gc3libs.cmdline._Script):
                 if ignore_failures:
                     gc3libs.log.error(
                         "Could not retrieve job '%s' (%s: %s). Ignoring.",
-                        jobid, ex.__class__.__name__, ex,
-                        exc_info=(self.params.verbose > 2))
+                        jobid,
+                        ex.__class__.__name__,
+                        ex,
+                        exc_info=(self.params.verbose > 2),
+                    )
                     continue
                 else:
                     raise
@@ -192,8 +195,7 @@ class GC3UtilsScript(gc3libs.cmdline._Script):
             else:
                 return TemporarySession(url, **extra_args)
         except gc3libs.exceptions.InvalidArgument as err:
-            raise RuntimeError(
-                "Cannot load session `{0}`: {1}".format(url, err))
+            raise RuntimeError("Cannot load session `{0}`: {1}".format(url, err))
 
     def _list_all_tasks(self):
         try:
@@ -201,7 +203,8 @@ class GC3UtilsScript(gc3libs.cmdline._Script):
         except NotImplementedError:
             raise NotImplementedError(
                 "Task storage module does not allow listing all tasks."
-                " Please specify the task IDs you wish to operate on.")
+                " Please specify the task IDs you wish to operate on."
+            )
 
 
 # ====== Main ========
@@ -222,21 +225,19 @@ force removal of a job regardless.
     """
 
     def setup_options(self):
-        self.add_param("-A",
-                       action="store_true",
-                       dest="all",
-                       default=False,
-                       help="Remove all stored jobs.")
-        self.add_param("-f", "--force",
-                       action="store_true",
-                       dest="force",
-                       default=False,
-                       help="Remove job even when not in terminal state.")
+        self.add_param("-A", action="store_true", dest="all", default=False, help="Remove all stored jobs.")
+        self.add_param(
+            "-f",
+            "--force",
+            action="store_true",
+            dest="force",
+            default=False,
+            help="Remove job even when not in terminal state.",
+        )
 
     def main(self):
         if self.params.all and len(self.params.args) > 0:
-            raise gc3libs.exceptions.InvalidUsage(
-                "Option '-A' conflicts with list of job IDs to remove.")
+            raise gc3libs.exceptions.InvalidUsage("Option '-A' conflicts with list of job IDs to remove.")
 
         if self.params.all:
             self.session = self._get_session(self.params.session)
@@ -252,12 +253,10 @@ force removal of a job regardless.
                     # presume the command has been found by the
                     # shell through PATH and just print the command name,
                     # otherwise print the exact path name.
-                    % (os.path.basename(sys.argv[0])
-                       if os.path.isabs(sys.argv[0])
-                       else sys.argv[0]))
+                    % (os.path.basename(sys.argv[0]) if os.path.isabs(sys.argv[0]) else sys.argv[0])
+                )
                 return os.EX_USAGE
-            self.session = self._get_session(self.params.session,
-                                             task_ids=self.params.args)
+            self.session = self._get_session(self.params.session, task_ids=self.params.args)
 
         failed = 0
         for jobid in self.params.args:
@@ -266,12 +265,11 @@ force removal of a job regardless.
                 app.attach(self._core)
 
                 if app.execution.state != Run.State.NEW:
-                    if app.execution.state not in [Run.State.TERMINATED,
-                                                   Run.State.TERMINATING]:
+                    if app.execution.state not in [Run.State.TERMINATED, Run.State.TERMINATING]:
                         if self.params.force:
                             self.log.warning(
-                                "Job '%s' not in terminal state:"
-                                " attempting to kill before cleaning up.", app)
+                                "Job '%s' not in terminal state:" " attempting to kill before cleaning up.", app
+                            )
                             try:
                                 app.kill()
                             except Exception as ex:
@@ -279,14 +277,15 @@ force removal of a job regardless.
                                     "Killing job '%s' failed (%s: %s);"
                                     " continuing anyway, but errors might"
                                     " ensue.",
-                                    app, ex.__class__.__name__, str(ex))
+                                    app,
+                                    ex.__class__.__name__,
+                                    str(ex),
+                                )
 
                                 app.execution.state = Run.State.TERMINATED
                         else:
                             failed += 1
-                            self.log.error(
-                                "Job '%s' not in terminal state: ignoring.",
-                                app)
+                            self.log.error("Job '%s' not in terminal state: ignoring.", app)
                             continue
 
                     try:
@@ -297,9 +296,11 @@ force removal of a job regardless.
                         else:
                             failed += 1
                             self.log.warning(
-                                "Freeing job '%s' failed (%s: %s);"
-                                " continuing anyway, but errors might ensue.",
-                                app, ex.__class__.__name__, str(ex))
+                                "Freeing job '%s' failed (%s: %s);" " continuing anyway, but errors might ensue.",
+                                app,
+                                ex.__class__.__name__,
+                                str(ex),
+                            )
                             continue
 
             except gc3libs.exceptions.LoadError:
@@ -307,9 +308,7 @@ force removal of a job regardless.
                     pass
                 else:
                     failed += 1
-                    self.log.error("Could not load '%s': ignoring"
-                                   " (use option '-f' to remove regardless).",
-                                   jobid)
+                    self.log.error("Could not load '%s': ignoring" " (use option '-f' to remove regardless).", jobid)
                     continue
 
             try:
@@ -322,8 +321,7 @@ force removal of a job regardless.
                 self.log.info("Removed job '%s'", jobid)
             except:
                 failed += 1
-                self.log.error("Failed removing '%s' from persistency layer."
-                               " option '-f' harmless" % jobid)
+                self.log.error("Failed removing '%s' from persistency layer." " option '-f' harmless" % jobid)
                 continue
 
         # exit code is practically limited to 7 bits ...
@@ -337,6 +335,7 @@ class cmd_gclient(gc3libs.cmdline.DaemonClient):
     Use the `help` command to display a list of remote functions
     supported by the server.
     """
+
     # all the functionality needed is already in the base class, no
     # need to add anything here
     pass
@@ -354,49 +353,66 @@ GC3Libs internals.
     verbose_logging_threshold = 2
 
     def setup_options(self):
-        self.add_param("-c", "--csv", action="store_true", dest="csv",
-                       default=False,
-                       help="Print attributes in CSV format,"
-                       " e.g., for generating files that can be"
-                       " read by a spreadsheet program."
-                       " MUST be used together with '--print'.")
-        self.add_param("--no-header",
-                       action="store_false", dest="header", default=True,
-                       help="Do *not* print table or CSV file header.")
-        self.add_param("-p", "--print", action="store", dest="keys",
-                       metavar="LIST", default='',
-                       help="Only print job attributes whose name appears in"
-                       " this comma-separated list.")
-        self.add_param("-t", "--tabular", action="store_true", dest="tabular",
-                       default=False,
-                       help="Print attributes in table format."
-                       " MUST be used together with '--print'.")
-        self.add_param("-H", "--history", action="store_true", dest="history",
-                       default=False,
-                       help="Print job history only")
+        self.add_param(
+            "-c",
+            "--csv",
+            action="store_true",
+            dest="csv",
+            default=False,
+            help="Print attributes in CSV format,"
+            " e.g., for generating files that can be"
+            " read by a spreadsheet program."
+            " MUST be used together with '--print'.",
+        )
+        self.add_param(
+            "--no-header",
+            action="store_false",
+            dest="header",
+            default=True,
+            help="Do *not* print table or CSV file header.",
+        )
+        self.add_param(
+            "-p",
+            "--print",
+            action="store",
+            dest="keys",
+            metavar="LIST",
+            default='',
+            help="Only print job attributes whose name appears in" " this comma-separated list.",
+        )
+        self.add_param(
+            "-t",
+            "--tabular",
+            action="store_true",
+            dest="tabular",
+            default=False,
+            help="Print attributes in table format." " MUST be used together with '--print'.",
+        )
+        self.add_param(
+            "-H", "--history", action="store_true", dest="history", default=False, help="Print job history only"
+        )
 
     def main(self):
         # sanity checks for the command-line options
         if self.params.csv and self.params.tabular:
             raise gc3libs.exceptions.InvalidUsage(
-                "Conflicting options `-c`/`--csv` and `-t`/`--tabular`."
-                " Choose either one, but not both.")
+                "Conflicting options `-c`/`--csv` and `-t`/`--tabular`." " Choose either one, but not both."
+            )
 
         if self.params.history and self.params.tabular:
             raise gc3libs.exceptions.InvalidUsage(
-                "Conflicting options `-H`/`--history` and `-t`/`--tabular`."
-                " Choose either one, but not both.")
+                "Conflicting options `-H`/`--history` and `-t`/`--tabular`." " Choose either one, but not both."
+            )
 
         if self.params.history and self.params.csv:
             raise gc3libs.exceptions.InvalidUsage(
-                "Conflicting options `-H`/`--history` and `-c`/`--csv`."
-                " Choose either one, but not both.")
+                "Conflicting options `-H`/`--history` and `-c`/`--csv`." " Choose either one, but not both."
+            )
 
-        if ((self.params.tabular or self.params.csv)
-                and len(self.params.keys) == 0):
+        if (self.params.tabular or self.params.csv) and len(self.params.keys) == 0:
             raise gc3libs.exceptions.InvalidUsage(
-                "Options '--tabular' and `--csv` only make sense"
-                " in conjuction with option '--print'.")
+                "Options '--tabular' and `--csv` only make sense" " in conjuction with option '--print'."
+            )
 
         if posix.isatty(sys.stdout.fileno()):
             # try to screen width
@@ -409,8 +425,7 @@ GC3Libs internals.
             width = 0
 
         # start reading stuff from disk
-        self.session = self._get_session(self.params.session,
-                                         task_ids=self.params.args)
+        self.session = self._get_session(self.params.session, task_ids=self.params.args)
 
         if len(self.params.args) == 0:
             # if no arguments, operate on all known jobs
@@ -420,8 +435,10 @@ GC3Libs internals.
             only_keys = self.params.keys.split(',')
         else:
             if self.params.verbose < 2:
+
                 def names_not_starting_with_underscore(name):
                     return not name.startswith('_')
+
                 only_keys = names_not_starting_with_underscore
             else:
                 # print *all* keys if `-vv` is given
@@ -441,8 +458,7 @@ GC3Libs internals.
                 csv_output.writerow(only_keys)
 
         ok = 0
-        for app in sorted(self._get_tasks(self.params.args),
-                          key=(lambda task: task.persistent_id)):
+        for app in sorted(self._get_tasks(self.params.args), key=(lambda task: task.persistent_id)):
             # since `_get_tasks` swallows any exception raised by
             # invalid job IDs or corrupted files, let us determine the
             # number of failures by counting the number of times we
@@ -463,19 +479,17 @@ GC3Libs internals.
                     csv_output.writerow(row)
             elif self.params.history:
                 print(str(app.persistent_id))
-                indent = 4*' '
+                indent = 4 * ' '
                 for logentry in app.execution.history:
                     print(indent + logentry)
             else:
                 # usual YAML-like output
                 print(str(app.persistent_id))
                 if self.params.verbose == 0:
-                    utils.prettyprint(app.execution, indent=4,
-                                      width=width, only_keys=only_keys)
+                    utils.prettyprint(app.execution, indent=4, width=width, only_keys=only_keys)
                 else:
                     # with `-v` and above, dump the whole `Application` object
-                    utils.prettyprint(app, indent=4, width=width,
-                                      only_keys=only_keys)
+                    utils.prettyprint(app, indent=4, width=width, only_keys=only_keys)
         if self.params.tabular:
             print(table)
         failed = len(self.params.args) - ok
@@ -492,36 +506,48 @@ is canceled before re-submission.
     """
 
     def setup_options(self):
-        self.add_param("-r", "--resource",
-                       action="store",
-                       dest="resource_name",
-                       metavar="NAME",
-                       default=None,
-                       help='Select execution resource by name')
-        self.add_param("-c", "--cores",
-                       action="store",
-                       dest="ncores",
-                       type=int,
-                       metavar="NUM",
-                       help='Request running job on this number of CPU cores')
-        self.add_param("-m", "--memory",
-                       action="store",
-                       dest="memory_per_core",
-                       metavar="GIGABYTES",
-                       help="Set the amount of memory required per execution"
-                       " core; default: %(default)s. Specify this as an"
-                       " integral number followed by a unit, e.g., '512MB'"
-                       " or '4GB'. execution site")
-        self.add_param("-w", "--walltime",
-                       action="store",
-                       dest="walltime",
-                       metavar="DURATION",
-                       help="Set the time limit for each job."
-                       " Jobs exceeding this limit will be stopped and"
-                       " considered as 'failed'. The duration can be expressed"
-                       " as a whole number followed by a time unit, e.g.,"
-                       " '3600 s', '60 minutes', '8 hours', or a combination"
-                       " thereof, e.g., '2hours 30minutes'.")
+        self.add_param(
+            "-r",
+            "--resource",
+            action="store",
+            dest="resource_name",
+            metavar="NAME",
+            default=None,
+            help='Select execution resource by name',
+        )
+        self.add_param(
+            "-c",
+            "--cores",
+            action="store",
+            dest="ncores",
+            type=int,
+            metavar="NUM",
+            help='Request running job on this number of CPU cores',
+        )
+        self.add_param(
+            "-m",
+            "--memory",
+            action="store",
+            dest="memory_per_core",
+            metavar="GIGABYTES",
+            help="Set the amount of memory required per execution"
+            " core; default: %(default)s. Specify this as an"
+            " integral number followed by a unit, e.g., '512MB'"
+            " or '4GB'. execution site",
+        )
+        self.add_param(
+            "-w",
+            "--walltime",
+            action="store",
+            dest="walltime",
+            metavar="DURATION",
+            help="Set the time limit for each job."
+            " Jobs exceeding this limit will be stopped and"
+            " considered as 'failed'. The duration can be expressed"
+            " as a whole number followed by a time unit, e.g.,"
+            " '3600 s', '60 minutes', '8 hours', or a combination"
+            " thereof, e.g., '2hours 30minutes'.",
+        )
 
     def parse_args(self):
         if self.params.walltime:
@@ -539,21 +565,19 @@ is canceled before re-submission.
                 # presume the command has been found by the
                 # shell through PATH and just print the command name,
                 # otherwise print the exact path name.
-                % (os.path.basename(sys.argv[0]) if os.path.isabs(sys.argv[0])
-                   else sys.argv[0]))
+                % (os.path.basename(sys.argv[0]) if os.path.isabs(sys.argv[0]) else sys.argv[0])
+            )
             return os.EX_USAGE
 
         if self.params.resource_name:
             self._select_resources(self.params.resource_name)
             self.log.info(
-                "Retained only resources: %s (restricted by command-line"
-                " option '-r %s')",
-                str.join(",",
-                         [res['name'] for res in self._core.get_resources()]),
-                self.params.resource_name)
+                "Retained only resources: %s (restricted by command-line" " option '-r %s')",
+                str.join(",", [res['name'] for res in self._core.get_resources()]),
+                self.params.resource_name,
+            )
 
-        self.session = self._get_session(self.params.session,
-                                         task_ids=self.params.args)
+        self.session = self._get_session(self.params.session, task_ids=self.params.args)
         failed = 0
         for jobid in self.params.args:
             app = self.session.load(jobid.strip())
@@ -563,8 +587,7 @@ is canceled before re-submission.
             if self.params.ncores:
                 app.requested_cores = self.params.ncores
             if self.params.memory_per_core:
-                app.requested_memory = self.params.memory_per_core\
-                    * app.requested_cores
+                app.requested_memory = self.params.memory_per_core * app.requested_cores
             if self.params.walltime:
                 app.requested_walltime = self.params.walltime
             app.attach(self._core)
@@ -572,8 +595,7 @@ is canceled before re-submission.
                 app.update_state()  # update state
             except Exception as ex:
                 # ignore errors, and proceed to resubmission anyway
-                self.log.warning("Could not update state of %s: %s: %s",
-                                 jobid, ex.__class__.__name__, str(ex))
+                self.log.warning("Could not update state of %s: %s: %s", jobid, ex.__class__.__name__, str(ex))
             # kill remote job
             try:
                 app.kill()
@@ -583,13 +605,11 @@ is canceled before re-submission.
 
             try:
                 app.submit(resubmit=True)
-                print("Successfully re-submitted %s; use the 'gstat' command"
-                      " to monitor its progress." % app)
+                print("Successfully re-submitted %s; use the 'gstat' command" " to monitor its progress." % app)
                 self.session.store.replace(jobid, app)
             except Exception as ex:
                 failed += 1
-                self.log.error("Failed resubmission of job '%s': %s: %s",
-                               jobid, ex.__class__.__name__, str(ex))
+                self.log.error("Failed resubmission of job '%s': %s: %s", jobid, ex.__class__.__name__, str(ex))
 
         # exit code is practically limited to 7 bits ...
         return min(failed, 126)
@@ -599,44 +619,60 @@ class cmd_gstat(GC3UtilsScript):
     """
 Print job state.
     """
+
     verbose_logging_threshold = 1
 
     def setup_options(self):
-        self.add_param("-b", "--brief", "--summary",
-                       action="store_true",
-                       dest="summary",
-                       help=("Only print a summary table"
-                             " with count of jobs per each state."))
-        self.add_param("-l", "--state",
-                       action="store",
-                       dest="states",
-                       metavar="STATE",
-                       default=None,
-                       help="Only report about jobs in the given state."
-                       " Multiple states are allowed: separate them with"
-                       " commas.")
-        self.add_param("-L", "--lifetimes", "--print-lifetimes",
-                       nargs='?',
-                       metavar='FILE',
-                       action='store',
-                       dest='lifetimes',
-                       default=None,  # no option and no argument: discard data
-                       const=sys.stdout,  # option given, but no argument
-                       help="For each successful job, print"
-                       " submission, start, and duration times."
-                       " If FILE is omitted, report is printed to screen.")
-        self.add_param("-u", "--update",
-                       action="store_true",
-                       dest="update",
-                       default=False,
-                       help="Update job statuses before printing results")
-        self.add_param("-p", "--print",
-                       action="store",
-                       dest="keys",
-                       metavar="LIST",
-                       default=None,
-                       help="Additionally print job attributes whose name"
-                       " appears in this comma-separated list.")
+        self.add_param(
+            "-b",
+            "--brief",
+            "--summary",
+            action="store_true",
+            dest="summary",
+            help=("Only print a summary table" " with count of jobs per each state."),
+        )
+        self.add_param(
+            "-l",
+            "--state",
+            action="store",
+            dest="states",
+            metavar="STATE",
+            default=None,
+            help="Only report about jobs in the given state."
+            " Multiple states are allowed: separate them with"
+            " commas.",
+        )
+        self.add_param(
+            "-L",
+            "--lifetimes",
+            "--print-lifetimes",
+            nargs='?',
+            metavar='FILE',
+            action='store',
+            dest='lifetimes',
+            default=None,  # no option and no argument: discard data
+            const=sys.stdout,  # option given, but no argument
+            help="For each successful job, print"
+            " submission, start, and duration times."
+            " If FILE is omitted, report is printed to screen.",
+        )
+        self.add_param(
+            "-u",
+            "--update",
+            action="store_true",
+            dest="update",
+            default=False,
+            help="Update job statuses before printing results",
+        )
+        self.add_param(
+            "-p",
+            "--print",
+            action="store",
+            dest="keys",
+            metavar="LIST",
+            default=None,
+            help="Additionally print job attributes whose name" " appears in this comma-separated list.",
+        )
 
     def main(self):
         # by default, DO NOT update job statuses
@@ -646,8 +682,7 @@ Print job state.
             self.session = self._get_session(self.params.session)
             self.params.args = self._list_all_tasks()
         else:
-            self.session = self._get_session(self.params.session,
-                                             task_ids=self.params.args)
+            self.session = self._get_session(self.params.session, task_ids=self.params.args)
 
         if len(self.params.args) == 0:
             print("No jobs submitted.")
@@ -679,12 +714,7 @@ Print job state.
         if self.params.lifetimes is not None:
             if isinstance(self.params.lifetimes, (str,)):
                 self.params.lifetimes = open(self.params.lifetimes, 'w')
-            lifetimes_rows = [['JOBID',
-                               'SUBMITTED_AT',
-                               'RUNNING_AT',
-                               'FINISHED_AT',
-                               'WAIT_DURATION',
-                               'EXEC_DURATION']]
+            lifetimes_rows = [['JOBID', 'SUBMITTED_AT', 'RUNNING_AT', 'FINISHED_AT', 'WAIT_DURATION', 'EXEC_DURATION']]
 
         # update states and compute statistics
         stats = utils.defaultdict(lambda: 0)
@@ -709,10 +739,7 @@ Print job state.
                         key_values.append(app.execution.get(name))
                     else:
                         key_values.append(app.get(name, "N/A"))
-                rows.append([jobid,
-                             jobname,
-                             app.execution.state,
-                             app.execution.info] + key_values)
+                rows.append([jobid, jobname, app.execution.state, app.execution.info] + key_values)
 
             stats[app.execution.state] += 1
             if app.execution.state == Run.State.TERMINATED:
@@ -741,12 +768,15 @@ Print job state.
                             continue
                         terminated_at = timestamps['TERMINATING']
                         lifetimes_rows.append(
-                            [jobid,
-                             submitted_at,
-                             running_at,
-                             terminated_at,
-                             running_at - submitted_at,
-                             terminated_at - running_at])
+                            [
+                                jobid,
+                                submitted_at,
+                                running_at,
+                                terminated_at,
+                                running_at - submitted_at,
+                                terminated_at - running_at,
+                            ]
+                        )
                 else:
                     stats['failed'] += 1
 
@@ -766,11 +796,7 @@ Print job state.
 
             for state, num in sorted(stats.items()):
                 if (states is None) or (str(state) in states):
-                    table.add_row([
-                        state,
-                        "%d/%d" % (num, tot),
-                        "%.2f%%" % (100.0 * num / tot)
-                    ])
+                    table.add_row([state, "%d/%d" % (num, tot), "%.2f%%" % (100.0 * num / tot)])
         else:
             # print table of job status
             table = PrettyTable(["JobID", "Job name", "State", "Info"] + keys)
@@ -783,8 +809,7 @@ Print job state.
             if self.params.lifetimes is sys.stdout:
                 print("")
                 print("Report on the job life times:")
-                lifetimes_csv = csv.writer(
-                    self.params.lifetimes, delimiter='\t')
+                lifetimes_csv = csv.writer(self.params.lifetimes, delimiter='\t')
             else:
                 lifetimes_csv = csv.writer(self.params.lifetimes)
             lifetimes_csv.writerows(lifetimes_rows)
@@ -811,36 +836,45 @@ Output files can be retrieved multiple times until a job reaches
 'TERMINATED' state: after that, the remote storage will be
 released once the output files have been fetched.
     """
+
     def setup_options(self):
-        self.add_param("-A",
-                       action="store_true",
-                       dest="all",
-                       default=False,
-                       help="Download *all* files of *all* tasks in a session."
-                       " USE WITH CAUTION!")
-        self.add_param("-d", "--download-dir",
-                       action="store",
-                       dest="download_dir",
-                       default=None,
-                       help="Destination directory (job id will be appended to"
-                       " it); default is '.'")
-        self.add_param("-f", "--overwrite",
-                       action="store_true",
-                       dest="overwrite",
-                       default=False,
-                       help="Overwrite files in destination directory")
-        self.add_param("-c", "--changed-only",
-                       action="store_true",
-                       dest="changed_only",
-                       default=False,
-                       help="Only download files that were changed on remote"
-                       " side.")
+        self.add_param(
+            "-A",
+            action="store_true",
+            dest="all",
+            default=False,
+            help="Download *all* files of *all* tasks in a session." " USE WITH CAUTION!",
+        )
+        self.add_param(
+            "-d",
+            "--download-dir",
+            action="store",
+            dest="download_dir",
+            default=None,
+            help="Destination directory (job id will be appended to" " it); default is '.'",
+        )
+        self.add_param(
+            "-f",
+            "--overwrite",
+            action="store_true",
+            dest="overwrite",
+            default=False,
+            help="Overwrite files in destination directory",
+        )
+        self.add_param(
+            "-c",
+            "--changed-only",
+            action="store_true",
+            dest="changed_only",
+            default=False,
+            help="Only download files that were changed on remote" " side.",
+        )
 
     def main(self):
         if self.params.all and len(self.params.args) > 0:
             raise gc3libs.exceptions.InvalidUsage(
-                "Option '-A' conflicts with list of job IDs:"
-                " use either '-A' or explicitly list task IDs.")
+                "Option '-A' conflicts with list of job IDs:" " use either '-A' or explicitly list task IDs."
+            )
 
         if self.params.all:
             self.session = self._get_session(self.params.session)
@@ -858,12 +892,10 @@ released once the output files have been fetched.
                     # presume the command has been found by the
                     # shell through PATH and just print the command name,
                     # otherwise print the exact path name.
-                    % (os.path.basename(sys.argv[0])
-                       if os.path.isabs(sys.argv[0])
-                       else sys.argv[0]))
+                    % (os.path.basename(sys.argv[0]) if os.path.isabs(sys.argv[0]) else sys.argv[0])
+                )
                 return es.EX_USAGE
-            self.session = self._get_session(self.params.session,
-                                             task_ids=args)
+            self.session = self._get_session(self.params.session, task_ids=args)
 
         failed = 0
         download_dirs = set()
@@ -874,17 +906,16 @@ released once the output files have been fetched.
 
                 if app.execution.state == Run.State.NEW:
                     raise gc3libs.exceptions.InvalidOperation(
-                        "Job '%s' is not yet submitted. Output cannot be"
-                        " retrieved" % app.persistent_id)
+                        "Job '%s' is not yet submitted. Output cannot be" " retrieved" % app.persistent_id
+                    )
                 elif app.execution.state == Run.State.TERMINATED:
                     raise gc3libs.exceptions.InvalidOperation(
-                        "Output of '%s' already downloaded to '%s'"
-                        % (app.persistent_id, app.output_dir))
+                        "Output of '%s' already downloaded to '%s'" % (app.persistent_id, app.output_dir)
+                    )
 
                 # XXX: this uses "private" code from `Application` and
                 # `Core.fetch_output`
-                app_download_dir = app._get_download_dir(
-                    self.params.download_dir)
+                app_download_dir = app._get_download_dir(self.params.download_dir)
                 # avoid downloading files twice for virtual tasks that
                 # wrap an application (e.g., `RetryableTask`)
                 if app_download_dir not in download_dirs:
@@ -892,7 +923,8 @@ released once the output files have been fetched.
                         app,
                         download_dir=app_download_dir,
                         overwrite=self.params.overwrite,
-                        changed_only=self.params.changed_only)
+                        changed_only=self.params.changed_only,
+                    )
                     if app.changed:
                         self.session.store.replace(app.persistent_id, app)
                     # `fetch_output` is by default a no-op on tasks:
@@ -905,19 +937,15 @@ released once the output files have been fetched.
                     # avoid downloading files twice -- see above
                     download_dirs.add(app_download_dir)
                 else:
-                    self.log.debug("Output directory '%s' already visited,"
-                                   " not downloading again.", app_download_dir)
+                    self.log.debug("Output directory '%s' already visited," " not downloading again.", app_download_dir)
                 # print message to user anyhow
                 if app.execution.state == Run.State.TERMINATED:
-                    print("Job final results were successfully retrieved in"
-                          " '%s'" % (app_download_dir,))
+                    print("Job final results were successfully retrieved in" " '%s'" % (app_download_dir,))
                 else:
-                    print("A snapshot of job results was successfully"
-                          " retrieved in '%s'" % (app_download_dir,))
+                    print("A snapshot of job results was successfully" " retrieved in '%s'" % (app_download_dir,))
 
             except Exception as ex:
-                print("Failed retrieving results of job '%s': %s"
-                      % (jobid, str(ex)))
+                print("Failed retrieving results of job '%s': %s" % (jobid, str(ex)))
                 failed += 1
                 continue
 
@@ -937,13 +965,13 @@ error occurred.
     """
 
     def setup_options(self):
-        self.add_param("-A", action="store_true", dest="all", default=False,
-                       help="Remove all stored jobs. USE WITH CAUTION!")
+        self.add_param(
+            "-A", action="store_true", dest="all", default=False, help="Remove all stored jobs. USE WITH CAUTION!"
+        )
 
     def main(self):
         if self.params.all and len(self.params.args) > 0:
-            raise gc3libs.exceptions.InvalidUsage(
-                "Option '-A' conflicts with list of job IDs to remove.")
+            raise gc3libs.exceptions.InvalidUsage("Option '-A' conflicts with list of job IDs to remove.")
 
         if self.params.all:
             self.session = self._get_session(self.params.session)
@@ -961,12 +989,10 @@ error occurred.
                     # presume the command has been found by the
                     # shell through PATH and just print the command name,
                     # otherwise print the exact path name.
-                    % (os.path.basename(sys.argv[0])
-                       if os.path.isabs(sys.argv[0])
-                       else sys.argv[0]))
+                    % (os.path.basename(sys.argv[0]) if os.path.isabs(sys.argv[0]) else sys.argv[0])
+                )
                 return os.EX_USAGE
-            self.session = self._get_session(self.params.session,
-                                             task_ids=args)
+            self.session = self._get_session(self.params.session, task_ids=args)
 
         failed = 0
         for jobid in args:
@@ -974,14 +1000,11 @@ error occurred.
                 app = self.session.load(jobid)
                 app.attach(self._core)
 
-                self.log.debug("gkill: Job '%s' in state %s"
-                               % (jobid, app.execution.state))
+                self.log.debug("gkill: Job '%s' in state %s" % (jobid, app.execution.state))
                 if app.execution.state == Run.State.NEW:
-                    raise gc3libs.exceptions.InvalidOperation(
-                        "Job '%s' has never been submitted." % app)
+                    raise gc3libs.exceptions.InvalidOperation("Job '%s' has never been submitted." % app)
                 if app.execution.state == Run.State.TERMINATED:
-                    raise gc3libs.exceptions.InvalidOperation(
-                        "Job '%s' is already in terminal state" % app)
+                    raise gc3libs.exceptions.InvalidOperation("Job '%s' is already in terminal state" % app)
                 else:
                     app.kill()
                     self.session.store.replace(jobid, app)
@@ -1004,38 +1027,39 @@ Display the last lines from a job's standard output or error stream.
 Optionally, keep running and displaying the last part of the file
 as more lines are written to the given stream.
     """
+
     def setup_args(self):
         """
         Override `GC3UtilsScript`:class: `setup_args` method since we
         don't operate on single jobs.
         """
-        self.add_param('args',
-                       nargs=1,
-                       metavar='JOBID',
-                       help="Job ID string identifying the single job to"
-                       " operate upon.")
+        self.add_param(
+            'args', nargs=1, metavar='JOBID', help="Job ID string identifying the single job to" " operate upon."
+        )
 
     def setup_options(self):
-        self.add_param("-e", "--stderr",
-                       action="store_true",
-                       dest="stderr",
-                       default=False,
-                       help="show stderr of the job")
-        self.add_param("-f", "--follow",
-                       action="store_true",
-                       dest="follow",
-                       default=False,
-                       help="output appended data as the file grows")
-        self.add_param("-o", "--stdout",
-                       action="store_true",
-                       dest="stdout",
-                       default=True,
-                       help="show stdout of the job (default)")
-        self.add_param("-n", "--lines",
-                       dest="num_lines",
-                       type=int,
-                       default=10,
-                       help="output the last N lines, instead of the last 10")
+        self.add_param(
+            "-e", "--stderr", action="store_true", dest="stderr", default=False, help="show stderr of the job"
+        )
+        self.add_param(
+            "-f",
+            "--follow",
+            action="store_true",
+            dest="follow",
+            default=False,
+            help="output appended data as the file grows",
+        )
+        self.add_param(
+            "-o", "--stdout", action="store_true", dest="stdout", default=True, help="show stdout of the job (default)"
+        )
+        self.add_param(
+            "-n",
+            "--lines",
+            dest="num_lines",
+            type=int,
+            default=10,
+            help="output the last N lines, instead of the last 10",
+        )
 
     def main(self):
         if len(self.params.args) == 0:
@@ -1046,8 +1070,8 @@ as more lines are written to the given stream.
                 # presume the command has been found by the
                 # shell through PATH and just print the command name,
                 # otherwise print the exact path name.
-                % (os.path.basename(sys.argv[0]) if os.path.isabs(sys.argv[0])
-                   else sys.argv[0]))
+                % (os.path.basename(sys.argv[0]) if os.path.isabs(sys.argv[0]) else sys.argv[0])
+            )
             return os.EX_USAGE
 
         if self.params.stderr:
@@ -1055,15 +1079,16 @@ as more lines are written to the given stream.
         else:
             stream = 'stdout'
 
-        self.session = self._get_session(self.params.session,
-                                         task_ids=self.params.args)
+        self.session = self._get_session(self.params.session, task_ids=self.params.args)
         failed = 0
         for jobid in self.params.args:
             try:
                 app = self.session.load(jobid)
-                if app.execution.state == Run.State.UNKNOWN \
-                        or app.execution.state == Run.State.SUBMITTED \
-                        or app.execution.state == Run.State.NEW:
+                if (
+                    app.execution.state == Run.State.UNKNOWN
+                    or app.execution.state == Run.State.SUBMITTED
+                    or app.execution.state == Run.State.NEW
+                ):
                     raise RuntimeError('Job output not yet available')
                 app.attach(self._core)
 
@@ -1072,35 +1097,30 @@ as more lines are written to the given stream.
                         where = 0
                         while True:
                             file_handle = app.peek(stream)
-                            self.log.debug("Seeking position %d in stream"
-                                           " %s" % (where, stream))
+                            self.log.debug("Seeking position %d in stream" " %s" % (where, stream))
                             file_handle.seek(where)
                             for line in file_handle.readlines():
                                 print(line.strip())
                             where = file_handle.tell()
-                            self.log.debug("Read up to position %d in stream"
-                                           " %s" % (where, stream))
+                            self.log.debug("Read up to position %d in stream" " %s" % (where, stream))
                             file_handle.close()
                             time.sleep(5)
                     else:
-                        estimated_size = gc3libs.Default.PEEK_FILE_SIZE * \
-                            self.params.num_lines
-                        fh = app.peek(stream, offset=-estimated_size,
-                                      size=estimated_size)
-                        for line in fh.readlines()[-(self.params.num_lines):]:
+                        estimated_size = gc3libs.Default.PEEK_FILE_SIZE * self.params.num_lines
+                        fh = app.peek(stream, offset=-estimated_size, size=estimated_size)
+                        for line in fh.readlines()[-(self.params.num_lines) :]:
                             print(line.strip())
                         fh.close()
 
                 except gc3libs.exceptions.InvalidOperation:  # Cannot `peek()` on a task collection  # noqa
                     self.log.error(
-                        "Task '%s' (of class '%s') has no defined output/error"
-                        " streams. Ignoring.",
+                        "Task '%s' (of class '%s') has no defined output/error" " streams. Ignoring.",
                         app.persistent_id,
-                        app.__class__.__name__)
+                        app.__class__.__name__,
+                    )
                     failed += 1
             except Exception as ex:
-                print("Failed while reading content of %s for job '%s': %s"
-                      % (stream, jobid, str(ex)))
+                print("Failed while reading content of %s for job '%s': %s" % (stream, jobid, str(ex)))
                 failed += 1
 
         # exit code is practically limited to 7 bits ...
@@ -1113,17 +1133,26 @@ List status of computational resources.
     """
 
     def setup_options(self):
-        self.add_param("-n", "--no-update", action="store_false",
-                       dest="update", default=True,
-                       help="Do not update resource statuses;"
-                       " only print what's in the local database.")
         self.add_param(
-            "-p", "--print", action="store", dest="keys",
-            metavar="LIST", default=None,
+            "-n",
+            "--no-update",
+            action="store_false",
+            dest="update",
+            default=True,
+            help="Do not update resource statuses;" " only print what's in the local database.",
+        )
+        self.add_param(
+            "-p",
+            "--print",
+            action="store",
+            dest="keys",
+            metavar="LIST",
+            default=None,
             help="Only print resource attributes whose name appears in"
             " this comma-separated list. (Attribute name is as given in"
             " the configuration file, or listed in the middle column"
-            " in `gservers` output.)")
+            " in `gservers` output.)",
+        )
 
     def setup(self):
         """
@@ -1137,19 +1166,19 @@ List status of computational resources.
         Override `GC3UtilsScript`:class: `setup_args` method since we
         don't operate on jobs but on resources.
         """
-        self.add_param('args',
-                       nargs='*',
-                       metavar='RESOURCE',
-                       help="Resource, string identifying the name of the"
-                       " resources to check.")
+        self.add_param(
+            'args',
+            nargs='*',
+            metavar='RESOURCE',
+            help="Resource, string identifying the name of the" " resources to check.",
+        )
 
     def main(self):
         if len(self.params.args) > 0:
-            self._select_resources(* self.params.args)
+            self._select_resources(*self.params.args)
             self.log.info(
-                "Retained only resources: %s",
-                str.join(",", [res['name']
-                               for res in self._core.get_resources()]))
+                "Retained only resources: %s", str.join(",", [res['name'] for res in self._core.get_resources()])
+            )
 
         if self.params.update:
             self._core.update_resources()
@@ -1165,11 +1194,9 @@ List status of computational resources.
 
             # not all resources support the same keys...
             def output_if_exists(name, print_name):
-                if hasattr(resource, name) and ((not self.params.keys) or
-                                                name in self.params.keys):
-                    table.add_row((name,
-                                   ("( %s )" % print_name),
-                                   getattr(resource, name)))
+                if hasattr(resource, name) and ((not self.params.keys) or name in self.params.keys):
+                    table.add_row((name, ("( %s )" % print_name), getattr(resource, name)))
+
             output_if_exists('frontend', "Frontend host name")
             output_if_exists('type', "Access mode")
             output_if_exists('auth', "Authorization name")
@@ -1217,29 +1244,21 @@ To get detailed info on a specific command, run:
         self.subparsers = self.argparser.add_subparsers(
             title="subcommands",
             description="gsession accept the following subcommands. "
-            "Each subcommand requires a `SESSION` directory as argument.")
+            "Each subcommand requires a `SESSION` directory as argument.",
+        )
 
-        self._add_subcmd(
-            'abort',
-            self.abort_session,
-            help="Kill all jobs related to a session and remove it from disk")
-        self._add_subcmd(
-            'delete',
-            self.delete_session,
-            help="Delete a session from disk.")
-        subparser = self._add_subcmd(
-            'list',
-            self.list_jobs,
-            help="Tree-like view of jobs related to a session.")
-        subparser.add_argument('-r', '--recursive', action="store_true",
-                               default=False,
-                               help="Show all jobs contained in a task"
-                               " collection, not only top-level jobs.")
+        self._add_subcmd('abort', self.abort_session, help="Kill all jobs related to a session and remove it from disk")
+        self._add_subcmd('delete', self.delete_session, help="Delete a session from disk.")
+        subparser = self._add_subcmd('list', self.list_jobs, help="Tree-like view of jobs related to a session.")
+        subparser.add_argument(
+            '-r',
+            '--recursive',
+            action="store_true",
+            default=False,
+            help="Show all jobs contained in a task" " collection, not only top-level jobs.",
+        )
 
-        self._add_subcmd(
-            'log',
-            self.show_log,
-            help="Show log entries for the session.")
+        self._add_subcmd('log', self.show_log, help="Show log entries for the session.")
 
     def setup_args(self):
         # prevent GC3UtilsScript.setup_args() to add the default JOBID
@@ -1269,8 +1288,7 @@ To get detailed info on a specific command, run:
             task = self.session.tasks[task_id]
             task.attach(self._core)
             if task.execution.state == Run.State.TERMINATED:
-                gc3libs.log.info("Not aborting '%s' which is already in"
-                                 " TERMINATED state." % task)
+                gc3libs.log.info("Not aborting '%s' which is already in" " TERMINATED state." % task)
                 rc -= 1
                 continue
             try:
@@ -1278,13 +1296,10 @@ To get detailed info on a specific command, run:
                 task.free()
                 rc -= 1
             except gc3libs.exceptions.Error as err:
-                gc3libs.log.error(
-                    "Could not abort task '%s': %s: %s",
-                    task, err.__class__.__name__, err)
+                gc3libs.log.error("Could not abort task '%s': %s: %s", task, err.__class__.__name__, err)
 
         if rc:
-            gc3libs.log.error(
-                "Not all tasks of the session have been aborted.")
+            gc3libs.log.error("Not all tasks of the session have been aborted.")
 
         if rc > 125:
             # 126 and 127 error codes have special meanings.
@@ -1333,12 +1348,9 @@ To get detailed info on a specific command, run:
             except AttributeError:
                 jobname = ''
 
-            rows.append([indent + str(app.persistent_id),
-                         jobname,
-                         app.execution.state,
-                         app.execution.info])
+            rows.append([indent + str(app.persistent_id), jobname, app.execution.state, app.execution.info])
             if recursive and 'tasks' in app:
-                indent = " "*len(indent) + '  '
+                indent = " " * len(indent) + '  '
                 for task in app.tasks:
                     rows.extend(print_app_table(task, indent, recursive))
             return rows
@@ -1375,12 +1387,7 @@ To get detailed info on a specific command, run:
 
         timestamps.sort(key=(lambda ts: ts[0]))
         for entry in timestamps:
-            print("%s %s: %s" % (
-                time.strftime(
-                    "%b %d %H:%M:%S", time.localtime(entry[0])
-                    ),
-                str(entry[1]),
-                entry[2]))
+            print("%s %s: %s" % (time.strftime("%b %d %H:%M:%S", time.localtime(entry[0])), str(entry[1]), entry[2]))
 
 
 class cmd_gselect(GC3UtilsScript):
@@ -1397,62 +1404,78 @@ in order to be selected.
 
     def setup_options(self):
         self.add_param(
-            '--error-message', '--errmsg', metavar='REGEXP',
-            help=("Select jobs such that a line in their error output (STDERR)"
-                  " file matches the given regular expression pattern."),
+            '--error-message',
+            '--errmsg',
+            metavar='REGEXP',
+            help=(
+                "Select jobs such that a line in their error output (STDERR)"
+                " file matches the given regular expression pattern."
+            ),
         )
         self.add_param(
-            '--input-file', metavar='FILENAME',
-            help=("Select jobs with input file FILENAME"
-                  " (only the file name is considered, not the full path)."),
-            )
-        self.add_param(
-            '--jobname', '--job-name', metavar='REGEXP',
-            dest='jobname', default='',
-            help=("Select jobs whose name matches the supplied"
-                  " regular expression (case insensitive).")
+            '--input-file',
+            metavar='FILENAME',
+            help=("Select jobs with input file FILENAME" " (only the file name is considered, not the full path)."),
         )
         self.add_param(
-            '--jobid', '--job-id', metavar='REGEXP',
-            dest='jobid', default='',
-            help=("Select jobs whose ID matches the supplied"
-                  " regular expression (case insensitive).")
+            '--jobname',
+            '--job-name',
+            metavar='REGEXP',
+            dest='jobname',
+            default='',
+            help=("Select jobs whose name matches the supplied" " regular expression (case insensitive)."),
         )
         self.add_param(
-            '-l', '--state', '--states',
-            dest='states', default=None,
-            help=("Select all jobs in one of the specified states"
-                  " (comma-separated list). Valid states are: %s"
-                  % str.join(", ", sorted(Run.State))),
-            )
-        self.add_param(
-            '--output-file', metavar='FILENAME',
-            help=("Select jobs with output file FILENAME"
-                  " (only the file name is considered, not the full path)."),
-            )
-        self.add_param(
-            '--output-message', '--outmsg', metavar='REGEXP',
-            help=("Select jobs such that a line in their main output (STDOUT)"
-                  " file matches the given regular expression pattern."),
+            '--jobid',
+            '--job-id',
+            metavar='REGEXP',
+            dest='jobid',
+            default='',
+            help=("Select jobs whose ID matches the supplied" " regular expression (case insensitive)."),
         )
         self.add_param(
-            '--successful', '--ok',
-            action='store_true', dest='successful', default=False,
-            help="Select jobs with non-zero exit code."
-            )
+            '-l',
+            '--state',
+            '--states',
+            dest='states',
+            default=None,
+            help=(
+                "Select all jobs in one of the specified states"
+                " (comma-separated list). Valid states are: %s" % str.join(", ", sorted(Run.State))
+            ),
+        )
         self.add_param(
-            '--submitted-after', metavar='DATE',
-            help="Select jobs submitted after the specified date.",
-            )
+            '--output-file',
+            metavar='FILENAME',
+            help=("Select jobs with output file FILENAME" " (only the file name is considered, not the full path)."),
+        )
         self.add_param(
-            '--submitted-before', metavar='DATE',
-            help="Select jobs submitted before the specified date.",
-            )
+            '--output-message',
+            '--outmsg',
+            metavar='REGEXP',
+            help=(
+                "Select jobs such that a line in their main output (STDOUT)"
+                " file matches the given regular expression pattern."
+            ),
+        )
         self.add_param(
-            '--unsuccessful', '--failed',
-            action='store_true', dest='unsuccessful', default=False,
-            help="Select jobs with non-zero exit code."
-            )
+            '--successful',
+            '--ok',
+            action='store_true',
+            dest='successful',
+            default=False,
+            help="Select jobs with non-zero exit code.",
+        )
+        self.add_param('--submitted-after', metavar='DATE', help="Select jobs submitted after the specified date.")
+        self.add_param('--submitted-before', metavar='DATE', help="Select jobs submitted before the specified date.")
+        self.add_param(
+            '--unsuccessful',
+            '--failed',
+            action='store_true',
+            dest='unsuccessful',
+            default=False,
+            help="Select jobs with non-zero exit code.",
+        )
 
     def parse_args(self):
         self.criteria = []
@@ -1460,51 +1483,44 @@ in order to be selected.
         # --successful, --unsuccessful
         if self.params.successful and self.params.unsuccessful:
             raise gc3libs.exceptions.InvalidUsage(
-                " Please use only one of the two options:"
-                " `--successful` or `--unsuccessful`.")
+                " Please use only one of the two options:" " `--successful` or `--unsuccessful`."
+            )
 
         if self.params.successful:
-            self.criteria.append(
-                (self.params.successful, self.filter_successful, ()))
+            self.criteria.append((self.params.successful, self.filter_successful, ()))
 
         if self.params.unsuccessful:
-            self.criteria.append(
-                (self.params.unsuccessful, self.filter_unsuccessful, ()))
+            self.criteria.append((self.params.unsuccessful, self.filter_unsuccessful, ()))
 
         # --jobname, --job-name
         if self.params.jobname:
             try:
                 self.jobname_re = re.compile(self.params.jobname, re.I)
-                self.criteria.append(
-                    (True, self.filter_by_jobname, (self.jobname_re,)))
+                self.criteria.append((True, self.filter_by_jobname, (self.jobname_re,)))
             except re.error as err:
                 raise gc3libs.exceptions.InvalidUsage(
-                    "Regexp `%s` for option `--job-name` is invalid: %s"
-                    % (self.params.jobname, err))
+                    "Regexp `%s` for option `--job-name` is invalid: %s" % (self.params.jobname, err)
+                )
 
         # --jobid, --job-id
         if self.params.jobid:
             try:
                 self.jobid_re = re.compile(self.params.jobid, re.I)
-                self.criteria.append(
-                    (True, self.filter_by_jobid, (self.jobid_re,)))
+                self.criteria.append((True, self.filter_by_jobid, (self.jobid_re,)))
 
             except re.error as err:
                 raise gc3libs.exceptions.InvalidUsage(
-                    "Regexp `%s` for option `--job-id` is invalid: %s"
-                    % (self.params.jobid, err))
+                    "Regexp `%s` for option `--job-id` is invalid: %s" % (self.params.jobid, err)
+                )
 
         # --state
         if self.params.states is not None:
-            self.allowed_states = set(i.upper()
-                                      for i in self.params.states.split(','))
+            self.allowed_states = set(i.upper() for i in self.params.states.split(','))
             invalid = self.allowed_states.difference(Run.State)
             if invalid:
-                raise gc3libs.exceptions.InvalidUsage(
-                    "Invalid state(s): %s" % str.join(", ", invalid))
+                raise gc3libs.exceptions.InvalidUsage("Invalid state(s): %s" % str.join(", ", invalid))
 
-            self.criteria.append(
-                (True, self.filter_by_state, (self.allowed_states,)))
+            self.criteria.append((True, self.filter_by_state, (self.allowed_states,)))
 
         # --submitted-after, --submitted-before
         self.submission_start = None
@@ -1514,17 +1530,14 @@ in order to be selected.
         # option was not given
         if self.params.submitted_after is not None:
             if self.params.submitted_after == '':
-                gc3libs.log.warning(
-                    "Empty date as argument of --submitted-after will be"
-                    " interpreted as 'now'")
+                gc3libs.log.warning("Empty date as argument of --submitted-after will be" " interpreted as 'now'")
 
             try:
-                self.submission_start = time.mktime(
-                    Calendar().parse(self.params.submitted_after)[0])
+                self.submission_start = time.mktime(Calendar().parse(self.params.submitted_after)[0])
             except Exception as ex:
                 raise gc3libs.exceptions.InvalidUsage(
-                    "Invalid value `%s` for --submitted-after argument: %s"
-                    % (self.params.submitted_after, str(ex)))
+                    "Invalid value `%s` for --submitted-after argument: %s" % (self.params.submitted_after, str(ex))
+                )
 
         else:  # no `--submitted-after` option
             # a starting date is always needed; if user did not specify one,
@@ -1536,46 +1549,38 @@ in order to be selected.
         # that the option was not given
         if self.params.submitted_before is not None:
             if self.params.submitted_before == '':
-                gc3libs.log.warning(
-                    "Empty date as argument of --submitted-before will be"
-                    " interpreted as 'now'")
+                gc3libs.log.warning("Empty date as argument of --submitted-before will be" " interpreted as 'now'")
             try:
-                self.submission_end = time.mktime(
-                    Calendar().parse(self.params.submitted_before)[0])
+                self.submission_end = time.mktime(Calendar().parse(self.params.submitted_before)[0])
             except Exception as err:
                 raise gc3libs.exceptions.InvalidUsage(
-                    "Invalid value `%s` for --submitted-before argument: %s"
-                    % (self.params.submitted_before, err))
+                    "Invalid value `%s` for --submitted-before argument: %s" % (self.params.submitted_before, err)
+                )
 
         else:  # no `--submitted-before` option
             # an ending date is always needed; if user did not specify one,
             # then choose the end of (UNIX) time
             self.submission_end = float(sys.maxsize)
 
-        self.criteria.append(
-            (True, self.filter_by_submission_date,
-             (self.submission_start, self.submission_end)))
+        self.criteria.append((True, self.filter_by_submission_date, (self.submission_start, self.submission_end)))
 
         # --input-file
         if self.params.input_file:
             self.criteria.append(
-                (self.params.input_file or self.params.output_file,
-                 self.filter_by_iofile,
-                 (self.params.input_file, self.params.output_file)))
+                (
+                    self.params.input_file or self.params.output_file,
+                    self.filter_by_iofile,
+                    (self.params.input_file, self.params.output_file),
+                )
+            )
 
         # --error-message
         if self.params.error_message:
-            self.criteria.append(
-                (self.params.error_message,
-                 self.filter_by_errmsg,
-                 (self.params.error_message,)))
+            self.criteria.append((self.params.error_message, self.filter_by_errmsg, (self.params.error_message,)))
 
         # --output-message
         if self.params.output_message:
-            self.criteria.append(
-                (self.params.output_message,
-                 self.filter_by_outmsg,
-                 (self.params.output_message,)))
+            self.criteria.append((self.params.output_message, self.filter_by_outmsg, (self.params.output_message,)))
 
     def main(self):
         self.session = self._get_session(self.params.session)
@@ -1593,8 +1598,7 @@ in order to be selected.
 
         # Print remaining job IDs, if any
         if current_jobs:
-            print(str.join('\n',
-                           (str(job.persistent_id) for job in current_jobs)))
+            print(str.join('\n', (str(job.persistent_id) for job in current_jobs)))
         else:
             gc3libs.log.info("No jobs match the specified conditions.")
 
@@ -1638,13 +1642,14 @@ in order to be selected.
         Return list of tasks in `job_list` such that string `msg` occurs in the
         STDERR log file.
         """
-        return [job for job in job_list
-                if (hasattr(job, 'output_dir')
-                    and utils.occurs(
-                        msg, os.path.join(
-                            job.output_dir,
-                            (job.stdout if job.join else job.stderr)
-                        )))]
+        return [
+            job
+            for job in job_list
+            if (
+                hasattr(job, 'output_dir')
+                and utils.occurs(msg, os.path.join(job.output_dir, (job.stdout if job.join else job.stderr)))
+            )
+        ]
 
     @staticmethod
     def filter_by_iofile(job_list, ifile=None, ofile=None):
@@ -1664,9 +1669,8 @@ in order to be selected.
                 inputs = [os.path.basename(url.path) for url in job.inputs]
             except AttributeError as err:
                 gc3libs.log.debug(
-                    "No input file data in task %s: %s."
-                    " I'm turning off input file checks for this task",
-                    job, err)
+                    "No input file data in task %s: %s." " I'm turning off input file checks for this task", job, err
+                )
                 inputs = []
             try:
                 # `Application.inputs` is a `UrlValueDict`, so keys
@@ -1674,9 +1678,8 @@ in order to be selected.
                 outputs = [os.path.basename(file) for file in job.outputs]
             except AttributeError as err:
                 gc3libs.log.debug(
-                    "No output file data in task %s: %s."
-                    " I'm turning off output file checks for this task",
-                    job, err)
+                    "No output file data in task %s: %s." " I'm turning off output file checks for this task", job, err
+                )
                 outputs = []
             matching = True
             if ifile and ifile not in inputs:
@@ -1712,19 +1715,18 @@ in order to be selected.
         Return list of tasks in `job_list` such that string `msg` occurs in the
         STDOUT log file.
         """
-        return [job for job in job_list
-                if (hasattr(job, 'output_dir')
-                    and utils.occurs(
-                        msg, os.path.join(job.output_dir, job.stdout)
-                    ))]
+        return [
+            job
+            for job in job_list
+            if (hasattr(job, 'output_dir') and utils.occurs(msg, os.path.join(job.output_dir, job.stdout)))
+        ]
 
     @staticmethod
     def filter_successful(job_list):
         """
         Return list of tasks from `job_list` that were successfully terminated.
         """
-        return [job for job in job_list
-                if job.execution.returncode == 0]
+        return [job for job in job_list if job.execution.returncode == 0]
 
     @staticmethod
     def filter_by_state(job_list, states):
@@ -1740,9 +1742,7 @@ in order to be selected.
         Return list of tasks from `job_list` that were unsuccessfully
         terminated.
         """
-        return [job for job in job_list
-                if job.execution.returncode is not None
-                and job.execution.returncode != 0]
+        return [job for job in job_list if job.execution.returncode is not None and job.execution.returncode != 0]
 
     @staticmethod
     def filter_by_submission_date(job_list, start, end):
@@ -1752,20 +1752,17 @@ in order to be selected.
         """
         matching_jobs = []
         for job in job_list:
-            submission_time = job.execution.timestamp.get(
-                Run.State.SUBMITTED, None)
+            submission_time = job.execution.timestamp.get(Run.State.SUBMITTED, None)
             if submission_time is None:
                 # Jobs run by the ShellCmd backend transition directly to
                 # RUNNING; use that timestamp if available.
                 #
                 # Since jobs in NEW state will not have any timestamp
                 # at all, set the default to 0.0.
-                submission_time = job.execution.timestamp.get(
-                    Run.State.RUNNING, 0.0)
+                submission_time = job.execution.timestamp.get(Run.State.RUNNING, 0.0)
 
-            if (submission_time <= end
-                    and submission_time >= start):
-                    matching_jobs.append(job)
+            if submission_time <= end and submission_time >= start:
+                matching_jobs.append(job)
         return matching_jobs
 
 
@@ -1794,43 +1791,44 @@ To get detailed info on a specific command, run:
         gc3libs.cmdline._Script.setup(self)
 
         self.subparsers = self.argparser.add_subparsers(
-            title="subcommands",
-            description="gcloud accept the following subcommands.")
+            title="subcommands", description="gcloud accept the following subcommands."
+        )
 
-        listparser = self._add_subcmd(
-            'list',
-            self.list_vms,
-            help='List VMs currently know to the Cloud backend.')
+        listparser = self._add_subcmd('list', self.list_vms, help='List VMs currently know to the Cloud backend.')
         listparser.add_argument(
-            '-r', '--resource', metavar="NAME", dest="resource_name",
-            default=None, help="Select resource by name.")
+            '-r', '--resource', metavar="NAME", dest="resource_name", default=None, help="Select resource by name."
+        )
         listparser.add_argument(
-            '-n', '--no-update', action="store_false", dest="update",
-            help="Do not update job and flavor information;"
-            " only print what is in the local database.")
+            '-n',
+            '--no-update',
+            action="store_false",
+            dest="update",
+            help="Do not update job and flavor information;" " only print what is in the local database.",
+        )
 
-        cleanparser = self._add_subcmd(
-            'cleanup',
-            self.cleanup_vms,
-            help='Terminate VMs not currently running any job.')
+        cleanparser = self._add_subcmd('cleanup', self.cleanup_vms, help='Terminate VMs not currently running any job.')
         cleanparser.add_argument(
-            '-r', '--resource', metavar="NAME", dest="resource_name",
-            default=None, help="Limit to VMs running on this resource.")
+            '-r',
+            '--resource',
+            metavar="NAME",
+            dest="resource_name",
+            default=None,
+            help="Limit to VMs running on this resource.",
+        )
         cleanparser.add_argument(
-            '-n', '--dry-run',
-            action="store_true", dest="dry_run", default=False,
-            help="Do not perform any actual killing;"
-            " just print what VMs would be terminated.")
+            '-n',
+            '--dry-run',
+            action="store_true",
+            dest="dry_run",
+            default=False,
+            help="Do not perform any actual killing;" " just print what VMs would be terminated.",
+        )
 
-        terminateparser = self._add_subcmd(
-            'terminate',
-            self.terminate_vm,
-            help='Terminate a VM.')
-        terminateparser.add_argument('ID', help='ID of the VM to terminate.',
-                                     nargs='+')
+        terminateparser = self._add_subcmd('terminate', self.terminate_vm, help='Terminate a VM.')
+        terminateparser.add_argument('ID', help='ID of the VM to terminate.', nargs='+')
         terminateparser.add_argument(
-            '-r', '--resource', metavar="NAME", dest="resource_name",
-            default=None, help="Select resource by name.")
+            '-r', '--resource', metavar="NAME", dest="resource_name", default=None, help="Select resource by name."
+        )
 
         forgetparser = self._add_subcmd(
             'forget',
@@ -1838,27 +1836,26 @@ To get detailed info on a specific command, run:
             help="Remove the VM from the list of known VMs, so that the EC2"
             " backend will stop submitting jobs on it. Please note that if you"
             " `forget` a VM, it will disappear from the output of"
-            " `gcloud list`.")
-        forgetparser.add_argument('ID',
-                                  help='ID of the VM to "forget".', nargs='+')
+            " `gcloud list`.",
+        )
+        forgetparser.add_argument('ID', help='ID of the VM to "forget".', nargs='+')
         forgetparser.add_argument(
-            '-r', '--resource', metavar="NAME", dest="resource_name",
-            default=None, help="Select resource by name.")
+            '-r', '--resource', metavar="NAME", dest="resource_name", default=None, help="Select resource by name."
+        )
 
-        runparser = self._add_subcmd(
-            'run',
-            self.create_vm,
-            help='Run a VM.')
+        runparser = self._add_subcmd('run', self.create_vm, help='Run a VM.')
         runparser.add_argument(
-            '-r', '--resource', metavar="NAME", dest="resource_name",
-            default=None, help="Select resource by name.")
+            '-r', '--resource', metavar="NAME", dest="resource_name", default=None, help="Select resource by name."
+        )
+        runparser.add_argument('-f', '--flavor', dest="instance_type", default=None, help="Select instance flavor.")
         runparser.add_argument(
-            '-f', '--flavor', dest="instance_type",
-            default=None, help="Select instance flavor.")
-        runparser.add_argument(
-            '-i', '--image-id', metavar="ID", dest="image_id", default=None,
-            help="Select the image id to use, if different from the one "
-            "specified in the configuration file.")
+            '-i',
+            '--image-id',
+            metavar="ID",
+            dest="image_id",
+            default=None,
+            help="Select the image id to use, if different from the one " "specified in the configuration file.",
+        )
 
     def setup_args(self):
         # prevent GC3UtilsScript.setup_args() to add the default JOBID
@@ -1866,16 +1863,13 @@ To get detailed info on a specific command, run:
         pass
 
     def main(self):
-        resources = [res for res in self._core.get_resources()
-                     if res.type.startswith('ec2') or
-                     res.type.startswith('openstack')]
+        resources = [
+            res for res in self._core.get_resources() if res.type.startswith('ec2') or res.type.startswith('openstack')
+        ]
         if self.params.resource_name:
-            resources = [res for res in resources
-                         if res.name == self.params.resource_name]
+            resources = [res for res in resources if res.name == self.params.resource_name]
             if not resources:
-                raise RuntimeError(
-                    'No Cloud resource found matching name `%s`.'
-                    '' % self.params.resource_name)
+                raise RuntimeError('No Cloud resource found matching name `%s`.' '' % self.params.resource_name)
 
         if not resources:
             raise RuntimeError('No Cloud resource found.')
@@ -1889,9 +1883,17 @@ To get detailed info on a specific command, run:
         table = PrettyTable()
         table.border = True
         if header:
-            table.field_names = ["resource", "id", "state", "IP Address",
-                                 "other IPs", "Nr. of jobs", "Nr. of cores",
-                                 "image", "keypair"]
+            table.field_names = [
+                "resource",
+                "id",
+                "state",
+                "IP Address",
+                "other IPs",
+                "Nr. of jobs",
+                "Nr. of cores",
+                "image",
+                "keypair",
+            ]
 
         images = []
         for vm in vms:
@@ -1910,8 +1912,7 @@ To get detailed info on a specific command, run:
                 status = vm.state
                 image_name = vm.image_id
             elif res.type.startswith('openstack'):
-                ips = vm.networks.get('private', []) + \
-                    vm.networks.get('public', [])
+                ips = vm.networks.get('private', []) + vm.networks.get('public', [])
                 status = vm.status
                 if not images:
                     images.extend(res._get_available_images())
@@ -1924,46 +1925,53 @@ To get detailed info on a specific command, run:
             if vm.preferred_ip in ips:
                 ips.remove(vm.preferred_ip)
 
-            table.add_row((res.name, vm.id, status, vm.preferred_ip,
-                           str.join(', ', ips), nr_remote_jobs, ncores,
-                           image_name, vm.key_name))
+            table.add_row(
+                (
+                    res.name,
+                    vm.id,
+                    status,
+                    vm.preferred_ip,
+                    str.join(', ', ips),
+                    nr_remote_jobs,
+                    ncores,
+                    image_name,
+                    vm.key_name,
+                )
+            )
 
         print(table)
 
     @staticmethod
     def list_vms_in_resource(res, lock, update):
-            printed = 0
-            if update:
-                res.get_resource_status()
-            else:
-                res._connect()
+        printed = 0
+        if update:
+            res.get_resource_status()
+        else:
+            res._connect()
 
-            vms = res._vmpool.get_all_vms()
-            # draw title to separate output from different resources
-            title = "VMs running on Cloud resource `%s` of type" \
-                    " %s" % (res.name, res.type)
-            separator = ('=' * len(title))
+        vms = res._vmpool.get_all_vms()
+        # draw title to separate output from different resources
+        title = "VMs running on Cloud resource `%s` of type" " %s" % (res.name, res.type)
+        separator = '=' * len(title)
 
-            # Acquire the lock before printing
-            lock.acquire()
-            gc3libs.log.debug(
-                "list_vms: Acquiring lock for resource %s", res.name)
-            print('')
-            print(separator)
-            print(title)
-            print(separator)
-            print('')
+        # Acquire the lock before printing
+        lock.acquire()
+        gc3libs.log.debug("list_vms: Acquiring lock for resource %s", res.name)
+        print('')
+        print(separator)
+        print(title)
+        print(separator)
+        print('')
 
-            # draw table of VMs running on resource `res`
-            if vms:
-                cmd_gcloud._print_vms(vms, res)
-                printed += len(vms)
+        # draw table of VMs running on resource `res`
+        if vms:
+            cmd_gcloud._print_vms(vms, res)
+            printed += len(vms)
 
-            if not printed:
-                print("  no known VMs are currently running on this resource.")
-            gc3libs.log.debug(
-                "list_vms: Releasing lock for resource %s", res.name)
-            lock.release()
+        if not printed:
+            print("  no known VMs are currently running on this resource.")
+        gc3libs.log.debug("list_vms: Releasing lock for resource %s", res.name)
+        lock.release()
 
     # Subcommand methods
     def list_vms(self):
@@ -1971,12 +1979,11 @@ To get detailed info on a specific command, run:
 
         pool = []
         for res in self.resources:
-            gc3libs.log.debug(
-                "Creating a new process to get status of resource %s",
-                res.name)
+            gc3libs.log.debug("Creating a new process to get status of resource %s", res.name)
 
             def _run_list_vms():
                 return self.list_vms_in_resource(res, lock, self.params.update)
+
             worker = mp.Process(target=_run_list_vms)
             pool.append(worker)
             worker.start()
@@ -1995,13 +2002,14 @@ To get detailed info on a specific command, run:
                 for vm in vms:
                     if res.subresources[vm.id].has_running_tasks():
                         if self.params.dry_run:
-                            print("No job running on VM `%s` of resource `%s`;"
-                                  " would terminate it." % (vm.id, res.name))
+                            print(
+                                "No job running on VM `%s` of resource `%s`;" " would terminate it." % (vm.id, res.name)
+                            )
                         else:
                             # no dry run -- the real thing!
                             gc3libs.log.info(
-                                "No job running on VM `%s` of resource `%s`;"
-                                " terminating it ...", vm.id, res.name)
+                                "No job running on VM `%s` of resource `%s`;" " terminating it ...", vm.id, res.name
+                            )
                             self._terminate_vm(vm.id, res)
 
         return 0
@@ -2026,15 +2034,14 @@ To get detailed info on a specific command, run:
             raise LookupError(
                 "VM with ID `%s` have been found on multiple resources. Please"
                 " specify the resource by running `gcloud terminate` with the"
-                " `-r` option.")
+                " `-r` option."
+            )
         elif not matching_res:
-            raise LookupError(
-                "VM with id `%s` not found." % (vmid))
+            raise LookupError("VM with id `%s` not found." % (vmid))
 
         resource = matching_res[0]
         vm = resource._vmpool.get_vm(vmid)
-        gc3libs.log.info("Terminating VM `%s` on resource `%s`" %
-                         (vmid, resource.name))
+        gc3libs.log.info("Terminating VM `%s` on resource `%s`" % (vmid, resource.name))
         if resource.type.startswith('ec2'):
             vm.terminate()
         elif resource.type.startswith('openstack'):
@@ -2058,12 +2065,13 @@ To get detailed info on a specific command, run:
     def _forget_vm(self, vmid):
         matching_res = self._find_resources_by_running_vm(vmid)
         if len(matching_res) > 1:
-            raise LookupError("VM with ID `%s` have been found on multiple "
-                              "resources. Please specify the resource by "
-                              "running `grun` with the `-r` option.")
-        elif not matching_res:
             raise LookupError(
-                "VM with id `%s` not found." % (vmid))
+                "VM with ID `%s` have been found on multiple "
+                "resources. Please specify the resource by "
+                "running `grun` with the `-r` option."
+            )
+        elif not matching_res:
+            raise LookupError("VM with id `%s` not found." % (vmid))
 
         resource = matching_res[0]
         resource._vmpool.remove_vm(vmid)
@@ -2083,8 +2091,9 @@ To get detailed info on a specific command, run:
 
     def create_vm(self):
         if len(self.resources) > 1:
-            raise RuntimeError("Please specify the resource where you want to "
-                               "create the VM by supplying the `-r` option.")
+            raise RuntimeError(
+                "Please specify the resource where you want to " "create the VM by supplying the `-r` option."
+            )
 
         resource = self.resources[0]
         resource._connect()

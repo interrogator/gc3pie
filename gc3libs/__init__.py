@@ -30,30 +30,37 @@ subclasses can expose adapted interfaces, focusing on the most
 relevant aspects of the application being represented.
 
 """
-from __future__ import absolute_import, print_function, unicode_literals
-from __future__ import division
-from builtins import str
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+import inspect
+import logging
+import logging.config
+import os
+import os.path
+import platform
+import shlex
+import string
+import subprocess
+import sys
+import time
+import types
+import uuid
+from builtins import object, str
+
+import gc3libs.exceptions
+from gc3libs.compat._collections import OrderedDict
+from gc3libs.events import TaskStateChange, TermStatusChange
+from gc3libs.persistence import Persistable
+from gc3libs.quantity import MB, MiB, hours, minutes, seconds
+from gc3libs.url import UrlKeyDict, UrlValueDict
+from gc3libs.utils import Enum, History, Struct, defproperty, deploy_configuration_file, safe_repr, sh_quote_unsafe
 from past.utils import old_div
-from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 __version__ = '2.5.2'
 
 
-import inspect
-import os
-import os.path
-import platform
-import string
-import sys
-import time
-import types
-import subprocess
-import shlex
-import uuid
-
-import logging
-import logging.config
 log = logging.getLogger("gc3.gc3libs")
 log.propagate = True
 
@@ -64,10 +71,6 @@ except ImportError:
     # Python 3
     string_types = (str,)
 
-
-from gc3libs.events import TaskStateChange, TermStatusChange
-from gc3libs.quantity import MB, hours, minutes, seconds, MiB
-from gc3libs.compat._collections import OrderedDict
 
 # this needs to be defined before we import other GC3Libs modules, as
 # they may depend on it
@@ -87,7 +90,7 @@ class Default(object):
         os.path.expandvars("$VIRTUAL_ENV/etc/gc3/gc3pie.conf"),
         # user-private config file: first look into `$GC3PIE_CONF`, and
         # fall-back to `~/.gc3/gc3pie.conf`
-        os.environ.get('GC3PIE_CONF', os.path.join(RCDIR, "gc3pie.conf"))
+        os.environ.get('GC3PIE_CONF', os.path.join(RCDIR, "gc3pie.conf")),
     ]
     JOBS_DIR = os.path.join(RCDIR, "jobs")
 
@@ -125,14 +128,6 @@ class Default(object):
     SPOOLDIR = "$HOME/.gc3pie_jobs"
 
 
-from gc3libs.events import TaskStateChange
-import gc3libs.exceptions
-from gc3libs.persistence import Persistable
-from gc3libs.url import UrlKeyDict, UrlValueDict
-from gc3libs.utils import (defproperty, deploy_configuration_file, Enum,
-                           History, Struct, safe_repr, sh_quote_unsafe)
-
-
 # when used in the `output` attribute of an application,
 # it stands for "fetch the whole contents of the remote
 # directory"
@@ -142,13 +137,14 @@ ANY_OUTPUT = '*'
 # utility functions
 #
 
+
 def configure_logger(
-        level=logging.ERROR,
-        name=None,
-        format=(os.path.basename(sys.argv[0])
-                + ': [%(asctime)s] %(levelname)-8s: %(message)s'),
-        datefmt='%Y-%m-%d %H:%M:%S',
-        colorize='auto'):
+    level=logging.ERROR,
+    name=None,
+    format=(os.path.basename(sys.argv[0]) + ': [%(asctime)s] %(levelname)-8s: %(message)s'),
+    datefmt='%Y-%m-%d %H:%M:%S',
+    colorize='auto',
+):
     """
     Configure the ``gc3.gc3libs`` logger.
 
@@ -190,11 +186,14 @@ def configure_logger(
     if colorize:
         try:
             import coloredlogs
-            for name in set([
-                    #None,  # root logger
+
+            for name in set(
+                [
+                    # None,  # root logger
                     "gc3.gc3libs",
                     name,
-            ]):
+                ]
+            ):
                 coloredlogs.install(
                     logger=logging.getLogger(name),
                     reconfigure=True,
@@ -202,21 +201,21 @@ def configure_logger(
                     level=level,
                     fmt=format,
                     datefmt=datefmt,
-                    programname=name)
+                    programname=name,
+                )
         except ImportError as err:
             log.warning("Could not import `coloredlogs` module: %s", err)
     return log
+
 
 def _load_logging_configuration_file(name):
     if name is None:
         name = os.path.basename(sys.argv[0])
     log_conf = os.path.join(Default.RCDIR, name + '.log.conf')
     deploy_configuration_file(log_conf, "logging.conf.example")
-    logging.config.fileConfig(log_conf, {
-        'RCDIR': Default.RCDIR,
-        'HOMEDIR': os.path.expandvars('$HOME'),
-        'HOSTNAME': platform.node(),
-    })
+    logging.config.fileConfig(
+        log_conf, {'RCDIR': Default.RCDIR, 'HOMEDIR': os.path.expandvars('$HOME'), 'HOSTNAME': platform.node()}
+    )
     return log_conf
 
 
@@ -247,12 +246,12 @@ def error_ignored(*ctx):
     if UNIGNORE_ALL_ERRORS:
         return False
     else:
-        return (0 == len(UNIGNORE_ERRORS.intersection(set(str(word).lower()
-                                                          for word in ctx))))
+        return 0 == len(UNIGNORE_ERRORS.intersection(set(str(word).lower() for word in ctx)))
 
 
 # Task and Application classes
 #
+
 
 class Task(Persistable, Struct):
 
@@ -347,10 +346,11 @@ class Task(Persistable, Struct):
           "controller" interface should just contain methods, but one
           never knows...
         """
+
         def __getattr__(self, name):
             def throw_error(*args, **kwargs):
-                raise gc3libs.exceptions.DetachedFromControllerError(
-                    "Task object is not attached to any controller.")
+                raise gc3libs.exceptions.DetachedFromControllerError("Task object is not attached to any controller.")
+
             return throw_error
 
     __no_controller = __NoController()
@@ -396,11 +396,11 @@ class Task(Persistable, Struct):
         """
         Start the computational job associated with this `Task` instance.
         """
-        assert self._attached, ("Task.submit() called on detached task %s." %
-                                self)
-        assert hasattr(self._controller, 'submit'), \
-            ("Invalid `_controller` object '%s' in Task %s" %
-             (self._controller, self))
+        assert self._attached, "Task.submit() called on detached task %s." % self
+        assert hasattr(self._controller, 'submit'), "Invalid `_controller` object '%s' in Task %s" % (
+            self._controller,
+            self,
+        )
         self._controller.submit(self, resubmit, targets, **extra_args)
 
     def update_state(self, **extra_args):
@@ -435,11 +435,11 @@ class Task(Persistable, Struct):
         `pbs_end_time`, etc.
 
         """
-        assert self._attached, (
-            "Task.update_state() called on detached task %s." % self)
-        assert hasattr(self._controller, 'update_job_state'), \
-            ("Invalid `_controller` object '%s' in Task %s" %
-             (self._controller, self))
+        assert self._attached, "Task.update_state() called on detached task %s." % self
+        assert hasattr(self._controller, 'update_job_state'), "Invalid `_controller` object '%s' in Task %s" % (
+            self._controller,
+            self,
+        )
         self._controller.update_job_state(self, **extra_args)
 
     def kill(self, **extra_args):
@@ -448,15 +448,14 @@ class Task(Persistable, Struct):
 
         See :meth:`gc3libs.Core.kill` for a full explanation.
         """
-        assert self._attached, ("Task.kill() called on detached task %s." %
-                                self)
-        assert hasattr(self._controller, 'kill'), \
-            ("Invalid `_controller` object '%s' in Task %s" %
-             (self._controller, self))
+        assert self._attached, "Task.kill() called on detached task %s." % self
+        assert hasattr(self._controller, 'kill'), "Invalid `_controller` object '%s' in Task %s" % (
+            self._controller,
+            self,
+        )
         self._controller.kill(self, **extra_args)
 
-    def fetch_output(self, output_dir=None,
-                     overwrite=False, changed_only=True, **extra_args):
+    def fetch_output(self, output_dir=None, overwrite=False, changed_only=True, **extra_args):
         """
         Retrieve the outputs of the computational job associated with
         this task into directory `output_dir`, or, if that is `None`,
@@ -477,15 +476,13 @@ class Task(Persistable, Struct):
             # advance state to TERMINATED
             self.output_dir = self._get_download_dir(output_dir)
             if self.output_dir:
-                self.execution.info = (
-                    "Final output downloaded to '%s'" % self.output_dir)
+                self.execution.info = "Final output downloaded to '%s'" % self.output_dir
             self.execution.state = Run.State.TERMINATED
             self.changed = True
             return self.output_dir
         else:
             download_dir = self._get_download_dir(output_dir)
-            self.execution.info = (
-                "Output snapshot downloaded to '%s'" % download_dir)
+            self.execution.info = "Output snapshot downloaded to '%s'" % download_dir
             return download_dir
 
     def _get_download_dir(self, download_dir):
@@ -515,8 +512,8 @@ class Task(Persistable, Struct):
                 raise gc3libs.exceptions.InvalidArgument(
                     "`Task._get_download_dir()` called with no explicit"
                     " download directory, but object '%s' (%s) has no `output_dir`"
-                    " attribute set either."
-                    % (self, type(self)))
+                    " attribute set either." % (self, type(self))
+                )
 
     def peek(self, what='stdout', offset=0, size=None, **extra_args):
         """
@@ -527,11 +524,11 @@ class Task(Persistable, Struct):
 
         See :meth:`gc3libs.Core.peek` for a full explanation.
         """
-        assert self._attached, ("Task.peek() called on detached task %s." %
-                                self)
-        assert hasattr(self._controller, 'peek'), \
-            ("Invalid `_controller` object '%s' in Task %s" %
-             (self._controller, self))
+        assert self._attached, "Task.peek() called on detached task %s." % self
+        assert hasattr(self._controller, 'peek'), "Invalid `_controller` object '%s' in Task %s" % (
+            self._controller,
+            self,
+        )
         return self._controller.peek(self, what, offset, size, **extra_args)
 
     def free(self, **extra_args):
@@ -540,13 +537,12 @@ class Task(Persistable, Struct):
 
         See :meth:`gc3libs.Core.free` for a full explanation.
         """
-        assert self._attached, ("Task.free() called on detached task %s." %
-                                self)
-        assert hasattr(self._controller, 'free'), \
-            ("Invalid `_controller` object '%s' in Task %s" %
-             (self._controller, self))
+        assert self._attached, "Task.free() called on detached task %s." % self
+        assert hasattr(self._controller, 'free'), "Invalid `_controller` object '%s' in Task %s" % (
+            self._controller,
+            self,
+        )
         self._controller.free(self, **extra_args)
-
 
     # convenience methods, do not really add any functionality over
     # what's above
@@ -581,22 +577,18 @@ class Task(Persistable, Struct):
         # first update state, we'll submit NEW jobs last, so that the
         # state is not updated immediately after submission as ARC
         # does not cope well with this...
-        if self.execution.state in [Run.State.SUBMITTED,
-                                    Run.State.RUNNING,
-                                    Run.State.STOPPED,
-                                    Run.State.UNKNOWN]:
+        if self.execution.state in [Run.State.SUBMITTED, Run.State.RUNNING, Run.State.STOPPED, Run.State.UNKNOWN]:
             self.update_state()
         # now "do the right thing" based on actual state
-        if self.execution.state in [Run.State.STOPPED,
-                                    Run.State.UNKNOWN]:
+        if self.execution.state in [Run.State.STOPPED, Run.State.UNKNOWN]:
             raise gc3libs.exceptions.UnexpectedStateError(
-                "Task '%s' entered `%s` state." % (self, self.execution.state))
+                "Task '%s' entered `%s` state." % (self, self.execution.state)
+            )
         elif self.execution.state == Run.State.NEW:
             self.submit()
         elif self.execution.state == Run.State.TERMINATING:
             self.fetch_output()
             return self.execution.returncode
-
 
     def redo(self, *args, **kwargs):
         """
@@ -619,11 +611,11 @@ class Task(Persistable, Struct):
             Run.State.TERMINATED,
             Run.State.TERMINATING,
             Run.State.UNKNOWN,
-        ], ("Can only re-do a Task which is in a terminal state;"
-            " task {0} is in state {1} instead."
-            .format(self, self.execution.state))
+        ], (
+            "Can only re-do a Task which is in a terminal state;"
+            " task {0} is in state {1} instead.".format(self, self.execution.state)
+        )
         self.execution.state = Run.State.NEW
-
 
     def wait(self, interval=60):
         """
@@ -654,9 +646,7 @@ class Task(Persistable, Struct):
         if id(task) != id(self):
             return
         handler_name = to_state.lower()
-        gc3libs.log.debug(
-            "Calling state-transition handler '%s' on %s ...",
-            handler_name, self)
+        gc3libs.log.debug("Calling state-transition handler '%s' on %s ...", handler_name, self)
         handler = getattr(self, handler_name, None)
         if handler is not None:
             return handler()
@@ -961,14 +951,14 @@ class Application(Task):
             gc3libs.log.warning(
                 "The `executable` argument is not supported anymore in"
                 " GC3Pie 2.0. Please adapt your code and use `arguments`"
-                " only.")
+                " only."
+            )
             arguments = [extra_args['executable']] + list(arguments)
 
         self.arguments = [str(x) for x in arguments]
 
         self.inputs = Application._io_spec_to_dict(UrlKeyDict, inputs, True)
-        self.outputs = Application._io_spec_to_dict(
-            UrlValueDict, outputs, False)
+        self.outputs = Application._io_spec_to_dict(UrlValueDict, outputs, False)
 
         # check that remote entries are all distinct
         # (can happen that two local paths are mapped to the same remote one)
@@ -978,17 +968,15 @@ class Application(Task):
             for l, r in self.inputs.items():
                 if r in inv:
                     raise gc3libs.exceptions.DuplicateEntryError(
-                        "Local inputs '%s' and '%s'"
-                        " map to the same remote path '%s'" %
-                        (l, inv[r], r))
+                        "Local inputs '%s' and '%s'" " map to the same remote path '%s'" % (l, inv[r], r)
+                    )
                 else:
                     inv[r] = l
 
         # ensure remote paths are not absolute
         for r_path in self.inputs.values():
             if os.path.isabs(r_path):
-                raise gc3libs.exceptions.InvalidArgument(
-                    "Remote paths not allowed to be absolute: %s" % r_path)
+                raise gc3libs.exceptions.InvalidArgument("Remote paths not allowed to be absolute: %s" % r_path)
 
         # check that local entries are all distinct
         # (can happen that two remote paths are mapped to the same local one)
@@ -998,17 +986,15 @@ class Application(Task):
             for r, l in self.outputs.items():
                 if l in inv:
                     raise gc3libs.exceptions.DuplicateEntryError(
-                        "Remote outputs '%s' and '%s'"
-                        " map to the same local path '%s'" %
-                        (r, inv[l], l))
+                        "Remote outputs '%s' and '%s'" " map to the same local path '%s'" % (r, inv[l], l)
+                    )
                 else:
                     inv[l] = r
 
         # ensure remote paths are not absolute
         for r_path in self.outputs.keys():
             if os.path.isabs(r_path):
-                raise gc3libs.exceptions.InvalidArgument(
-                    "Remote paths not allowed to be absolute")
+                raise gc3libs.exceptions.InvalidArgument("Remote paths not allowed to be absolute")
 
         self.output_dir = output_dir
 
@@ -1017,32 +1003,25 @@ class Application(Task):
 
         self.requested_cores = int(extra_args.pop('requested_cores', 1))
         self.requested_memory = extra_args.pop('requested_memory', None)
-        assert (self.requested_memory is None
-                or isinstance(self.requested_memory,
-                              gc3libs.quantity.Memory)), \
-            ("Expected `Memory` instance for `requested_memory,"
-             " got %r %s instead."
-             % (self.requested_memory, type(self.requested_memory)))
+        assert self.requested_memory is None or isinstance(self.requested_memory, gc3libs.quantity.Memory), (
+            "Expected `Memory` instance for `requested_memory,"
+            " got %r %s instead." % (self.requested_memory, type(self.requested_memory))
+        )
         self.requested_walltime = extra_args.pop('requested_walltime', None)
-        assert (self.requested_walltime is None
-                or isinstance(self.requested_walltime,
-                              gc3libs.quantity.Duration)), \
-            ("Expected `Duration` instance for `requested_walltime,"
-             " got %r %s instead."
-             % (self.requested_walltime, type(self.requested_walltime)))
-        self.requested_architecture = extra_args.pop(
-            'requested_architecture', None)
-        if self.requested_architecture is not None \
-                and self.requested_architecture not in [
-                    Run.Arch.X86_32,
-                    Run.Arch.X86_64]:
+        assert self.requested_walltime is None or isinstance(self.requested_walltime, gc3libs.quantity.Duration), (
+            "Expected `Duration` instance for `requested_walltime,"
+            " got %r %s instead." % (self.requested_walltime, type(self.requested_walltime))
+        )
+        self.requested_architecture = extra_args.pop('requested_architecture', None)
+        if self.requested_architecture is not None and self.requested_architecture not in [
+            Run.Arch.X86_32,
+            Run.Arch.X86_64,
+        ]:
             raise gc3libs.exceptions.InvalidArgument(
-                "Architecture must be either '%s' or '%s'"
-                % (Run.Arch.X86_32, Run.Arch.X86_64))
+                "Architecture must be either '%s' or '%s'" % (Run.Arch.X86_32, Run.Arch.X86_64)
+            )
 
-        self.environment = dict(
-            (str(k), str(v)) for k, v in list(extra_args.pop(
-                'environment', dict()).items()))
+        self.environment = dict((str(k), str(v)) for k, v in list(extra_args.pop('environment', dict()).items()))
 
         self.join = extra_args.pop('join', False)
         self.stdin = extra_args.pop('stdin', None)
@@ -1050,32 +1029,22 @@ class Application(Task):
             self.inputs[self.stdin] = os.path.basename(self.stdin)
         self.stdout = extra_args.pop('stdout', None)
         if self.stdout is not None and os.path.isabs(self.stdout):
-            raise gc3libs.exceptions.InvalidArgument(
-                "Absolute path '%s' passed as `Application.stdout`"
-                % self.stdout)
-        if ((self.stdout is not None)
-                and (gc3libs.ANY_OUTPUT not in self.outputs)
-                and (self.stdout not in self.outputs)):
+            raise gc3libs.exceptions.InvalidArgument("Absolute path '%s' passed as `Application.stdout`" % self.stdout)
+        if (self.stdout is not None) and (gc3libs.ANY_OUTPUT not in self.outputs) and (self.stdout not in self.outputs):
             self.outputs[self.stdout] = self.stdout
 
         self.stderr = extra_args.pop('stderr', None)
-        join_stdout_and_stderr = (self.join
-                                  or self.stderr == self.stdout
-                                  or self.stderr == subprocess.STDOUT)
+        join_stdout_and_stderr = self.join or self.stderr == self.stdout or self.stderr == subprocess.STDOUT
         if join_stdout_and_stderr:
             self.join = True
             self.stderr = self.stdout
 
         if self.stderr is not None and os.path.isabs(self.stderr):
-            raise gc3libs.exceptions.InvalidArgument(
-                "Absolute path '%s' passed as `Application.stderr`"
-                % self.stderr)
-        if ((self.stderr is not None)
-                and (gc3libs.ANY_OUTPUT not in self.outputs)
-                and (self.stderr not in self.outputs)):
+            raise gc3libs.exceptions.InvalidArgument("Absolute path '%s' passed as `Application.stderr`" % self.stderr)
+        if (self.stderr is not None) and (gc3libs.ANY_OUTPUT not in self.outputs) and (self.stderr not in self.outputs):
             self.outputs[self.stderr] = self.stderr
 
-        if (self.outputs or self.stdout or self.stderr):
+        if self.outputs or self.stdout or self.stderr:
             self.would_output = True
 
         self.tags = extra_args.pop('tags', list())
@@ -1086,16 +1055,13 @@ class Application(Task):
             # integer. SGE does not allow job names to start with a
             # number, so add a prefix...
             if len(jobname) == 0:
-                gc3libs.log.warning(
-                    "Empty string passed as jobname to %s,"
-                    " generating UUID job name", self)
-                jobname = ("GC3Pie.%s.%s"
-                           % (self.__class__.__name__, uuid.uuid4()))
+                gc3libs.log.warning("Empty string passed as jobname to %s," " generating UUID job name", self)
+                jobname = "GC3Pie.%s.%s" % (self.__class__.__name__, uuid.uuid4())
             elif str(jobname)[0] not in string.letters:
                 gc3libs.log.warning(
                     "Supplied job name `%s` for %s does not start"
-                    " with a letter; changing it to `GC3Pie.%s`"
-                    % (jobname, self, jobname))
+                    " with a letter; changing it to `GC3Pie.%s`" % (jobname, self, jobname)
+                )
                 jobname = "GC3Pie.%s" % jobname
             extra_args['jobname'] = jobname
         # task setup; creates the `.execution` attribute as well
@@ -1154,18 +1120,17 @@ class Application(Task):
         """
         try:
             # is `spec` dict-like?
-            return ctor(((bytes(k).decode('ascii'), bytes(v).decode('ascii'))
-                         for k, v in spec.items()),
-                        force_abs=force_abs)
+            return ctor(
+                ((bytes(k).decode('ascii'), bytes(v).decode('ascii')) for k, v in spec.items()), force_abs=force_abs
+            )
         except UnicodeError as err:
             raise gc3libs.exceptions.InvalidValue(
                 "Use of non-ASCII file names is not (yet) supported in"
-                " GC3Pie: %s: %s" %
-                (err.__class__.__name__, str(err)))
+                " GC3Pie: %s: %s" % (err.__class__.__name__, str(err))
+            )
         except AttributeError:
             # `spec` is a list-like
-            return ctor((Application.__convert_to_tuple(x) for x in spec),
-                        force_abs=force_abs)
+            return ctor((Application.__convert_to_tuple(x) for x in spec), force_abs=force_abs)
 
     @staticmethod
     def __convert_to_tuple(val):
@@ -1189,58 +1154,53 @@ class Application(Task):
         """
         selected = []
         for lrms in resources:
-            assert (lrms is not None), \
-                "Application.compatible_resources():" \
-                " expected `LRMS` object, got `None` instead."
-            gc3libs.log.debug(
-                "Checking resource '%s' for compatibility with application"
-                " requirements" % lrms.name)
+            assert lrms is not None, (
+                "Application.compatible_resources():" " expected `LRMS` object, got `None` instead."
+            )
+            gc3libs.log.debug("Checking resource '%s' for compatibility with application" " requirements" % lrms.name)
             # Checking whether resource is 'enabled'. Discard otherwise
-            if (not lrms.enabled):
-                gc3libs.log.info(
-                    "Rejecting resource '%s': resource currently disabled" %
-                    lrms.name)
+            if not lrms.enabled:
+                gc3libs.log.info("Rejecting resource '%s': resource currently disabled" % lrms.name)
                 continue
             # if architecture is specified, check that it matches the resource
             # one
-            if (self.requested_architecture is not None
-                    and self.requested_architecture not in lrms.architecture):
+            if self.requested_architecture is not None and self.requested_architecture not in lrms.architecture:
                 gc3libs.log.info(
                     "Rejecting resource '%s': requested a different"
-                    " architecture (%s) than what resource provides (%s)" %
-                    (lrms.name, self.requested_architecture,
-                     ', '.join([str(arch) for arch in lrms.architecture])))
+                    " architecture (%s) than what resource provides (%s)"
+                    % (lrms.name, self.requested_architecture, ', '.join([str(arch) for arch in lrms.architecture]))
+                )
                 continue
             # check that Application requirements are within resource limits
             if self.requested_cores > lrms.max_cores_per_job:
                 gc3libs.log.info(
                     "Rejecting resource '%s': requested more cores (%d) that"
-                    " resource provides (%d)" %
-                    (lrms.name, self.requested_cores, lrms.max_cores_per_job))
+                    " resource provides (%d)" % (lrms.name, self.requested_cores, lrms.max_cores_per_job)
+                )
                 continue
-            if (self.requested_memory is not None and self.requested_memory >
-                    self.requested_cores * lrms.max_memory_per_core):
+            if (
+                self.requested_memory is not None
+                and self.requested_memory > self.requested_cores * lrms.max_memory_per_core
+            ):
                 gc3libs.log.info(
                     "Rejecting resource '%s': requested more memory (%s) that"
-                    " resource provides (%s, %s per CPU core)" %
-                    (lrms.name,
-                     self.requested_memory,
-                     self.requested_cores * lrms.max_memory_per_core,
-                     lrms.max_memory_per_core))
+                    " resource provides (%s, %s per CPU core)"
+                    % (
+                        lrms.name,
+                        self.requested_memory,
+                        self.requested_cores * lrms.max_memory_per_core,
+                        lrms.max_memory_per_core,
+                    )
+                )
                 continue
-            if (self.requested_walltime is not None
-                    and self.requested_walltime > lrms.max_walltime):
+            if self.requested_walltime is not None and self.requested_walltime > lrms.max_walltime:
                 gc3libs.log.info(
                     "Rejecting resource '%s': requested a longer duration (%s)"
-                    " that resource provides (%s)" %
-                    (lrms.name, self.requested_walltime, lrms.max_walltime))
+                    " that resource provides (%s)" % (lrms.name, self.requested_walltime, lrms.max_walltime)
+                )
                 continue
-            if not lrms.validate_data(
-                    list(self.inputs.keys())) or not lrms.validate_data(
-                    list(self.outputs.values())):
-                gc3libs.log.info(
-                    "Rejecting resource '%s': input/output data protocol"
-                    " not supported." % lrms.name)
+            if not lrms.validate_data(list(self.inputs.keys())) or not lrms.validate_data(list(self.outputs.values())):
+                gc3libs.log.info("Rejecting resource '%s': input/output data protocol" " not supported." % lrms.name)
                 continue
 
             selected.append(lrms)
@@ -1277,14 +1237,11 @@ class Application(Task):
         # to the bottom of the list
         if '_execution_targets' in self.execution:
             for lrms in selected:
-                if (hasattr(lrms, 'frontend')
-                        and lrms.frontend in
-                        self.execution._execution_targets):
+                if hasattr(lrms, 'frontend') and lrms.frontend in self.execution._execution_targets:
                     # append resource to the bottom of the list
                     selected.remove(lrms)
                     selected.append(lrms)
         return selected
-
 
     ##
     # backend interface methods
@@ -1302,9 +1259,9 @@ class Application(Task):
         elements of the list, separating them with spaces.
         """
         if self.environment:
-            return (['/usr/bin/env']
-                    + [('%s=%s' % (k, v)) for k, v in list(self.environment.items())]
-                    + self.arguments[:])
+            return (
+                ['/usr/bin/env'] + [('%s=%s' % (k, v)) for k, v in list(self.environment.items())] + self.arguments[:]
+            )
         else:
             return self.arguments[:]
 
@@ -1359,9 +1316,10 @@ class Application(Task):
             #     `virtual_free` (per-slot consumable) ...
             # Let's make whatever works in our cluster, and see how we can
             # extend/change it when issue reports come...
-            qsub += ['-l', ('mem_free=%dM' %
-                            max(1, int(old_div(self.requested_memory.amount(MB),
-                                       self.requested_cores))))]
+            qsub += [
+                '-l',
+                ('mem_free=%dM' % max(1, int(old_div(self.requested_memory.amount(MB), self.requested_cores)))),
+            ]
         if self.join:
             qsub += ['-j', 'yes']
         if self.stdout:
@@ -1376,7 +1334,7 @@ class Application(Task):
             # error-path attribute."
             qsub += ['-e', '%s' % self.stderr]
         if self.requested_cores != 1:
-            pe_cfg_name = (self.application_name + '_pe')
+            pe_cfg_name = self.application_name + '_pe'
             if pe_cfg_name in resource:
                 pe_name = resource.get(pe_cfg_name)
             else:
@@ -1391,15 +1349,15 @@ class Application(Task):
                         self,
                         self.requested_cores,
                         pe_cfg_name,
-                        resource.name)
+                        resource.name,
+                    )
                 else:
                     raise gc3libs.exceptions.InternalError(
                         "Application %s requested %d cores, but neither '%s'"
                         " nor 'default_pe' appear in the configuration of"
                         " resource '%s'.  Please fix the configuration and"
-                        " retry." %
-                        (self, self.requested_cores, pe_cfg_name,
-                         resource.name))
+                        " retry." % (self, self.requested_cores, pe_cfg_name, resource.name)
+                    )
             # XXX: it is the cluster admin's responsibility to ensure
             # that this PE allocates all cores on the same machine
             qsub += ['-pe', pe_name, ('%d' % self.requested_cores)]
@@ -1436,9 +1394,11 @@ class Application(Task):
         bsub += ['-cwd', '.', '-L', '/bin/sh']
         if self.requested_cores > 1:
             bsub += [
-                '-n', ('%d' % self.requested_cores),
+                '-n',
+                ('%d' % self.requested_cores),
                 # require that all cores reside on the same host
-                '-R', 'span[hosts=1]'
+                '-R',
+                'span[hosts=1]',
             ]
         if self.requested_walltime:
             # LSF wants walltime as HH:MM (days expressed as many hours)
@@ -1470,10 +1430,7 @@ class Application(Task):
             # LSF will copy environment variables from the user
             # environment to the execution environment. So, let's use
             # the `env` prefix trick.
-            bsub = (['/usr/bin/env']
-                    + ['{0}={1}'.format(name, value)
-                       for name, value in self.environment.items()]
-                    + bsub)
+            bsub = ['/usr/bin/env'] + ['{0}={1}'.format(name, value) for name, value in self.environment.items()] + bsub
         return (bsub, self.cmdline(resource))
 
     def qsub_pbs(self, resource, **extra_args):
@@ -1482,8 +1439,7 @@ class Application(Task):
         """
         qsub = list(resource.qsub)
         if self.requested_walltime:
-            qsub += ['-l', 'walltime=%s' %
-                     (self.requested_walltime.amount(seconds))]
+            qsub += ['-l', 'walltime=%s' % (self.requested_walltime.amount(seconds))]
         if self.requested_memory:
             mem_mb = max(1, int(self.requested_memory.amount(MB)))
             qsub += ['-l', ('mem=%dmb' % mem_mb)]
@@ -1492,9 +1448,7 @@ class Application(Task):
             # it is copied to its basename on the execution host
             # XXX: this is wrong, as it redirects STDIN of the `qsub` process!
             # qsub += ['<', '%s' % os.path.basename(self.stdin)]
-            raise NotImplementedError(
-                "STDIN redirection is currently not handled by the"
-                " PBS/TORQUE backend!")
+            raise NotImplementedError("STDIN redirection is currently not handled by the" " PBS/TORQUE backend!")
         if self.stderr:
             # from the qsub(1) man page: "If both the -j y and the -e
             # options are present, Grid Engine sets but ignores the
@@ -1556,14 +1510,16 @@ class Application(Task):
         if self.stderr:
             sbatch += ['-e', ('%s' % self.stderr)]
         if self.requested_cores != 1:
-            sbatch += ['--ntasks', '1',
-                       # require that all cores are on the same node
-                       '--cpus-per-task', ('%d' % self.requested_cores)]
+            sbatch += [
+                '--ntasks',
+                '1',
+                # require that all cores are on the same node
+                '--cpus-per-task',
+                ('%d' % self.requested_cores),
+            ]
             # we have to run the command through `srun` otherwise
             # SLURM launches every task as a single-CPU
-            cmdline = (list(resource.srun)
-                       + ['--cpus-per-task', ('%d' % self.requested_cores)]
-                       + cmdline)
+            cmdline = list(resource.srun) + ['--cpus-per-task', ('%d' % self.requested_cores)] + cmdline
         if self.requested_memory:
             # SLURM uses `mem_free` for memory limits;
             # 'M' suffix allowed for Megabytes
@@ -1577,10 +1533,9 @@ class Application(Task):
         if self.environment:
             # ensure all the required env vars are set in `sbatch`'s
             # environment, so they will be propagated to the job
-            sbatch = (['/usr/bin/env']
-                      + ['{0}={1}'.format(name, value)
-                         for name, value in self.environment.items()]
-                      + sbatch)
+            sbatch = (
+                ['/usr/bin/env'] + ['{0}={1}'.format(name, value) for name, value in self.environment.items()] + sbatch
+            )
 
         return (sbatch, cmdline)
 
@@ -1603,8 +1558,7 @@ class Application(Task):
         that at least it refers to the preferred resource).  Override
         in derived classes to change this behavior.
         """
-        assert len(exs) > 0, \
-            "Application.submit_error called with empty list of exceptions."
+        assert len(exs) > 0, "Application.submit_error called with empty list of exceptions."
         # XXX: should we choose the first or the last exception occurred?
         # vote for choosing the first, on the basis that it refers to the
         # "best" submission target
@@ -1657,6 +1611,7 @@ class _Signal(object):
     def __init__(self, signum, description):
         self._signum = signum
         self.__doc__ = description
+
     # conversion to integer types
 
     def __int__(self):
@@ -1664,6 +1619,7 @@ class _Signal(object):
 
     def __long__(self):
         return self._signum
+
     # human-readable explanation
 
     def __str__(self):
@@ -1693,13 +1649,13 @@ class _Signals(object):
     Cancelled = _Signal(121, "Job canceled by user")
     RemoteKill = _Signal(122, "Job killed by batch system or sysadmin")
     DataStagingFailure = _Signal(123, "Data staging failure")
-    RemoteError = _Signal(124, "Unspecified remote error,"
-                          " e.g., execution node crashed"
-                          " or batch system misconfigured")
+    RemoteError = _Signal(
+        124, "Unspecified remote error," " e.g., execution node crashed" " or batch system misconfigured"
+    )
     SubmissionFailed = _Signal(125, "Submission to batch system failed.")
 
     def __contains__(self, signal):
-        if (signal is not None and 120 <= int(signal) <= 125):
+        if signal is not None and 120 <= int(signal) <= 125:
             return True
         else:
             return False
@@ -1718,8 +1674,7 @@ class _Signals(object):
         elif signal_num == 125:
             return _Signals.SubmissionFailed
         else:
-            raise gc3libs.exceptions.InvalidArgument(
-                "Unknown signal number %d" % signal_num)
+            raise gc3libs.exceptions.InvalidArgument("Unknown signal number %d" % signal_num)
 
 
 class Run(Struct):
@@ -1830,14 +1785,15 @@ class Run(Struct):
                     self.history.append(str(value))
                 except Exception as err:
                     log.error("Cannot append `%s` to history of task %s", value, self)
+
         return locals()
 
     # states that a `Run` can be in
     State = Enum(
-        'NEW',       # Job has not yet been submitted/started
+        'NEW',  # Job has not yet been submitted/started
         'SUBMITTED',  # Job has been sent to execution resource
-        'STOPPED',   # trap state: job needs manual intervention
-        'RUNNING',   # job is executing on remote resource
+        'STOPPED',  # trap state: job needs manual intervention
+        'RUNNING',  # job is executing on remote resource
         # remote job execution finished, output not yet retrieved
         'TERMINATING',
         # job execution finished (correctly or not) and will not be resumed
@@ -1862,6 +1818,7 @@ class Run(Struct):
         `X86_32`
           32-bit Intel/AMD/VIA x86 processors in 32-bit mode.
         """
+
         X86_64 = "x86_64"
         X86_32 = "i686"
 
@@ -1935,9 +1892,7 @@ class Run(Struct):
             return self._state
 
         def fset(self, value):
-            assert value in Run.State, \
-                ("Value '{0}' is not a legal `gc3libs.Run.State` value."
-                 .format(value))
+            assert value in Run.State, "Value '{0}' is not a legal `gc3libs.Run.State` value.".format(value)
             if self._state == value:
                 # no changes
                 return
@@ -1947,17 +1902,16 @@ class Run(Struct):
             # (can be later queried with `ginfo` for e.g. debugging)
             if value == Run.State.TERMINATED:
                 self.history.append(
-                    "Transition from state {0} to state {1} (returncode: {2})"
-                    .format(self._state, value, self.returncode))
+                    "Transition from state {0} to state {1} (returncode: {2})".format(
+                        self._state, value, self.returncode
+                    )
+                )
             else:
-                self.history.append(
-                    "Transition from state {0} to state {1}"
-                    .format(self._state, value))
+                self.history.append("Transition from state {0} to state {1}".format(self._state, value))
             if self._ref is not None:
                 self._ref.changed = True
                 # signal state-transition
-                TaskStateChange.send(
-                    self._ref, from_state=self._state, to_state=value)
+                TaskStateChange.send(self._ref, from_state=self._state, to_state=value)
             # finally, update state
             self._state = value
 
@@ -1978,11 +1932,9 @@ class Run(Struct):
         state = self.state
         if state in names:
             return True
-        elif ('ok' in names
-              and state == Run.State.TERMINATED and self.returncode == 0):
+        elif 'ok' in names and state == Run.State.TERMINATED and self.returncode == 0:
             return True
-        elif ('failed' in names
-              and state == Run.State.TERMINATED and self.returncode != 0):
+        elif 'failed' in names and state == Run.State.TERMINATED and self.returncode != 0:
             return True
         else:
             return False
@@ -2010,8 +1962,9 @@ class Run(Struct):
             if value is None:
                 self._signal = None
             else:
-                self._signal = int(value) & 0x7f
-        return (locals())
+                self._signal = int(value) & 0x7F
+
+        return locals()
 
     @defproperty
     def exitcode():
@@ -2030,8 +1983,9 @@ class Run(Struct):
             if value is None:
                 self._exitcode = None
             else:
-                self._exitcode = int(value) & 0xff
-        return (locals())
+                self._exitcode = int(value) & 0xFF
+
+        return locals()
 
     @property
     def returncode(self):
@@ -2098,17 +2052,18 @@ class Run(Struct):
             try:
                 # `value` can be a tuple `(signal, exitcode)`;
                 # ensure values are within allowed range
-                self.signal = int(value[0]) & 0x7f
-                self.exitcode = int(value[1]) & 0xff
+                self.signal = int(value[0]) & 0x7F
+                self.exitcode = int(value[1]) & 0xFF
             except (TypeError, ValueError):
-                self.exitcode = (int(value) >> 8) & 0xff
-                self.signal = int(value) & 0x7f
+                self.exitcode = (int(value) >> 8) & 0xFF
+                self.signal = int(value) & 0x7F
         if self._ref is not None:
             if self.exitcode != old_exitcode and self.signal != old_signal:
                 TermStatusChange.send(
                     self._ref,
                     from_returncode=self._make_termstatus(old_exitcode, old_signal),
-                    to_returncode=self._make_termstatus(self.exitcode, self.signal))
+                    to_returncode=self._make_termstatus(self.exitcode, self.signal),
+                )
 
     @staticmethod
     def _make_termstatus(exitcode, signal=0):
@@ -2119,7 +2074,6 @@ class Run(Struct):
         if signal is None:
             signal = 0
         return (exitcode << 8) | signal
-
 
     # `Run.Signals` is an instance of global class `_Signals`
     Signals = _Signals()
@@ -2166,7 +2120,7 @@ class Run(Struct):
 
         """
         # only the less significant 8 bits matter
-        rc &= 0xff
+        rc &= 0xFF
         if rc > 128:
             # terminated by signal N is encoded as 128+N
             return (rc - 128, -1)
@@ -2176,6 +2130,7 @@ class Run(Struct):
 
 
 # Factory functions to create Core and Engine instances
+
 
 def _split_specific_args(fn, argdict):
     """
@@ -2213,9 +2168,8 @@ def create_core(*conf_files, **extra_args):
     """
     from gc3libs.config import Configuration
     from gc3libs.core import Core
-    conf_files = [
-        os.path.expandvars(
-            os.path.expanduser(fname)) for fname in conf_files]
+
+    conf_files = [os.path.expandvars(os.path.expanduser(fname)) for fname in conf_files]
     if not conf_files:
         conf_files = Default.CONFIG_FILE_LOCATIONS[:]
 
@@ -2261,5 +2215,5 @@ def create_engine(*conf_files, **extra_args):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="__init__",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="__init__", optionflags=doctest.NORMALIZE_WHITESPACE)

@@ -21,6 +21,7 @@ Accessors for object attributes and container items.
 
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 
@@ -66,6 +67,7 @@ class GetValue(object):
        True
 
     """
+
     __slots__ = ('default',)
 
     def __init__(self, default=_none):
@@ -77,15 +79,11 @@ class GetValue(object):
 
     def __getattr__(self, name):
         if name.startswith('_'):
-            raise AttributeError(
-                "'%s' object has no attribute '%s'"
-                % (self.__class__.__name__, name))
-        return GetAttributeValue(
-            name, xform=(lambda obj: self(obj)), default=self.default)
+            raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, name))
+        return GetAttributeValue(name, xform=(lambda obj: self(obj)), default=self.default)
 
     def __getitem__(self, place):
-        return GetItemValue(
-            place, xform=(lambda obj: self(obj)), default=self.default)
+        return GetItemValue(place, xform=(lambda obj: self(obj)), default=self.default)
 
     def ONLY(self, specifier):
         """
@@ -110,8 +108,7 @@ class GetValue(object):
             AttributeError: 'NoneType' object has no attribute 'a'
 
         """
-        return GetOnly(
-            specifier, xform=(lambda obj: self(obj)), default=self.default)
+        return GetOnly(specifier, xform=(lambda obj: self(obj)), default=self.default)
 
 
 GET = GetValue()
@@ -181,6 +178,7 @@ class GetAttributeValue(GetValue):
     `GetItemValue`:class: for examples.
 
     """
+
     __slots__ = ('attr', 'xform', 'default')
 
     def __init__(self, attr, xform=(lambda obj: obj), default=_none):
@@ -264,6 +262,7 @@ class GetItemValue(GetValue):
     This allows combining `GetItemValue` with `GetAttrValue`:class:
     (which see), to access objects in deeply-nested data structures.
     """
+
     __slots__ = ('idx', 'xform', 'default')
 
     def __init__(self, place, xform=(lambda obj: obj), default=_none):
@@ -308,6 +307,7 @@ class GetOnly(GetValue):
        'None'
 
     """
+
     __slots__ = ('only', 'xform', 'default')
 
     def __init__(self, only, xform=(lambda obj: obj), default=_none):
@@ -330,5 +330,5 @@ class GetOnly(GetValue):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="get",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="get", optionflags=doctest.NORMALIZE_WHITESPACE)

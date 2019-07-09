@@ -46,19 +46,21 @@ def test_core_resources():
         test_rsc = resources['test']
         # these should match the resource definition in `gc3libs.testing.helpers.temporary_core`
         assert test_rsc.max_cores_per_job == 123
-        assert test_rsc.max_memory_per_core == 999*GB
-        assert test_rsc.max_walltime == 7*hours
+        assert test_rsc.max_memory_per_core == 999 * GB
+        assert test_rsc.max_walltime == 7 * hours
 
 
 @pytest.mark.skipif(
     string_to_boolean(os.environ.get('GC3PIE_RESOURCE_INIT_ERRORS_ARE_FATAL', 'no')),
-    reason="Skipping test: not compatible with GC3PIE_RESOURCE_INIT_ERRORS_ARE_FATAL=yes")
+    reason="Skipping test: not compatible with GC3PIE_RESOURCE_INIT_ERRORS_ARE_FATAL=yes",
+)
 def test_core_disable_resource_on_auth_init_failure():
     """Test that a resource is disabled if the auth cannot be initialized successfully."""
 
     # pylint: disable=no-self-use,unused-argument
     class BadInitAuth(object):
         """Fail all authentication methods."""
+
         def __init__(self, **auth):
             raise RuntimeError("Bad authentication object!")
 
@@ -77,7 +79,8 @@ def test_core_disable_resource_on_auth_init_failure():
 
 @pytest.mark.skipif(
     string_to_boolean(os.environ.get('GC3PIE_RESOURCE_INIT_ERRORS_ARE_FATAL', 'no')),
-    reason="Skipping test: not compatible with GC3PIE_RESOURCE_INIT_ERRORS_ARE_FATAL=yes")
+    reason="Skipping test: not compatible with GC3PIE_RESOURCE_INIT_ERRORS_ARE_FATAL=yes",
+)
 def test_core_disable_resource_on_auth_check_failure():
     """Test that a resource is disabled if the auth cannot be checked successfully."""
 
@@ -103,7 +106,8 @@ def test_core_disable_resource_on_auth_check_failure():
 
 @pytest.mark.skipif(
     string_to_boolean(os.environ.get('GC3PIE_RESOURCE_INIT_ERRORS_ARE_FATAL', 'no')),
-    reason="Skipping test: not compatible with GC3PIE_RESOURCE_INIT_ERRORS_ARE_FATAL=yes")
+    reason="Skipping test: not compatible with GC3PIE_RESOURCE_INIT_ERRORS_ARE_FATAL=yes",
+)
 def test_core_disable_resource_on_auth_enable_failure():
     """Test that a resource is disabled if the auth cannot be enabled successfully."""
 
@@ -132,18 +136,15 @@ def _test_core_disable_resource_on_auth_failure(auth_cls):
     gc3libs.authentication.Auth.register('bad', auth_cls)
     # set up
     cfg = gc3libs.config.Configuration()
-    cfg.auths['bad_auth'].update(
-        type='bad',
-        username='fake',
-    )
+    cfg.auths['bad_auth'].update(type='bad', username='fake')
     cfg.resources['test'].update(
         name='test',
         type='shellcmd',
         transport='ssh',
         auth='bad_auth',
         max_cores_per_job=1,
-        max_memory_per_core=1*GB,
-        max_walltime=8*hours,
+        max_memory_per_core=1 * GB,
+        max_walltime=8 * hours,
         max_cores=10,
         architecture=Run.Arch.X86_64,
     )

@@ -21,6 +21,7 @@ from gc3libs.workflow import SequentialTaskCollection
 
 if __name__ == '__main__':
     from ex8a import PricePlotScript
+
     PricePlotScript().run()
 
 
@@ -30,23 +31,24 @@ class PricePlotScript(SessionBasedScript):
     """
 
     def __init__(self):
-      super(PricePlotScript, self).__init__(version='1.0')
+        super(PricePlotScript, self).__init__(version='1.0')
 
     def setup_args(self):
-        self.add_param('S0',    type=float, help="stock price today (e.g., 50)")
-        self.add_param('mu',    type=float, help="expected return (e.g., 0.04)")
+        self.add_param('S0', type=float, help="stock price today (e.g., 50)")
+        self.add_param('mu', type=float, help="expected return (e.g., 0.04)")
         self.add_param('sigma', type=float, help="volatility (e.g., 0.1)")
-        self.add_param('dt',    type=float, help="size of time steps (e.g., 0.273)")
-        self.add_param('etime', type=int,   help="days to expiry (e.g., 1000)")
-        self.add_param('nsims', type=int,   help="number of simulation paths")
+        self.add_param('dt', type=float, help="size of time steps (e.g., 0.273)")
+        self.add_param('etime', type=int, help="days to expiry (e.g., 1000)")
+        self.add_param('nsims', type=int, help="number of simulation paths")
 
     def new_tasks(self, extra):
         # *Note:* We must wire together the two apps by having `app2` reference
         # *as input file a file that is in the output files of `app1`
-        app1 = SimAssetApp(self.params.S0, self.params.mu, self.params.sigma,
-                           self.params.dt, self.params.etime, self.params.nsims)
+        app1 = SimAssetApp(
+            self.params.S0, self.params.mu, self.params.sigma, self.params.dt, self.params.etime, self.params.nsims
+        )
         app2 = SAPlotApp(join(app1.output_dir, 'results.csv'))
-        apps_to_run = [ SequentialTaskCollection([app1, app2], output_dir='/tmp') ]
+        apps_to_run = [SequentialTaskCollection([app1, app2], output_dir='/tmp')]
         return apps_to_run
 
 
@@ -59,7 +61,7 @@ class SimAssetApp(Application):
             outputs=['results.csv'],
             output_dir=('simAsset.d'),
             stdout="simAsset.log",
-            stderr="simAsset.log"
+            stderr="simAsset.log",
         )
 
 
@@ -72,5 +74,5 @@ class SAPlotApp(Application):
             outputs=['saplot.pdf'],
             output_dir=('saplot.d'),
             stdout="saplot.log",
-            stderr="saplot.log"
+            stderr="saplot.log",
         )

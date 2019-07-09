@@ -19,6 +19,7 @@
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 import datetime
@@ -39,8 +40,11 @@ files_to_remove = []
 
 
 def correct_submit(jobid=123):
-    out = """%s
-    """ % jobid
+    out = (
+        """%s
+    """
+        % jobid
+    )
     return (0, out, "")
 
 
@@ -55,18 +59,24 @@ Permission denied
 
 
 def correct_qstat_queued(jobid=123):
-    out = """%s                 antani     amessina                0 Q short
-""" % jobid
+    out = (
+        """%s                 antani     amessina                0 Q short
+"""
+        % jobid
+    )
     return (0, out, "")
 
 
 def correct_tracejob_queued(jobid=123):
-    out = """Job: %s
+    out = (
+        """Job: %s
 
 03/14/2012 18:42:04  S    enqueuing into short, state 1 hop 1
 03/14/2012 18:42:04  S    Job Queued at request of amessina@argo.ictp.it, \
 owner = amessina@argo.ictp.it, job name = STDIN, queue = short
-""" % jobid
+"""
+        % jobid
+    )
     err = """/var/spool/torque/server_priv/accounting/20120314: \
 Permission denied
 /var/spool/torque/mom_logs/20120314: No such file or directory
@@ -76,14 +86,18 @@ Permission denied
 
 
 def correct_qstat_running(jobid=123):
-    out = """%s                 cam_icbc         idiallo         \
+    out = (
+        """%s                 cam_icbc         idiallo         \
 01:01:18 R short
-""" % jobid
+"""
+        % jobid
+    )
     return (0, out, "")
 
 
 def correct_tracejob_running(jobid=123):
-    out = """Job: %s
+    out = (
+        """Job: %s
 
 03/14/2012 18:42:04  S    enqueuing into short, state 1 hop 1
 03/14/2012 18:42:04  S    Job Queued at request of amessina@argo.ictp.it, \
@@ -91,7 +105,9 @@ owner = amessina@argo.ictp.it, job name = STDIN, queue = short
 03/14/2012 18:45:25  S    Job Run at request of root@argo.ictp.it
 03/14/2012 18:45:25  S    Not sending email: User does not want mail \
 of this type.
-""" % jobid
+"""
+        % jobid
+    )
     err = """/var/spool/torque/server_priv/accounting/20120314: \
 Permission denied
 /var/spool/torque/mom_logs/20120314: No such file or directory
@@ -105,13 +121,17 @@ def qdel_notfound(jobid=123):
 
 
 def qstat_notfound(jobid=123):
-    err = """qstat: Unknown Job Id %s
-""" % jobid
+    err = (
+        """qstat: Unknown Job Id %s
+"""
+        % jobid
+    )
     return (153, "", err)
 
 
 def correct_tracejob_done(jobid=123):
-    out = """
+    out = (
+        """
 Job: %s
 
 03/09/2012 09:31:53  S    enqueuing into short, state 1 hop 1
@@ -126,7 +146,9 @@ of this type.
 resources_used.mem=2364kb resources_used.vmem=190944kb \
 resources_used.walltime=00:02:05
 03/09/2012 09:34:08  S    dequeuing from short, state COMPLETE
-""" % jobid
+"""
+        % jobid
+    )
 
     err = """/var/spool/torque/server_priv/accounting/20120309: \
 Permission denied
@@ -158,27 +180,31 @@ def qdel_success():
 
 
 def qdel_failed_acl(jobid=123):
-    err = """qdel: Unauthorized Request  MSG=operation not permitted %s
-""" % jobid
+    err = (
+        """qdel: Unauthorized Request  MSG=operation not permitted %s
+"""
+        % jobid
+    )
     out = ""
     return (159, out, err)
+
 
 # import gc3libs.Run.State as State
 State = gc3libs.Run.State
 
 
 class FakeApp(gc3libs.Application):
-
     def __init__(self):
         gc3libs.Application.__init__(
             self,
             arguments=['/bin/hostname'],  # mandatory
-            inputs=[],                    # mandatory
-            outputs=[],                   # mandatory
-            output_dir="./fakedir",       # mandatory
+            inputs=[],  # mandatory
+            outputs=[],  # mandatory
+            output_dir="./fakedir",  # mandatory
             stdout="stdout.txt",
             stderr="stderr.txt",
-            requested_cores=1,)
+            requested_cores=1,
+        )
 
 
 class TestBackendPbs(object):
@@ -201,6 +227,7 @@ enabled=True
 type=ssh
 username=NONEXISTENT
 """
+
     @pytest.fixture(autouse=True)
     def setUp(self):
         (fd, self.tmpfile) = tempfile.mkstemp()
@@ -288,27 +315,9 @@ username=NONEXISTENT
         assert job.pbs_queue == 'short'
         assert job.pbs_jobname == 'DemoPBSApp'
         assert job.pbs_max_used_ram == 2364 * kB
-        assert (job.pbs_submission_time ==
-                     datetime.datetime(year=2012,
-                                       month=3,
-                                       day=9,
-                                       hour=9,
-                                       minute=31,
-                                       second=53))
-        assert (job.pbs_running_time ==
-                     datetime.datetime(year=2012,
-                                       month=3,
-                                       day=9,
-                                       hour=9,
-                                       minute=32,
-                                       second=3))
-        assert (job.pbs_end_time ==
-                     datetime.datetime(year=2012,
-                                       month=3,
-                                       day=9,
-                                       hour=9,
-                                       minute=34,
-                                       second=8))
+        assert job.pbs_submission_time == datetime.datetime(year=2012, month=3, day=9, hour=9, minute=31, second=53)
+        assert job.pbs_running_time == datetime.datetime(year=2012, month=3, day=9, hour=9, minute=32, second=3)
+        assert job.pbs_end_time == datetime.datetime(year=2012, month=3, day=9, hour=9, minute=34, second=8)
 
     def test_delete_job(self):
         app = FakeApp()
@@ -341,27 +350,11 @@ username=NONEXISTENT
         assert status['pbs_queue'] == 'short'
         assert status['pbs_jobname'] == 'DemoPBSApp'
         assert status['pbs_max_used_ram'] == 2364 * kB
-        assert (status['pbs_submission_time'] ==
-                     datetime.datetime(year=2012,
-                                       month=3,
-                                       day=9,
-                                       hour=9,
-                                       minute=31,
-                                       second=53))
-        assert (status['pbs_running_time'] ==
-                     datetime.datetime(year=2012,
-                                       month=3,
-                                       day=9,
-                                       hour=9,
-                                       minute=32,
-                                       second=3))
-        assert (status['pbs_end_time'] ==
-                     datetime.datetime(year=2012,
-                                       month=3,
-                                       day=9,
-                                       hour=9,
-                                       minute=34,
-                                       second=8))
+        assert status['pbs_submission_time'] == datetime.datetime(
+            year=2012, month=3, day=9, hour=9, minute=31, second=53
+        )
+        assert status['pbs_running_time'] == datetime.datetime(year=2012, month=3, day=9, hour=9, minute=32, second=3)
+        assert status['pbs_end_time'] == datetime.datetime(year=2012, month=3, day=9, hour=9, minute=34, second=8)
 
 
 def tearDownModule():
@@ -376,7 +369,8 @@ def test_get_command():
     (fd, tmpfile) = tempfile.mkstemp()
     files_to_remove.append(tmpfile)
     f = os.fdopen(fd, 'w+')
-    f.write("""
+    f.write(
+        """
 [auth/ssh]
 type=ssh
 username=NONEXISTENT
@@ -398,7 +392,8 @@ qsub = /usr/local/bin/qsub -q testing
 qstat = /usr/local/bin/qstat
 qdel = /usr/local/bin/qdel # comments are ignored!
 tracejob = /usr/local/sbin/tracejob
-""")
+"""
+    )
     f.close()
 
     cfg = gc3libs.config.Configuration()
@@ -414,4 +409,5 @@ tracejob = /usr/local/sbin/tracejob
 
 if __name__ == "__main__":
     import pytest
+
     pytest.main(["-v", __file__])

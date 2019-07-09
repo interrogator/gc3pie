@@ -19,9 +19,10 @@ Run applications as processes starting them from the shell.
 #
 
 # make coding more python3-ish, must be the first statement
-from __future__ import (absolute_import, division, print_function)
+from __future__ import absolute_import, division, print_function
 
 from future import standard_library
+
 standard_library.install_aliases()
 from builtins import str
 from builtins import range
@@ -62,6 +63,7 @@ from gc3libs.quantity import Duration, Memory, MB
 # Mainly for parsing output of shell programs.
 #
 
+
 def _parse_process_status(pstat):
     """
     Map `ps` process status letter to a `Run.State` label.
@@ -69,21 +71,21 @@ def _parse_process_status(pstat):
     # Check manpage of ``ps`` both on linux and MacOSX/BSD to know the meaning
     # of these statuses
     if pstat[0] in [
-            # sort by likelihood of process being in this state,
-            # to minimize loookup times
-            'R',  # in run queue
-            'S',  # interruptible sleep
-            'D',  # uninterruptible sleep (Linux)
-            'U',  # uninterruptible sleep (MacOSX)
-            'I',  # idle (= sleeping > 20s, MacOSX)
-            'W',  # paging (Linux, no longer valid since the 2.6.xx kernel)
-            'Z',  # "zombie" process
+        # sort by likelihood of process being in this state,
+        # to minimize loookup times
+        'R',  # in run queue
+        'S',  # interruptible sleep
+        'D',  # uninterruptible sleep (Linux)
+        'U',  # uninterruptible sleep (MacOSX)
+        'I',  # idle (= sleeping > 20s, MacOSX)
+        'W',  # paging (Linux, no longer valid since the 2.6.xx kernel)
+        'Z',  # "zombie" process
     ]:
         return Run.State.RUNNING
     elif pstat[0] in [
-            'T',  # stopped by job control signal
-            't',  # stopped by debugger during the tracing
-            'X'   # dead (should never be seen)
+        'T',  # stopped by job control signal
+        't',  # stopped by debugger during the tracing
+        'X',  # dead (should never be seen)
     ]:
         return Run.State.STOPPED
     else:
@@ -134,7 +136,7 @@ def _parse_time_duration(val):
     if 2 == n:
         if '-' in val:
             days, timespan = val.split('-')
-            return (Duration(days + 'd') + Duration(timespan))
+            return Duration(days + 'd') + Duration(timespan)
         else:
             # Duration's ctor can natively parse this
             return Duration(val)
@@ -142,8 +144,7 @@ def _parse_time_duration(val):
         # AA:BB is rejected as ambiguous by `Duration`'s built-in
         # parser; work around it
         mm, ss = val.split(':')
-        return (Duration(int(mm, 10), unit=Duration.m)
-                + Duration(float(ss), unit=Duration.s))
+        return Duration(int(mm, 10), unit=Duration.m) + Duration(float(ss), unit=Duration.s)
     elif 0 == n:
         # remove final unit spec, if present
         if val.endswith('s'):
@@ -154,7 +155,8 @@ def _parse_time_duration(val):
         raise ValueError(
             "Expecting duration in the form HH:MM:SS, MM:SS,"
             " or just number of seconds,"
-            " got {val} instead".format(val=val))
+            " got {val} instead".format(val=val)
+        )
 
 
 def _parse_percentage(val):
@@ -180,6 +182,7 @@ def _parse_returncode_string(val):
 #
 #
 
+
 class _Machine(with_metaclass(ABCMeta, object)):
     """
     Base class for OS-specific shell services.
@@ -203,9 +206,8 @@ class _Machine(with_metaclass(ABCMeta, object)):
             return _MacOSXMachine(transport)
         else:
             raise RuntimeError(
-                "Unexpected kernel name: got {0},"
-                " expecting one of 'Linux', 'Darwin'"
-                .format(running_kernel))
+                "Unexpected kernel name: got {0}," " expecting one of 'Linux', 'Darwin'".format(running_kernel)
+            )
 
     def _run_command(self, cmd):
         """
@@ -220,8 +222,9 @@ class _Machine(with_metaclass(ABCMeta, object)):
         """
         exit_code, stdout, stderr = self.transport.execute_command(cmd)
         if exit_code != 0 or stderr:
-            raise RuntimeError("Got error running command `{0}` (exit code {1}): {2}"
-                               .format(cmd, exit_code, stderr.strip()))
+            raise RuntimeError(
+                "Got error running command `{0}` (exit code {1}): {2}".format(cmd, exit_code, stderr.strip())
+            )
         return stdout
 
     def get_architecture(self):
@@ -243,8 +246,9 @@ class _Machine(with_metaclass(ABCMeta, object)):
         elif rc == 0:
             return stdout.strip()
         else:
-            raise RuntimeError("Got error running command `{0}` (exit code {1}): {2}"
-                               .format(cmd, exit_code, stderr.strip()))
+            raise RuntimeError(
+                "Got error running command `{0}` (exit code {1}): {2}".format(cmd, exit_code, stderr.strip())
+            )
 
     def get_process_running_time(self, pid):
         """
@@ -260,8 +264,9 @@ class _Machine(with_metaclass(ABCMeta, object)):
             etime = stdout.strip()
             return _parse_time_duration(etime)
         else:
-            raise RuntimeError("Got error running command `{0}` (exit code {1}): {2}"
-                               .format(cmd, exit_code, stderr.strip()))
+            raise RuntimeError(
+                "Got error running command `{0}` (exit code {1}): {2}".format(cmd, exit_code, stderr.strip())
+            )
 
     def get_total_cores(self):
         """Return total nr. of CPU cores."""
@@ -270,9 +275,10 @@ class _Machine(with_metaclass(ABCMeta, object)):
         try:
             return int(stdout)
         except (ValueError, TypeError) as err:
-            raise RuntimeError("Cannot parse output `{0}` of command `{1}`"
-                               " as total number of CPU cores: {2}"
-                               .format(stdout.strip(), cmd, err))
+            raise RuntimeError(
+                "Cannot parse output `{0}` of command `{1}`"
+                " as total number of CPU cores: {2}".format(stdout.strip(), cmd, err)
+            )
 
     # This could be a property of the class, but then we won't be able to
     # use the `@abstractmethod` constructor to enforce that derived classes
@@ -290,14 +296,15 @@ class _Machine(with_metaclass(ABCMeta, object)):
         try:
             qty = parts[index]
             amount = int(qty)
-            return amount*unit
+            return amount * unit
         except KeyError:  # index out of bounds
             raise AssertionError(
-                "Call to {0} returned out-of-bounds index {1} into sequence {2}"
-                .format(self._get_total_memory_impl, index, parts))
+                "Call to {0} returned out-of-bounds index {1} into sequence {2}".format(
+                    self._get_total_memory_impl, index, parts
+                )
+            )
         except (ValueError, TypeError) as err:
-            raise RuntimeError("Cannot `{0}` as a memory amount: {1}"
-                               .format(qty, err))
+            raise RuntimeError("Cannot `{0}` as a memory amount: {1}".format(qty, err))
 
     @abstractmethod
     def _get_total_memory_impl(self):
@@ -338,7 +345,6 @@ class _Machine(with_metaclass(ABCMeta, object)):
         return result
 
 
-
 class _LinuxMachine(_Machine):
     """Linux-specific shell tools."""
 
@@ -350,7 +356,7 @@ class _LinuxMachine(_Machine):
         with self.transport.open('/proc/meminfo', 'r') as fd:
             for line in fd:
                 if line.startswith('MemTotal'):
-                    return (line.split(), 1,  Memory.KiB)
+                    return (line.split(), 1, Memory.KiB)
 
     def _list_pids_and_ppids_command(self):
         return 'ps --no-header -o pid,ppid'
@@ -377,6 +383,7 @@ class _MacOSXMachine(_Machine):
 #
 #
 #
+
 
 class ShellcmdLrms(LRMS):
     """
@@ -452,30 +459,32 @@ class ShellcmdLrms(LRMS):
       Only used if `transport` is ``'ssh'``.
     """
 
-    TIMEFMT = '\n'.join([
-        'WallTime=%es',
-        'KernelTime=%Ss',
-        'UserTime=%Us',
-        'CPUUsage=%P',
-        'MaxResidentMemory=%MkB',
-        'AverageResidentMemory=%tkB',
-        'AverageTotalMemory=%KkB',
-        'AverageUnsharedMemory=%DkB',
-        'AverageUnsharedStack=%pkB',
-        'AverageSharedMemory=%XkB',
-        'PageSize=%ZB',
-        'MajorPageFaults=%F',
-        'MinorPageFaults=%R',
-        'Swaps=%W',
-        'ForcedSwitches=%c',
-        'WaitSwitches=%w',
-        'Inputs=%I',
-        'Outputs=%O',
-        'SocketReceived=%r',
-        'SocketSent=%s',
-        'Signals=%k',
-        'ReturnCode=%x',
-    ])
+    TIMEFMT = '\n'.join(
+        [
+            'WallTime=%es',
+            'KernelTime=%Ss',
+            'UserTime=%Us',
+            'CPUUsage=%P',
+            'MaxResidentMemory=%MkB',
+            'AverageResidentMemory=%tkB',
+            'AverageTotalMemory=%KkB',
+            'AverageUnsharedMemory=%DkB',
+            'AverageUnsharedStack=%pkB',
+            'AverageSharedMemory=%XkB',
+            'PageSize=%ZB',
+            'MajorPageFaults=%F',
+            'MinorPageFaults=%R',
+            'Swaps=%W',
+            'ForcedSwitches=%c',
+            'WaitSwitches=%w',
+            'Inputs=%I',
+            'Outputs=%O',
+            'SocketReceived=%r',
+            'SocketSent=%s',
+            'Signals=%k',
+            'ReturnCode=%x',
+        ]
+    )
     """
     Format string for running commands with ``/usr/bin/time``.
     It is used by GC3Pie to capture resource usage data for commands
@@ -491,28 +500,28 @@ class ShellcmdLrms(LRMS):
         # GNU time output key    .execution attr                     converter function
         # |                        |                                  |
         # v                        v                                  v
-        'WallTime':              ('duration',                         _parse_time_duration),
-        'KernelTime':            ('shellcmd_kernel_time',             Duration),
-        'UserTime':              ('shellcmd_user_time',               Duration),
-        'CPUUsage':              ('shellcmd_cpu_usage',               _parse_percentage),
-        'MaxResidentMemory':     ('max_used_memory',                  Memory),
+        'WallTime': ('duration', _parse_time_duration),
+        'KernelTime': ('shellcmd_kernel_time', Duration),
+        'UserTime': ('shellcmd_user_time', Duration),
+        'CPUUsage': ('shellcmd_cpu_usage', _parse_percentage),
+        'MaxResidentMemory': ('max_used_memory', Memory),
         'AverageResidentMemory': ('shellcmd_average_resident_memory', Memory),
-        'AverageTotalMemory':    ('shellcmd_average_total_memory',    Memory),
+        'AverageTotalMemory': ('shellcmd_average_total_memory', Memory),
         'AverageUnsharedMemory': ('shellcmd_average_unshared_memory', Memory),
-        'AverageUnsharedStack':  ('shellcmd_average_unshared_stack',  Memory),
-        'AverageSharedMemory':   ('shellcmd_average_shared_memory',   Memory),
-        'PageSize':              ('shellcmd_page_size',               Memory),
-        'MajorPageFaults':       ('shellcmd_major_page_faults',       int),
-        'MinorPageFaults':       ('shellcmd_minor_page_faults',       int),
-        'Swaps':                 ('shellcmd_swapped',                 int),
-        'ForcedSwitches':        ('shellcmd_involuntary_context_switches', int),
-        'WaitSwitches':          ('shellcmd_voluntary_context_switches',   int),
-        'Inputs':                ('shellcmd_filesystem_inputs',       int),
-        'Outputs':               ('shellcmd_filesystem_outputs',      int),
-        'SocketReceived':        ('shellcmd_socket_received',         int),
-        'SocketSent':            ('shellcmd_socket_sent',             int),
-        'Signals':               ('shellcmd_signals_delivered',       int),
-        'ReturnCode':            ('returncode',                       _parse_returncode_string),
+        'AverageUnsharedStack': ('shellcmd_average_unshared_stack', Memory),
+        'AverageSharedMemory': ('shellcmd_average_shared_memory', Memory),
+        'PageSize': ('shellcmd_page_size', Memory),
+        'MajorPageFaults': ('shellcmd_major_page_faults', int),
+        'MinorPageFaults': ('shellcmd_minor_page_faults', int),
+        'Swaps': ('shellcmd_swapped', int),
+        'ForcedSwitches': ('shellcmd_involuntary_context_switches', int),
+        'WaitSwitches': ('shellcmd_voluntary_context_switches', int),
+        'Inputs': ('shellcmd_filesystem_inputs', int),
+        'Outputs': ('shellcmd_filesystem_outputs', int),
+        'SocketReceived': ('shellcmd_socket_received', int),
+        'SocketSent': ('shellcmd_socket_sent', int),
+        'Signals': ('shellcmd_signals_delivered', int),
+        'ReturnCode': ('returncode', _parse_returncode_string),
     }
     """
     How to translate *GNU time* output into values stored in the ``.execution`` attribute.
@@ -568,31 +577,45 @@ class ShellcmdLrms(LRMS):
     expanded through the (remote) shell.
     """
 
-    def __init__(self, name,
-                 # these parameters are inherited from the `LRMS` class
-                 architecture, max_cores, max_cores_per_job,
-                 max_memory_per_core, max_walltime,
-                 auth=None,
-                 # these are specific to `ShellcmdLrms`
-                 frontend='localhost', transport='local',
-                 time_cmd=None,
-                 override='False',
-                 spooldir=Default.SPOOLDIR,
-                 resourcedir=None,
-                 # SSH-related options; ignored if `transport` is 'local'
-                 ssh_config=None,
-                 keyfile=None,
-                 ignore_ssh_host_keys=False,
-                 ssh_timeout=None,
-                 large_file_threshold=None,
-                 large_file_chunk_size=None,
-                 **extra_args):
+    def __init__(
+        self,
+        name,
+        # these parameters are inherited from the `LRMS` class
+        architecture,
+        max_cores,
+        max_cores_per_job,
+        max_memory_per_core,
+        max_walltime,
+        auth=None,
+        # these are specific to `ShellcmdLrms`
+        frontend='localhost',
+        transport='local',
+        time_cmd=None,
+        override='False',
+        spooldir=Default.SPOOLDIR,
+        resourcedir=None,
+        # SSH-related options; ignored if `transport` is 'local'
+        ssh_config=None,
+        keyfile=None,
+        ignore_ssh_host_keys=False,
+        ssh_timeout=None,
+        large_file_threshold=None,
+        large_file_chunk_size=None,
+        **extra_args
+    ):
 
         # init base class
         LRMS.__init__(
-            self, name,
-            architecture, max_cores, max_cores_per_job,
-            max_memory_per_core, max_walltime, auth, **extra_args)
+            self,
+            name,
+            architecture,
+            max_cores,
+            max_cores_per_job,
+            max_memory_per_core,
+            max_walltime,
+            auth,
+            **extra_args
+        )
 
         # whether actual machine params (cores, memory) should be
         # auto-detected on first use
@@ -621,7 +644,7 @@ class ShellcmdLrms(LRMS):
             )
             self.frontend = frontend
         else:
-            raise AssertionError("Unknown transport '{0}'" .format(transport))
+            raise AssertionError("Unknown transport '{0}'".format(transport))
 
         # Init bookkeeping
         self.updated = False  # data may not reflect actual state
@@ -643,7 +666,6 @@ class ShellcmdLrms(LRMS):
         self._time_cmd = time_cmd
         self._time_cmd_ok = False  # check on first use
 
-
     @property
     def frontend(self):
         return self._frontend
@@ -652,7 +674,6 @@ class ShellcmdLrms(LRMS):
     def frontend(self, value):
         self._frontend = value
         self.transport.set_connection_params(value)
-
 
     @property
     def resource_dir(self):
@@ -674,8 +695,7 @@ class ShellcmdLrms(LRMS):
     def _init_resource_dir(self):
         self.transport.connect()
         # expand env variables in the `resource_dir` setting
-        exit_code, stdout, stderr = self.transport.execute_command(
-            'echo %s' % sh_quote_unsafe(self._resourcedir_raw))
+        exit_code, stdout, stderr = self.transport.execute_command('echo %s' % sh_quote_unsafe(self._resourcedir_raw))
         self.resource_dir = stdout.strip()
 
         if not self.transport.exists(self.resource_dir):
@@ -683,11 +703,9 @@ class ShellcmdLrms(LRMS):
                 log.info("Creating resource directory: '%s' ...", self.resource_dir)
                 self.transport.makedirs(self.resource_dir)
             except Exception as ex:
-                log.error("Failed creating resource directory '%s': %s: %s",
-                          self.resource_dir, type(ex), ex)
+                log.error("Failed creating resource directory '%s': %s: %s", self.resource_dir, type(ex), ex)
                 # cannot continue
                 raise
-
 
     @property
     def time_cmd(self):
@@ -695,7 +713,6 @@ class ShellcmdLrms(LRMS):
             self._time_cmd = self._locate_gnu_time()
             self._time_cmd_ok = True
         return self._time_cmd
-
 
     def _gather_machine_specs(self):
         """
@@ -721,7 +738,6 @@ class ShellcmdLrms(LRMS):
             self._init_total_memory()
             self._update_resource_usage_info()
 
-
     def _init_arch(self):
         arch = self._machine.get_architecture()
         if not (arch <= self.architecture):
@@ -732,14 +748,14 @@ class ShellcmdLrms(LRMS):
                     " but GC3Pie detected `%s`. Updating current value.",
                     self.name,
                     ','.join(self.architecture),
-                    ','.join(arch))
+                    ','.join(arch),
+                )
                 self.architecture = arch
             else:
                 raise gc3libs.exceptions.ConfigurationError(
                     "Invalid architecture: configuration file says `%s` but "
-                    "it actually is `%s`" % (', '.join(self.architecture),
-                                             ', '.join(arch)))
-
+                    "it actually is `%s`" % (', '.join(self.architecture), ', '.join(arch))
+                )
 
     def _init_max_cores(self):
         max_cores = self._machine.get_total_cores()
@@ -748,9 +764,11 @@ class ShellcmdLrms(LRMS):
                 "Mismatch of value `max_cores` on resource '%s':"
                 " configuration file says `max_cores=%d` while it's actually `%d`."
                 " Updating current value.",
-                self.name, self.max_cores, max_cores)
+                self.name,
+                self.max_cores,
+                max_cores,
+            )
             self.max_cores = max_cores
-
 
     def _init_total_memory(self):
         self.total_memory = self._machine.get_total_memory()
@@ -761,9 +779,9 @@ class ShellcmdLrms(LRMS):
                 " actually `%s`. Updating current value.",
                 self.name,
                 self.max_memory_per_core,
-                self.total_memory.to_str('%g%s', unit=Memory.MB))
+                self.total_memory.to_str('%g%s', unit=Memory.MB),
+            )
             self.max_memory_per_core = self.total_memory
-
 
     def _locate_gnu_time(self):
         """
@@ -772,32 +790,28 @@ class ShellcmdLrms(LRMS):
         :raise ConfigurationError:
           if no GNU ``time`` executable can be located.
         """
-        candidates = [
-            'time',  # default on Linux systems
-            'gtime', # MacOSX with Homebrew or MacPorts
-        ]
+        candidates = ['time', 'gtime']  # default on Linux systems  # MacOSX with Homebrew or MacPorts
         if self._time_cmd:
             # try this first
             candidates.insert(0, self._time_cmd)
         for time_cmd in candidates:
-            gc3libs.log.debug(
-                "Checking if GNU time is available as command `%s`", time_cmd)
+            gc3libs.log.debug("Checking if GNU time is available as command `%s`", time_cmd)
             # We use `command` in order to force the shell to execute
             # the binary and not the shell builtin (cf. the POSIX
             # standard).  However note that the wrapper script will
             # execute `exec time_cmd` in order to replace the current
             # shell, but `exec` will never run the builtin.
             exit_code, stdout, stderr = self.transport.execute_command(
-                'command %s --version 2>&1 | grep GNU' % time_cmd)
+                'command %s --version 2>&1 | grep GNU' % time_cmd
+            )
             if exit_code == 0:
                 # command is GNU! Good!
                 return time_cmd
         raise gc3libs.exceptions.ConfigurationError(
             "Unable to find GNU `time` on resource `{name}`."
             " Please, install GNU time and set the `time_cmd`"
-            " configuration option in gc3pie.conf."
-            .format(name=self.name))
-
+            " configuration option in gc3pie.conf.".format(name=self.name)
+        )
 
     ## Bookkeeping
     #
@@ -825,9 +839,7 @@ class ShellcmdLrms(LRMS):
              `ShellcmdLrms.get_resource_status()` has not been called
              for a while.
         """
-        return sum(1 for info in list(self._job_infos.values())
-                   if not info['terminated'])
-
+        return sum(1 for info in list(self._job_infos.values()) if not info['terminated'])
 
     def count_used_cores(self):
         """
@@ -836,10 +848,7 @@ class ShellcmdLrms(LRMS):
         Similar caveats as in `ShellcmdLrms.count_running_tasks`:meth:
         apply here.
         """
-        return sum(info['requested_cores']
-                   for info in list(self._job_infos.values())
-                   if not info['terminated'])
-
+        return sum(info['requested_cores'] for info in list(self._job_infos.values()) if not info['terminated'])
 
     def count_used_memory(self):
         """
@@ -858,10 +867,9 @@ class ShellcmdLrms(LRMS):
             # what other backends do: SLURM, for example, takes the
             # pessimistic stance that a job with no memory
             # requirements is using (DefMemPerCPU * NumCPUs)
-            ((info['requested_memory'] or 0*MB)
-             for info in list(self._job_infos.values())
-             if not info['terminated']), 0*MB)
-
+            ((info['requested_memory'] or 0 * MB) for info in list(self._job_infos.values()) if not info['terminated']),
+            0 * MB,
+        )
 
     def _get_persisted_job_info(self):
         """
@@ -874,8 +882,7 @@ class ShellcmdLrms(LRMS):
         job_infos = {}
         pidfiles = self.transport.listdir(self.resource_dir)
         if pidfiles:
-            log.debug("Checking status of the following PIDs: %s",
-                      ", ".join(pidfiles))
+            log.debug("Checking status of the following PIDs: %s", ", ".join(pidfiles))
             for pid in pidfiles:
                 job = self._read_job_info_file(pid)
                 if job:
@@ -898,8 +905,7 @@ class ShellcmdLrms(LRMS):
             try:
                 jobinfo = pickle.load(fp)
             except Exception as ex:
-                log.error("Unable to read remote job info file %s: %s",
-                          path, ex)
+                log.error("Unable to read remote job info file %s: %s", path, ex)
                 raise
         return jobinfo
 
@@ -910,8 +916,7 @@ class ShellcmdLrms(LRMS):
         self.transport.connect()
         # XXX: We should check for exceptions!
         log.debug("Updating job info file for pid %s", pid)
-        with self.transport.open(
-                posixpath.join(self.resource_dir, str(pid)), 'wb') as fp:
+        with self.transport.open(posixpath.join(self.resource_dir, str(pid)), 'wb') as fp:
             pickle.dump(resources, fp, -1)
 
     def _delete_job_info_file(self, pid):
@@ -926,10 +931,7 @@ class ShellcmdLrms(LRMS):
         except Exception as err:
             msg = str(err)
             if 'OSError: [Errno 2]' not in msg:
-                log.debug(
-                    "Ignored error deleting file `%s`: %s: %s",
-                    pidfile, err.__class__.__name__, err)
-
+                log.debug("Ignored error deleting file `%s`: %s: %s", pidfile, err.__class__.__name__, err)
 
     ## Backend interface implementation
     #
@@ -961,27 +963,32 @@ class ShellcmdLrms(LRMS):
         except ValueError:
             raise gc3libs.exceptions.InvalidArgument(
                 "Invalid field `lrms_jobid` in Task '{0}':"
-                " expected a number, got '{{2}) instead"
-                .format(app, app.execution.lrms_jobid,
-                        type(app.execution.lrms_jobid)))
+                " expected a number, got '{{2}) instead".format(
+                    app, app.execution.lrms_jobid, type(app.execution.lrms_jobid)
+                )
+            )
 
         self._connect()
 
         pids_to_kill = self._machine.list_process_tree(root_pid)
         if not pids_to_kill:
             log.debug(
-                "No process identified by PID %s in `ps` output,"
-                " assuming task %s is already terminated.", root_pid, app)
+                "No process identified by PID %s in `ps` output," " assuming task %s is already terminated.",
+                root_pid,
+                app,
+            )
         else:
-            assert (root_pid == pids_to_kill[0])
+            assert root_pid == pids_to_kill[0]
 
             # list `pids_to_kill` starts with the root process and ends
             # with leaf ones; we want to kill them in reverse order (leaves first)
             kill_args = ' '.join(str(procid) for procid in reversed(pids_to_kill))
             log.debug(
-                "Cancelling task %s on resource `%s`:"
-                " sending SIGTERM to processes with PIDs %s",
-                app, self.name, kill_args)
+                "Cancelling task %s on resource `%s`:" " sending SIGTERM to processes with PIDs %s",
+                app,
+                self.name,
+                kill_args,
+            )
             # ignore exit code and STDERR from `kill`: if any process
             # exists while we're killing them, `kill` will error out
             # but that error should be ignored...
@@ -1009,27 +1016,32 @@ class ShellcmdLrms(LRMS):
                             # wait some time to allow disk I/O before termination
                             self._grace_time(wait)
                             waited_on_first = True
-                        exit_code, stdout, stderr = self.transport.execute_command(
-                            'kill -9 {0}'.format(target))
+                        exit_code, stdout, stderr = self.transport.execute_command('kill -9 {0}'.format(target))
                         if exit_code == 0:
                             pids_to_kill.remove(target)
                         else:
                             log.debug(
-                                "Could not send SIGKILL"
-                                " to process %s on resource '%s':"
-                                " %s (exit code: %d)",
-                                target, self.name, stderr.strip(), exit_code)
+                                "Could not send SIGKILL" " to process %s on resource '%s':" " %s (exit code: %d)",
+                                target,
+                                self.name,
+                                stderr.strip(),
+                                exit_code,
+                            )
                     elif pstat in ['D', 'U']:
                         log.error(
-                            "Process %s on resource %s is"
-                            " in uninterruptible sleep and cannot be killed.",
-                            target, self.name)
+                            "Process %s on resource %s is" " in uninterruptible sleep and cannot be killed.",
+                            target,
+                            self.name,
+                        )
                     elif pstat in ['X', 'Z']:
                         log.warning(
                             "Process %s on resource %s is already dead"
                             " but process entry has not been cleared."
                             " This might be a bug in GC3Pie or in `%s`.",
-                                 target, self.name, self.time_cmd)
+                            target,
+                            self.name,
+                            self.time_cmd,
+                        )
                         pids_to_kill.remove(target)
                 if not pids_to_kill:
                     break
@@ -1040,7 +1052,10 @@ class ShellcmdLrms(LRMS):
                 log.error(
                     "Not all processes belonging to task %s could be killed:"
                     " processes %s still alive on resource '%s'.",
-                    app, (' '.join(str(p) for p in pids_to_kill)), self.name)
+                    app,
+                    (' '.join(str(p) for p in pids_to_kill)),
+                    self.name,
+                )
 
         try:
             self._job_infos[root_pid]['terminated'] = True
@@ -1062,12 +1077,10 @@ class ShellcmdLrms(LRMS):
             for _ in range(wait):  # Python ignores SIGINT while in `time.sleep()`
                 time.sleep(1)
 
-
     @same_docstring_as(LRMS.close)
     def close(self):
         # XXX: free any resources in use?
         pass
-
 
     def free(self, app):
         """
@@ -1080,15 +1093,16 @@ class ShellcmdLrms(LRMS):
         this method on the same applications do nothing.
         """
         try:
-            if (hasattr(app.execution, 'lrms_execdir') and app.execution.lrms_execdir is not None):
+            if hasattr(app.execution, 'lrms_execdir') and app.execution.lrms_execdir is not None:
                 log.debug('Deleting working directory of task `%s` ...', app)
                 self.transport.connect()
                 if self.transport.isdir(app.execution.lrms_execdir):
                     self.transport.remove_tree(app.execution.lrms_execdir)
                 app.execution.lrms_execdir = None
         except Exception as ex:
-            log.warning("Could not remove directory '%s': %s: %s",
-                        app.execution.lrms_execdir, ex.__class__.__name__, ex)
+            log.warning(
+                "Could not remove directory '%s': %s: %s", app.execution.lrms_execdir, ex.__class__.__name__, ex
+            )
 
         try:
             pid = app.execution.lrms_jobid
@@ -1097,7 +1111,6 @@ class ShellcmdLrms(LRMS):
             # lrms_jobid not yet assigned; probably submit
             # failed -- ignore and continue
             pass
-
 
     @same_docstring_as(LRMS.get_resource_status)
     def get_resource_status(self):
@@ -1116,22 +1129,23 @@ class ShellcmdLrms(LRMS):
         self.available_memory = self.total_memory - used_memory
         self.free_slots = self.max_cores - self.count_used_cores()
         self.user_run = self.count_running_tasks()
-        log.debug("Recovered resource information from files in %s:"
-                  " total nr. of cores: %s, requested by jobs: %s;"
-                  " available memory: %s, requested by jobs: %s.",
-                  self.resource_dir,
-                  self.max_cores, (self.max_cores - self.free_slots),
-                  self.available_memory.to_str('%g%s', unit=Memory.MB, conv=float),
-                  used_memory.to_str('%g%s', unit=Memory.MB, conv=float))
-
+        log.debug(
+            "Recovered resource information from files in %s:"
+            " total nr. of cores: %s, requested by jobs: %s;"
+            " available memory: %s, requested by jobs: %s.",
+            self.resource_dir,
+            self.max_cores,
+            (self.max_cores - self.free_slots),
+            self.available_memory.to_str('%g%s', unit=Memory.MB, conv=float),
+            used_memory.to_str('%g%s', unit=Memory.MB, conv=float),
+        )
 
     @same_docstring_as(LRMS.get_results)
-    def get_results(self, app, download_dir,
-                    overwrite=False, changed_only=True):
+    def get_results(self, app, download_dir, overwrite=False, changed_only=True):
         if app.output_base_url is not None:
             raise gc3libs.exceptions.DataStagingError(
-                "Retrieval of output files to non-local destinations"
-                " is not supported in the ShellCmd backend.")
+                "Retrieval of output files to non-local destinations" " is not supported in the ShellCmd backend."
+            )
 
         self._connect()
         # Make list of files to copy, in the form of (remote_path,
@@ -1146,22 +1160,19 @@ class ShellcmdLrms(LRMS):
             if remote_relpath == gc3libs.ANY_OUTPUT:
                 remote_relpath = ''
                 local_relpath = ''
-            stageout += self._get_remote_and_local_path_pair(
-                app, remote_relpath, download_dir, local_relpath)
+            stageout += self._get_remote_and_local_path_pair(app, remote_relpath, download_dir, local_relpath)
 
         # copy back all files, renaming them to adhere to the
         # ArcLRMS convention
         log.debug("Downloading job output into '%s' ...", download_dir)
         for remote_path, local_path in stageout:
             # ignore missing files (this is what ARC does too)
-            self.transport.get(remote_path, local_path,
-                               ignore_nonexisting=True,
-                               overwrite=overwrite,
-                               changed_only=changed_only)
+            self.transport.get(
+                remote_path, local_path, ignore_nonexisting=True, overwrite=overwrite, changed_only=changed_only
+            )
         return
 
-    def _get_remote_and_local_path_pair(self, app, remote_relpath,
-                                         local_root_dir, local_relpath):
+    def _get_remote_and_local_path_pair(self, app, remote_relpath, local_root_dir, local_relpath):
         """
         Scan remote directory and return list of corresponding remote and local paths.
 
@@ -1180,11 +1191,11 @@ class ShellcmdLrms(LRMS):
             result = list()
             for entry in self.transport.listdir(remote_path):
                 result += self._get_remote_and_local_path_pair(
-                    app, posixpath.join(remote_relpath, entry), local_path, entry)
+                    app, posixpath.join(remote_relpath, entry), local_path, entry
+                )
             return result
         else:
             return [(remote_path, local_path)]
-
 
     def has_running_tasks(self):
         """
@@ -1195,7 +1206,6 @@ class ShellcmdLrms(LRMS):
         check is based.
         """
         return self.user_run > 0
-
 
     @same_docstring_as(LRMS.peek)
     def peek(self, app, remote_filename, local_file, offset=0, size=None):
@@ -1213,8 +1223,8 @@ class ShellcmdLrms(LRMS):
         if offset < 0 and -offset > statinfo.st_size:
             offset = 0
         gc3libs.log.debug(
-            "Reading %s bytes starting at offset %s from remote file '%s' ...",
-            size, offset, remote_filename)
+            "Reading %s bytes starting at offset %s from remote file '%s' ...", size, offset, remote_filename
+        )
         with self.transport.open(remote_filename, 'r') as remotely:
             if offset >= 0:
                 # seek from start of file
@@ -1230,7 +1240,6 @@ class ShellcmdLrms(LRMS):
                 # ... no, then treat it as a file name
                 with open(local_file, 'w+b') as locally:
                     locally.write(data)
-
 
     def submit_job(self, app):
         """
@@ -1254,11 +1263,10 @@ class ShellcmdLrms(LRMS):
             raise  # no need to convert
         except Exception as err:
             raise gc3libs.exceptions.LRMSSubmitError(
-                "Failed submitting task {0} to resource `{1}`: {2}"
-                .format(app, self.name, err))
+                "Failed submitting task {0} to resource `{1}`: {2}".format(app, self.name, err)
+            )
 
-        log.debug("Executing command '%s' through the shell on `%s` ...",
-                  " ".join(app.arguments), self.frontend)
+        log.debug("Executing command '%s' through the shell on `%s` ...", " ".join(app.arguments), self.frontend)
 
         # from this point on, any failure needs clean-up by calling `self.free(app)`
         try:
@@ -1299,8 +1307,9 @@ class ShellcmdLrms(LRMS):
                         environment=('\n'.join(env_commands)),
                         download_cmds=('\n'.join(download_cmds)),
                         upload_cmds=('\n'.join(upload_cmds)),
-                       command=(' '.join(sh_quote_unsafe(arg) for arg in app.arguments)),
-                ))
+                        command=(' '.join(sh_quote_unsafe(arg) for arg in app.arguments)),
+                    )
+                )
             self.transport.chmod(wrapper_script_path, 0o755)
 
             # execute the script in background
@@ -1315,8 +1324,8 @@ class ShellcmdLrms(LRMS):
         except Exception as err:
             self.free(app)
             raise gc3libs.exceptions.LRMSSubmitError(
-                "Failed submitting task {0} to resource `{1}`: {2}"
-                .format(app, self.name, err))
+                "Failed submitting task {0} to resource `{1}`: {2}".format(app, self.name, err)
+            )
 
         # Update application and current resources
         #
@@ -1344,30 +1353,28 @@ class ShellcmdLrms(LRMS):
 
         if self.free_slots == 0:  # or free_slots == 0:
             if self.override:
-                errmsg = (
-                    "Resource {0} already running maximum allowed number of jobs"
-                    .format(self.name))
+                errmsg = "Resource {0} already running maximum allowed number of jobs".format(self.name)
             else:
                 errmsg = (
                     "Resource {0} already running maximum allowed number of jobs"
-                    " ({1}). Increase 'max_cores' to raise."
-                    .format(self.name, self.max_cores))
+                    " ({1}). Increase 'max_cores' to raise.".format(self.name, self.max_cores)
+                )
             raise gc3libs.exceptions.MaximumCapacityReached(errmsg)
 
         if self.free_slots < app.requested_cores:
             raise gc3libs.exceptions.MaximumCapacityReached(
                 "Resource {0} does not have enough available execution slots:"
-                " {1} requested total, but only {2} available."
-                .format(self.name, app.requested_cores, self.free_slots))
+                " {1} requested total, but only {2} available.".format(self.name, app.requested_cores, self.free_slots)
+            )
 
-        if (app.requested_memory and self.available_memory < app.requested_memory):
+        if app.requested_memory and self.available_memory < app.requested_memory:
             raise gc3libs.exceptions.MaximumCapacityReached(
                 "Resource {0} does not have enough available memory:"
-                " {1} requested total, but only {2} available."
-                .format(
+                " {1} requested total, but only {2} available.".format(
                     self.name,
                     app.requested_memory.to_str('%g%s', unit=Memory.MB),
-                    self.available_memory.to_str('%g%s', unit=Memory.MB))
+                    self.available_memory.to_str('%g%s', unit=Memory.MB),
+                )
             )
 
     def _setup_app_execution_directory(self, app):
@@ -1378,14 +1385,14 @@ class ShellcmdLrms(LRMS):
         in case of any failure, raises a `SpoolDirError`.
         """
         target = posixpath.join(self.spooldir, 'shellcmd_job.XXXXXX')
-        cmd =  ("mkdir -p {0} && mktemp -d {1}" .format(self.spooldir, target))
+        cmd = "mkdir -p {0} && mktemp -d {1}".format(self.spooldir, target)
         exit_code, stdout, stderr = self.transport.execute_command(cmd)
         if exit_code != 0 or stderr:
             raise gc3libs.exceptions.SpoolDirError(
                 "Cannot create temporary job working directory"
                 " `{0}` on host `{1}`; command `{2}` exited"
-                " with code {3} and error output: `{4}`."
-                .format(target, self.frontend, cmd, exit_code, stderr))
+                " with code {3} and error output: `{4}`.".format(target, self.frontend, cmd, exit_code, stderr)
+            )
         return stdout.strip()
 
     def _stage_app_input_files(self, app):
@@ -1395,22 +1402,21 @@ class ShellcmdLrms(LRMS):
                 log.debug(
                     "Ignoring input URL `%s` for task %s:"
                     " only 'file:' schema supported by the ShellcmdLrms backend.",
-                    local_path, app)
+                    local_path,
+                    app,
+                )
                 continue
             remote_path = posixpath.join(destdir, remote_path)
             remote_parent = os.path.dirname(remote_path)
             try:
-                if (remote_parent not in ['', '.']
-                        and not self.transport.exists(remote_parent)):
+                if remote_parent not in ['', '.'] and not self.transport.exists(remote_parent):
                     self.transport.makedirs(remote_parent)
                 self.transport.put(local_path.path, remote_path)
                 # preserve execute permission on input files
                 if os.access(local_path.path, os.X_OK):
                     self.transport.chmod(remote_path, 0o755)
             except Exception as err:
-                log.error(
-                    "Staging input file `%s` to host `%s` failed: %s",
-                    local_path.path, self.frontend, err)
+                log.error("Staging input file `%s` to host `%s` failed: %s", local_path.path, self.frontend, err)
                 raise
 
     def _ensure_app_command_is_executable(self, app):
@@ -1430,9 +1436,7 @@ class ShellcmdLrms(LRMS):
             try:
                 self.transport.chmod(posixpath.join(execdir, cmd[2:]), 0o755)
             except:
-                log.warning(
-                    "Failed setting execution flag on remote file '%s'",
-                    posixpath.join(execdir, cmd))
+                log.warning("Failed setting execution flag on remote file '%s'", posixpath.join(execdir, cmd))
 
     def _setup_redirection(self, app):
         """
@@ -1467,9 +1471,7 @@ class ShellcmdLrms(LRMS):
         """Return commands to set up the environment for `app`."""
         env_commands = []
         for k, v in app.environment.items():
-            env_commands.append(
-                "export {k}={v};"
-                .format(k=sh_quote_safe(k), v=sh_quote_unsafe(v)))
+            env_commands.append("export {k}={v};".format(k=sh_quote_safe(k), v=sh_quote_unsafe(v)))
         return env_commands
 
     def _setup_wrapper_dir(self, app):
@@ -1496,13 +1498,15 @@ class ShellcmdLrms(LRMS):
         for url, outfile in list(app.inputs.items()):
             if url.scheme in ['swift', 'swifts', 'swt', 'swts', 'http', 'https']:
                 download_cmds.append(
-                    "python '{mover}' download '{url}' '{outfile}'"
-                    .format(mover=mover_path, url=str(url), outfile=outfile))
+                    "python '{mover}' download '{url}' '{outfile}'".format(
+                        mover=mover_path, url=str(url), outfile=outfile
+                    )
+                )
         for infile, url in list(app.outputs.items()):
             if url.scheme in ['swift', 'swt', 'swifts', 'swts']:
                 upload_cmds.append(
-                    "python '{mover}' upload '{url}' '{infile}'"
-                    .format(mover=mover_path, url=str(url), infile=infile))
+                    "python '{mover}' upload '{url}' '{infile}'".format(mover=mover_path, url=str(url), infile=infile)
+                )
         if download_cmds or upload_cmds:
             # copy the downloader script
             mover_src = resource_path(Requirement.parse("gc3pie"), "gc3libs/etc/mover.py")
@@ -1538,9 +1542,8 @@ class ShellcmdLrms(LRMS):
         else:  # I wouldn't have imagined I'd ever use `for: .. else:`!
             raise gc3libs.exceptions.LRMSSubmitError(
                 "Unable to read PID file of submitted process from"
-                " execution directory `%s`: %s"
-                % (execdir, pidfile_path))
-
+                " execution directory `%s`: %s" % (execdir, pidfile_path)
+            )
 
     def update_job_state(self, app):
         """
@@ -1558,10 +1561,7 @@ class ShellcmdLrms(LRMS):
             else:
                 self._kill_if_over_time_limits(app)
         except LookupError:
-            log.debug(
-                "Process with PID %s not found,"
-                " assuming task %s has finished running.",
-                pid, app)
+            log.debug("Process with PID %s not found," " assuming task %s has finished running.", pid, app)
             self._cleanup_terminating_task(app, pid)
         return app.execution.state
 
@@ -1571,12 +1571,21 @@ class ShellcmdLrms(LRMS):
         # determine whether to kill, depending on wall-clock time
         cancel = False
         if elapsed > self.max_walltime:
-            log.warning("Task %s has run for %s, exceeding max_walltime %s of resource %s: cancelling it.",
-                        app, elapsed.to_timedelta(), self.max_walltime, self.name)
+            log.warning(
+                "Task %s has run for %s, exceeding max_walltime %s of resource %s: cancelling it.",
+                app,
+                elapsed.to_timedelta(),
+                self.max_walltime,
+                self.name,
+            )
             cancel = True
-        if (app.requested_walltime and elapsed > app.requested_walltime):
-            log.warning("Task %s has run for %s, exceeding own `requested_walltime` %s: cancelling it.",
-                        app, elapsed.to_timedelta(), app.requested_walltime)
+        if app.requested_walltime and elapsed > app.requested_walltime:
+            log.warning(
+                "Task %s has run for %s, exceeding own `requested_walltime` %s: cancelling it.",
+                app,
+                elapsed.to_timedelta(),
+                app.requested_walltime,
+            )
             cancel = True
         if cancel:
             self.cancel_job(app)
@@ -1589,27 +1598,23 @@ class ShellcmdLrms(LRMS):
         # if `self._job_infos` records this task as terminated, then
         # updates to resource utilization records has already been
         # done by `get_resource_status()`
-        if (pid in self._job_infos and not self._job_infos[pid]['terminated']):
+        if pid in self._job_infos and not self._job_infos[pid]['terminated']:
             self._job_infos[pid]['terminated'] = True
             self._write_job_info_file(pid, self._job_infos[pid])
             # do in-memory bookkeeping
-            assert (self._job_infos[pid]['requested_memory'] == app.requested_memory)
-            assert (self._job_infos[pid]['requested_cores'] == app.requested_cores)
+            assert self._job_infos[pid]['requested_memory'] == app.requested_memory
+            assert self._job_infos[pid]['requested_cores'] == app.requested_cores
             self.free_slots += app.requested_cores
             self.user_run -= 1
             if app.requested_memory is not None:
                 self.available_memory += app.requested_memory
         wrapper_filename = posixpath.join(
-            app.execution.lrms_execdir,
-            ShellcmdLrms.PRIVATE_DIR,
-            ShellcmdLrms.WRAPPER_OUTPUT_FILENAME)
+            app.execution.lrms_execdir, ShellcmdLrms.PRIVATE_DIR, ShellcmdLrms.WRAPPER_OUTPUT_FILENAME
+        )
         try:
-            log.debug(
-                "Reading resource utilization from wrapper file `%s` for task %s ...",
-                wrapper_filename, app)
+            log.debug("Reading resource utilization from wrapper file `%s` for task %s ...", wrapper_filename, app)
             with self.transport.open(wrapper_filename, 'r') as wrapper_file:
-                termstatus, outcome, valid = \
-                    self._parse_wrapper_output(wrapper_file, termstatus)
+                termstatus, outcome, valid = self._parse_wrapper_output(wrapper_file, termstatus)
                 if valid:
                     app.execution.update(outcome)
                 if termstatus is not None:
@@ -1617,8 +1622,7 @@ class ShellcmdLrms(LRMS):
                 else:
                     app.execution.returncode = (Run.Signals.RemoteError, -1)
         except EnvironmentError as err:
-            msg = ("Could not read wrapper file `{0}` for task `{1}`: {2}"
-                   .format(wrapper_filename, app, err))
+            msg = "Could not read wrapper file `{0}` for task `{1}`: {2}".format(wrapper_filename, app, err)
             log.warning("%s -- Termination status and resource utilization fields will not be set.", msg)
             raise gc3libs.exceptions.InvalidValue(msg)
 
@@ -1652,8 +1656,7 @@ class ShellcmdLrms(LRMS):
                 continue
             k, v = line.split('=', 1)
             if k not in self.TIMEFMT_CONV:
-                gc3libs.log.warning(
-                    "Unknown key '%s' in wrapper output file - ignoring!", k)
+                gc3libs.log.warning("Unknown key '%s' in wrapper output file - ignoring!", k)
                 continue
             name, conv = self.TIMEFMT_CONV[k]
             # the `time` man page states that: "Any character
@@ -1680,13 +1683,11 @@ class ShellcmdLrms(LRMS):
         # apprently GNU time does not report the total CPU time, used
         # so compute it here
         try:
-            acctinfo['used_cpu_time'] = (
-                acctinfo['shellcmd_user_time'] + acctinfo['shellcmd_kernel_time'])
+            acctinfo['used_cpu_time'] = acctinfo['shellcmd_user_time'] + acctinfo['shellcmd_kernel_time']
         except KeyError:
             valid = False
 
         return termstatus, acctinfo, valid
-
 
     def validate_data(self, data_file_list=[]):
         """
@@ -1709,5 +1710,5 @@ class ShellcmdLrms(LRMS):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="__init__",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="__init__", optionflags=doctest.NORMALIZE_WHITESPACE)

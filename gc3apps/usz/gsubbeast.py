@@ -46,6 +46,7 @@ __version__ = '1.0'
 # for details, see: http://code.google.com/p/gc3pie/issues/detail?id=95
 if __name__ == "__main__":
     import gsubbeast
+
     gsubbeast.GsubbeastScript().run()
 
 import os
@@ -70,7 +71,7 @@ from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, secon
 from gc3libs.workflow import RetryableTask
 
 DEFAULT_REMOTE_OUTPUT_FOLDER = "./results"
-BEAST_COMMAND="sudo docker run -v $PWD:/data smaffiol/beast2:2.4.7 -working -overwrite -beagle {resume} -threads -1 -instances -1 /data/{input_xml}"
+BEAST_COMMAND = "sudo docker run -v $PWD:/data smaffiol/beast2:2.4.7 -working -overwrite -beagle {resume} -threads -1 -instances -1 /data/{input_xml}"
 
 # Utility functions
 def _get_id_from_inputfile(input_file):
@@ -90,9 +91,9 @@ def _get_id_from_inputfile(input_file):
             gc3libs.log.info("Using id '{0}' for filename {1}".format(id_name, filename))
         return id_name
     except ET.ParseError as px:
-        gc3libs.log.error("Failed parsing input file {0}. Error {1}".format(input_file,
-                                                                            px.message))
+        gc3libs.log.error("Failed parsing input file {0}. Error {1}".format(input_file, px.message))
         return None
+
 
 def _get_valid_input(input_folder, resume):
     """
@@ -101,18 +102,22 @@ def _get_valid_input(input_folder, resume):
     """
 
     state_file = None
-    for input_file in [ os.path.join(input_folder,input_xml) for input_xml in os.listdir(input_folder) if mimetypes.guess_type(input_xml)[0] == 'application/xml' ]:
+    for input_file in [
+        os.path.join(input_folder, input_xml)
+        for input_xml in os.listdir(input_folder)
+        if mimetypes.guess_type(input_xml)[0] == 'application/xml'
+    ]:
         # extract ID name. If fails, skip file
         id_name = _get_id_from_inputfile(input_file)
         if not id_name:
             gc3libs.log.warning("skipping {0}".format(input_file))
             continue
         # check whether statefile is present. If so, include in the returned tuple
-        if resume and os.path.isfile(os.path.join(input_folder,input_file+'.state')):
-            state_file = (input_file+'.state')
+        if resume and os.path.isfile(os.path.join(input_folder, input_file + '.state')):
+            state_file = input_file + '.state'
 
         # Return tuple (filename,id_name,resume_file)
-        yield (input_file,id_name,state_file)
+        yield (input_file, id_name, state_file)
 
 
 def _check_exit_condition(log, output_dir):
@@ -129,22 +134,24 @@ def _check_exit_condition(log, output_dir):
             if TERMIANTION_PATTERN in line:
                 # Job completed.
                 # Return an empty list
-                return (None,None)
+                return (None, None)
 
     # Somehow job was not completed.
     # Search for .state file and return it
     results = os.listdir(output_dir)
     for item in results:
         if item.endswith(".state"):
-            return (os.path.join(output_dir,item),results)
+            return (os.path.join(output_dir, item), results)
 
-    return (None,None)
+    return (None, None)
+
 
 ## custom application class
 class GsubbeastApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
+
     application_name = 'gsubbeast'
 
     def __init__(self, input_file, state_file, id_name, **extra_args):
@@ -157,12 +164,11 @@ class GsubbeastApplication(Application):
 
         if state_file:
             inputs[state_file] = os.path.basename(state_file)
-            resume_option=" -t {state_file}".format(state_file=state_file)
+            resume_option = " -t {state_file}".format(state_file=state_file)
         else:
-            resume_option=""
+            resume_option = ""
 
-        arguments = BEAST_COMMAND.format(resume=resume_option,
-                                         input_xml=inputs[input_file])
+        arguments = BEAST_COMMAND.format(resume=resume_option, input_xml=inputs[input_file])
 
         gc3libs.log.debug("Creating application for executing: %s", arguments)
 
@@ -170,14 +176,14 @@ class GsubbeastApplication(Application):
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'gsubbeast.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout='gsubbeast.log',
             join=True,
-            executables = executables,
-            **extra_args)
-
+            executables=executables,
+            **extra_args
+        )
 
     def terminated(self):
         """
@@ -188,6 +194,7 @@ class GsubbeastApplication(Application):
         if not os.path.isfile(result_log_file):
             gc3libs.log.error('Failed while checking outputfile %s.' % result_log_file)
             self.execution.returncode = (0, 99)
+
 
 class GsubbeastScript(SessionBasedScript):
     """
@@ -208,55 +215,63 @@ class GsubbeastScript(SessionBasedScript):
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__,
-            application = GsubbeastApplication,
-            stats_only_for = GsubbeastApplication,
-            )
+            self, version=__version__, application=GsubbeastApplication, stats_only_for=GsubbeastApplication
+        )
 
     def setup_args(self):
-        self.add_param('input_folder',
-                       type=existing_directory,
-                       help="Path to input folder containing valid input .xml files.")
+        self.add_param(
+            'input_folder', type=existing_directory, help="Path to input folder containing valid input .xml files."
+        )
 
     def setup_options(self):
 
-        self.add_param("-U", "--resume",
-                       action="store_true",
-                       dest="resume",
-                       default=False,
-                       help="Use existing '.state' files to "
-                       "resume interrupted BEAST execution. "
-                       "Default: %(default)s.")
+        self.add_param(
+            "-U",
+            "--resume",
+            action="store_true",
+            dest="resume",
+            default=False,
+            help="Use existing '.state' files to " "resume interrupted BEAST execution. " "Default: %(default)s.",
+        )
 
-        self.add_param("-D", "--docker", metavar="[STRING]",
-                       dest="dockerimage",
-                       default=None,
-                       help="Docker image to use.")
+        self.add_param(
+            "-D", "--docker", metavar="[STRING]", dest="dockerimage", default=None, help="Docker image to use."
+        )
 
-        self.add_param("-F", "--follow",
-                       dest="follow",
-                       action="store_true",
-                       default=False,
-                       help="Periodically fetch job's output folder and copy locally.")
+        self.add_param(
+            "-F",
+            "--follow",
+            dest="follow",
+            action="store_true",
+            default=False,
+            help="Periodically fetch job's output folder and copy locally.",
+        )
 
-        self.add_param('-M', '--merge-anyway',
-                       dest='merge_anyway',
-                       action='store_true',
-                       default=False,
-                       help="Merge results only when all jobs have completed " \
-                       " successfully. Default: %(default)s.")
+        self.add_param(
+            '-M',
+            '--merge-anyway',
+            dest='merge_anyway',
+            action='store_true',
+            default=False,
+            help="Merge results only when all jobs have completed " " successfully. Default: %(default)s.",
+        )
 
-        self.add_param('-O', '--store-aggregate-csv',
-                       dest='result_csv',
-                       default='.',
-                       help="Location of aggregated .csv results. Default: '%(default)s'.")
+        self.add_param(
+            '-O',
+            '--store-aggregate-csv',
+            dest='result_csv',
+            default='.',
+            help="Location of aggregated .csv results. Default: '%(default)s'.",
+        )
 
-        self.add_param('-P', '--extract-columns',
-                       dest='columns',
-                       default='TreeHeight.t',
-                       help='Comma separated list of columns name to extract from " \
-                       "output log file. Default: %(default)s.')
+        self.add_param(
+            '-P',
+            '--extract-columns',
+            dest='columns',
+            default='TreeHeight.t',
+            help='Comma separated list of columns name to extract from " \
+                       "output log file. Default: %(default)s.',
+        )
 
     def parse_args(self):
         self.params.columns = self.params.columns.split(',')
@@ -264,7 +279,6 @@ class GsubbeastScript(SessionBasedScript):
         if not os.path.isdir(self.params.result_csv):
             gc3libs.log.info("Creating CSV result folder: '{0}'".format(self.params.result_csv))
             os.makedirs(self.params.result_csv)
-
 
     def before_main_loop(self):
         # XXX: should this be done with `make_controller` instead?
@@ -279,8 +293,7 @@ class GsubbeastScript(SessionBasedScript):
         """
         tasks = []
 
-        for (input_file, id_name, stat_file) in _get_valid_input(self.params.input_folder,
-                                                                 self.params.resume):
+        for (input_file, id_name, stat_file) in _get_valid_input(self.params.input_folder, self.params.resume):
             extra_args = extra.copy()
             extra_args['jobname'] = id_name
             extra_args['output_dir'] = self.params.output
@@ -291,11 +304,7 @@ class GsubbeastScript(SessionBasedScript):
 
             self.log.debug("Creating Application for file '%s'" % extra_args['jobname'])
 
-            tasks.append(GsubbeastApplication(
-                input_file,
-                stat_file,
-                id_name,
-                **extra_args))
+            tasks.append(GsubbeastApplication(input_file, stat_file, id_name, **extra_args))
 
         return tasks
 
@@ -310,7 +319,9 @@ class GsubbeastScript(SessionBasedScript):
                     gc3libs.log.warning('Could not perform aggregation task as not all jobs have terminated.')
                     return
                 if task.execution.returncode is not None and task.execution.returncode != 0:
-                    gc3libs.log.warning('Could not perform aggregation task as not all jobs have completed successfully.')
+                    gc3libs.log.warning(
+                        'Could not perform aggregation task as not all jobs have completed successfully.'
+                    )
                     return
 
         df_dict = dict()
@@ -327,7 +338,7 @@ class GsubbeastScript(SessionBasedScript):
                         cols = [col for col in data.columns if key in col]
                         # In case multiple entries, take the first occurrence
                         # column_to_search = "{0}:{1}".format(key,task.id_name)
-                        gc3libs.log.debug("Column [{0}] found {1} occurances. Should be 1.".format(key,len(cols)))
+                        gc3libs.log.debug("Column [{0}] found {1} occurances. Should be 1.".format(key, len(cols)))
                         if len(cols) > 0:
                             df_dict[key][task.id_name] = data[cols[0]]
                         else:

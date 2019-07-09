@@ -21,6 +21,7 @@
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import range
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 import pytest
@@ -44,10 +45,10 @@ def test_new_item():
     # it...
     idfactory.reserve(5)
 
+
 @pytest.mark.skip("Code currently bugged, cfr. issue #608")
 def test_custom_next_id():
     class next_id(object):
-
         def __init__(self):
             self.curid = -1
 
@@ -72,5 +73,5 @@ def test_custom_next_id():
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="test_idfactory",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="test_idfactory", optionflags=doctest.NORMALIZE_WHITESPACE)

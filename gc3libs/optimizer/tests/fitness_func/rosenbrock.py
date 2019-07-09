@@ -21,6 +21,7 @@ Python implementation of rosenbrock.cpp for tests.
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import str
+
 __docformat__ = 'reStructuredText'
 
 import os

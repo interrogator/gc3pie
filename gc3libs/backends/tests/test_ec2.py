@@ -21,6 +21,7 @@ Unit tests for the EC2 backend.
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import str
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 # stdlib imports
@@ -40,7 +41,6 @@ import gc3libs.exceptions
 
 
 class _MockVM(object):
-
     def __init__(self, id, **extra):
         self.id = id
         for k, v in extra.items():
@@ -90,21 +90,12 @@ class TestVMPool(object):
         # representation of unicode strings differs on Py2 and Py3
         assert repr(self.pool1) in ["set(['a'])", "set([u'a'])"]
         # ...and also sets do not have predictable representation
-        assert repr(self.pool2) in [
-            "set(['a', 'b'])",
-            "set(['b', 'a'])",
-            "set([u'a', u'b'])",
-            "set([u'b', u'a'])",
-        ]
-
+        assert repr(self.pool2) in ["set(['a', 'b'])", "set(['b', 'a'])", "set([u'a', u'b'])", "set([u'b', u'a'])"]
 
     def test_str(self):
         assert str(self.pool0) == "VMPool('pool0') : set([])"
         # representation of unicode strings differs on Py2 and Py3
-        assert str(self.pool1) in [
-            "VMPool('pool1') : set(['a'])",
-            "VMPool('pool1') : set([u'a'])",
-        ]
+        assert str(self.pool1) in ["VMPool('pool1') : set(['a'])", "VMPool('pool1') : set([u'a'])"]
         # also sets do not have predictable representation
         assert str(self.pool2) in [
             "VMPool('pool2') : set(['a', 'b'])",
@@ -148,10 +139,7 @@ class TestVMPool(object):
     def test_iter(self):
         """Check that `VMPool.__iter__` iterates over VM IDs."""
         for n, pool in enumerate([self.pool0, self.pool1, self.pool2]):
-            assert list(iter(pool)) in (
-                list('ab'[:n]),
-                list('ba'[:n]),
-            )
+            assert list(iter(pool)) in (list('ab'[:n]), list('ba'[:n]))
 
     def test_get_vm_in_cache(self):
         assert self.vm1 == self.pool1['a']

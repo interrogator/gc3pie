@@ -26,11 +26,11 @@ __author__ = 'sergio.maffiolett@gc3.uzh.ch'
 __docformat__ = 'reStructuredText'
 
 
-
 # run script, but allow GC3Pie persistence module to access classes defined here;
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gcrypto
+
     gcrypto.GCryptoScript().run()
 
 
@@ -51,8 +51,9 @@ import gc3libs.application
 from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
 from gc3libs.workflow import SequentialTaskCollection, ParallelTaskCollection, ChunkedParameterSweep, RetryableTask
 
-DEFAULT_INPUTFILE_LOCATION="srm://dpm.lhep.unibe.ch/dpm/lhep.unibe.ch/home/crypto/lacal_input_files.tgz"
-DEFAULT_GNFS_LOCATION="srm://dpm.lhep.unibe.ch/dpm/lhep.unibe.ch/home/crypto/gnfs-cmd_20120406"
+DEFAULT_INPUTFILE_LOCATION = "srm://dpm.lhep.unibe.ch/dpm/lhep.unibe.ch/home/crypto/lacal_input_files.tgz"
+DEFAULT_GNFS_LOCATION = "srm://dpm.lhep.unibe.ch/dpm/lhep.unibe.ch/home/crypto/gnfs-cmd_20120406"
+
 
 class CryptoApplication(gc3libs.Application):
     """
@@ -79,26 +80,23 @@ class CryptoApplication(gc3libs.Application):
         extra_args.setdefault('requested_architecture', Run.Arch.X86_64)
         extra_args['jobname'] = "LACAL_%s" % str(start + extent)
         extra_args['output_dir'] = os.path.join(extra_args['output_dir'], str(start + extent))
-        extra_args['tags'] = [ 'APPS/CRYPTO/LACAL-1.0' ]
+        extra_args['tags'] = ['APPS/CRYPTO/LACAL-1.0']
         extra_args['executables'] = ['./gnfs-cmd']
         extra_args['requested_memory'] = Memory(
             int(extra_args['requested_memory'].amount() / float(extra_args['requested_cores'])),
-            unit=extra_args['requested_memory'].unit)
+            unit=extra_args['requested_memory'].unit,
+        )
 
         gc3libs.Application.__init__(
             self,
-
-            arguments = [ "./gnfs-cmd", start, extent, extra_args['requested_cores'], "input.tgz" ],
-            inputs = {
-                input_files_archive:"input.tgz",
-                gnfs_location:"./gnfs-cmd",
-                },
-            outputs = [ '@output.list' ],
+            arguments=["./gnfs-cmd", start, extent, extra_args['requested_cores'], "input.tgz"],
+            inputs={input_files_archive: "input.tgz", gnfs_location: "./gnfs-cmd"},
+            outputs=['@output.list'],
             # outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'gcrypto.log',
+            stdout='gcrypto.log',
             join=True,
             **extra_args
-            )
+        )
 
     def terminated(self):
         """
@@ -117,11 +115,10 @@ class CryptoApplication(gc3libs.Application):
 
         if self.execution.exitcode:
             gc3libs.log.debug(
-                'Application terminated. postprocessing with execution.exicode %d',
-                self.execution.exitcode)
+                'Application terminated. postprocessing with execution.exicode %d', self.execution.exitcode
+            )
         else:
-            gc3libs.log.debug(
-                'Application terminated. No exitcode available')
+            gc3libs.log.debug('Application terminated. No exitcode available')
 
         if self.execution.signal == 123:
             # XXX: this is fragile as it does not really applies to all
@@ -135,15 +132,17 @@ class CryptoTask(RetryableTask):
     """
     Run ``gnfs-cmd`` on a given range
     """
+
     def __init__(self, start, extent, gnfs_location, input_files_archive, output, **extra_args):
         RetryableTask.__init__(
             self,
             # actual computational job
             CryptoApplication(start, extent, gnfs_location, input_files_archive, output, **extra_args),
             # XXX: should decide which policy to use here for max_retries
-            max_retries = 2,
+            max_retries=2,
             # keyword arguments
-            **extra_args)
+            **extra_args
+        )
 
     def retry(self):
         """
@@ -172,9 +171,9 @@ class CryptoChunkedParameterSweep(ChunkedParameterSweep):
     DEFAULT_PARALLEL_RANGE_INCREMENT
     """
 
-
-    def __init__(self, range_start, range_end, slice, chunk_size,
-                 input_files_archive, gnfs_location, output_folder, **extra_args):
+    def __init__(
+        self, range_start, range_end, slice, chunk_size, input_files_archive, gnfs_location, output_folder, **extra_args
+    ):
 
         # remember for later
         self.range_start = range_start
@@ -185,20 +184,20 @@ class CryptoChunkedParameterSweep(ChunkedParameterSweep):
         self.output_folder = output_folder
         self.extra_args = extra_args
 
-        ChunkedParameterSweep.__init__(
-            self, range_start, range_end, slice, chunk_size, **self.extra_args)
+        ChunkedParameterSweep.__init__(self, range_start, range_end, slice, chunk_size, **self.extra_args)
 
     def new_task(self, param, **extra_args):
         """
         Create a new `CryptoApplication` for computing the range
         `param` to `param+self.parameter_count_increment`.
         """
-        return CryptoTask(param, self.step, self.gnfs_location, self.input_files_archive, self.output_folder, **self.extra_args.copy())
-
-
+        return CryptoTask(
+            param, self.step, self.gnfs_location, self.input_files_archive, self.output_folder, **self.extra_args.copy()
+        )
 
 
 ## the script itself
+
 
 class GCryptoScript(SessionBasedScript):
     # this will be display as the scripts' `--help` text
@@ -240,11 +239,8 @@ of newly-created jobs so that this limit is never exceeded.
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__, # module version == script version
-            stats_only_for = CryptoApplication,
-            )
-
+            self, version=__version__, stats_only_for=CryptoApplication  # module version == script version
+        )
 
     def setup_args(self):
         """
@@ -266,13 +262,9 @@ of newly-created jobs so that this limit is never exceeded.
         #                """
         #                )
 
-
-        self.add_param('range_start', type=nonnegative_int,
-                  help="Non-negative integer value of the range start.")
-        self.add_param('range_end', type=positive_int,
-                  help="Positive integer value of the range end.")
-        self.add_param('slice', type=positive_int,
-                  help="Positive integer value of the increment.")
+        self.add_param('range_start', type=nonnegative_int, help="Non-negative integer value of the range start.")
+        self.add_param('range_end', type=positive_int, help="Positive integer value of the range end.")
+        self.add_param('slice', type=positive_int, help="Positive integer value of the increment.")
 
     def parse_args(self):
         # XXX: why is this necessary ? shouldn't add_params of 'args' handle this ?
@@ -285,41 +277,52 @@ of newly-created jobs so that this limit is never exceeded.
 
         if self.params.range_end <= self.params.range_start:
             # Failed
-            raise ValueError("End range cannot be smaller than Start range. Start range %d. End range %d" % (self.params.range_start, self.params.range_end))
+            raise ValueError(
+                "End range cannot be smaller than Start range. Start range %d. End range %d"
+                % (self.params.range_start, self.params.range_end)
+            )
 
     def setup_options(self):
-        self.add_param("-i", "--input-files", metavar="PATH",
-                       action="store", dest="input_files_archive",
-                       default=DEFAULT_INPUTFILE_LOCATION,
-                       help="Path to the input files archive."
-                       " By default, the preloaded input archive available on"
-                       " SMSCG Storage Element will be used: "
-                       " %s" % DEFAULT_INPUTFILE_LOCATION)
-        self.add_param("-g", "--gnfs-cmd", metavar="PATH",
-                       action="store", dest="gnfs_location",
-                       default=DEFAULT_GNFS_LOCATION,
-                       help="Path to the executable script (gnfs-cmd)"
-                       " By default, the preloaded gnfs-cmd available on"
-                       " SMSCG Storage Element will be used: "
-                       " %s" % DEFAULT_GNFS_LOCATION)
-
+        self.add_param(
+            "-i",
+            "--input-files",
+            metavar="PATH",
+            action="store",
+            dest="input_files_archive",
+            default=DEFAULT_INPUTFILE_LOCATION,
+            help="Path to the input files archive."
+            " By default, the preloaded input archive available on"
+            " SMSCG Storage Element will be used: "
+            " %s" % DEFAULT_INPUTFILE_LOCATION,
+        )
+        self.add_param(
+            "-g",
+            "--gnfs-cmd",
+            metavar="PATH",
+            action="store",
+            dest="gnfs_location",
+            default=DEFAULT_GNFS_LOCATION,
+            help="Path to the executable script (gnfs-cmd)"
+            " By default, the preloaded gnfs-cmd available on"
+            " SMSCG Storage Element will be used: "
+            " %s" % DEFAULT_GNFS_LOCATION,
+        )
 
     def new_tasks(self, extra):
         yield (
-            "%s-%s" % (str(self.params.range_start),str(self.params.range_end)), # jobname
+            "%s-%s" % (str(self.params.range_start), str(self.params.range_end)),  # jobname
             CryptoChunkedParameterSweep,
-            [ # parameters passed to the constructor, see `CryptoSequence.__init__`
+            [  # parameters passed to the constructor, see `CryptoSequence.__init__`
                 self.params.range_start,
                 self.params.range_end,
                 self.params.slice,
-                self.params.max_running, # increment of each ParallelTask
-                self.params.input_files_archive, # path to input.tgz
-                self.params.gnfs_location, # path to gnfs-cmd
-                self.params.output, # output folder
-                ],
-            extra.copy()
-            )
-
+                self.params.max_running,  # increment of each ParallelTask
+                self.params.input_files_archive,  # path to input.tgz
+                self.params.gnfs_location,  # path to gnfs-cmd
+                self.params.output,  # output folder
+            ],
+            extra.copy(),
+        )
 
     def before_main_loop(self):
         """

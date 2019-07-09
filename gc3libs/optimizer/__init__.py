@@ -1,4 +1,3 @@
-
 #! /usr/bin/env python
 #
 """
@@ -65,6 +64,7 @@ The module is organized as follows:
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import str
 from builtins import object
+
 __author__ = 'Benjamin Jonen <benjamin.jonen@bf.uzh.ch>'
 # summary of user-visible changes
 __changelog__ = """
@@ -113,11 +113,17 @@ class EvolutionaryAlgorithm(object):
       Examples can be found in `gc3libs.optimizer.extra`:mod:.
     '''
 
-    def __init__(self, initial_pop,
-                 # criteria for convergence
-                 itermax=100, dx_conv_crit=None, y_conv_crit=None,
-                 # hooks for "extra" functions, e.g., printg/logging/plotting
-                 logger=None, after_update_opt_state=[]):
+    def __init__(
+        self,
+        initial_pop,
+        # criteria for convergence
+        itermax=100,
+        dx_conv_crit=None,
+        y_conv_crit=None,
+        # hooks for "extra" functions, e.g., printg/logging/plotting
+        logger=None,
+        after_update_opt_state=[],
+    ):
 
         if logger:
             self.logger = logger
@@ -150,10 +156,7 @@ class EvolutionaryAlgorithm(object):
         # Check `y_conv_crit`
         if self.best_y < self.y_conv_crit:
             converged = True
-            self.logger.info(
-                'Converged: self.best_y[%s] < self.y_conv_crit[%s]',
-                self.best_y,
-                self.y_conv_crit)
+            self.logger.info('Converged: self.best_y[%s] < self.y_conv_crit[%s]', self.best_y, self.y_conv_crit)
 
         # Check `dx_conv_crit`
         dxs = np.abs(self.pop[:, :] - self.pop[0, :])
@@ -161,7 +164,8 @@ class EvolutionaryAlgorithm(object):
         if has_dx_converged:
             converged = True
             self.logger.info(
-                'Converged: All population members within `dx_conv_crit` from the first population member. ')
+                'Converged: All population members within `dx_conv_crit` from the first population member. '
+            )
         return converged
 
     def update_opt_state(self, new_pop, new_vals):
@@ -181,9 +185,7 @@ class EvolutionaryAlgorithm(object):
         # following results in a multi-line log even for moderate-size
         # populations...  You might want to
         # `np.set_printoptions(linewidth=1024)` or so to prevent this.
-        self.logger.debug(
-            'Updating optimizer state with new values: %s',
-            str(new_vals))
+        self.logger.debug('Updating optimizer state with new values: %s', str(new_vals))
 
         # In variable names `best` refers to a population member with the
         # lowest target function value within some group:
@@ -207,10 +209,7 @@ class EvolutionaryAlgorithm(object):
             self.pop = new_pop
             self.vals = new_vals
 
-        self.logger.debug(
-            'Computed best value: %s (at index %d)',
-            self.best_y,
-            best_ix)
+        self.logger.debug('Computed best value: %s (at index %d)', self.best_y, best_ix)
 
         for fn in self.after_update_opt_state:
             fn(self)
@@ -222,16 +221,14 @@ class EvolutionaryAlgorithm(object):
         Update `self.pop` and `self.vals` given the new population
         and the corresponding fitness vector.
         """
-        raise NotImplemented(
-            "Method `EvolutionaryAlgorithm.select` should be implemented in subclasses!")
+        raise NotImplemented("Method `EvolutionaryAlgorithm.select` should be implemented in subclasses!")
 
     def evolve(self):
         '''
         Generates a new population fullfilling :func:`in_domain`.
         :rtype list of population members
         '''
-        raise NotImplemented(
-            "Method `EvolutionaryAlgorithm.evolve` should be implemented in subclasses!")
+        raise NotImplemented("Method `EvolutionaryAlgorithm.evolve` should be implemented in subclasses!")
 
 
 def populate(create_fn, in_domain=None, max_n_resample=100):
@@ -270,26 +267,20 @@ def populate(create_fn, in_domain=None, max_n_resample=100):
             new_total_filled = min(total_filled + n_pop_valid, n_to_fill)
             n_new_recruits = new_total_filled - total_filled
             ix_new_recruits = np.where(new_pop_valid)[0][0:n_new_recruits]
-            fillin_pop[
-                total_filled:new_total_filled] = new_pop[ix_new_recruits]
+            fillin_pop[total_filled:new_total_filled] = new_pop[ix_new_recruits]
             total_filled = new_total_filled
         if total_filled < n_invalid_orig:
             self.logger.warning(
                 "%d population members are invalid even after re-sampling %d times."
                 "  You might want to increase `max_n_resample`.",
                 (n_invalid_orig - total_filled),
-                max_n_resample)
+                max_n_resample,
+            )
         pop[~pop_valid_orig] = fillin_pop
     return pop
 
 
-def draw_population(
-        lower_bds,
-        upper_bds,
-        dim,
-        size,
-        in_domain=None,
-        seed=None):
+def draw_population(lower_bds, upper_bds, dim, size, in_domain=None, seed=None):
     '''
     Draw a random population with the following criteria:
 
@@ -304,7 +295,7 @@ def draw_population(
     :rtype: list of population members
     '''
     np.random.seed(seed)
-    return populate(create_fn=lambda: (lower_bds +
-                                       np.random.random_sample((size, dim)) *
-                                       (upper_bds -
-                                        lower_bds)), in_domain=in_domain)
+    return populate(
+        create_fn=lambda: (lower_bds + np.random.random_sample((size, dim)) * (upper_bds - lower_bds)),
+        in_domain=in_domain,
+    )

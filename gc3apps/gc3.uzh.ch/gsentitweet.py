@@ -45,6 +45,7 @@ __version__ = '1.0'
 # for details, see: http://code.google.com/p/gc3pie/issues/detail?id=95
 if __name__ == "__main__":
     import gsentitweet
+
     gsentitweet.gsentitweetScript().run()
 
 import os
@@ -71,15 +72,20 @@ def _get_twitter_data(input_folder):
     Returns list of valid .tar/.zip input files.
     """
 
-    return [ os.path.join(input_folder,valid_input_files) for valid_input_files in os.listdir(input_folder) if tarfile.is_tarfile(os.path.join(input_folder,
-                                                                                                                    valid_input_files)) or zipfile.is_zipfile(os.path.join(input_folder,
-                                                                                                                                                                          valid_input_files)) ]
+    return [
+        os.path.join(input_folder, valid_input_files)
+        for valid_input_files in os.listdir(input_folder)
+        if tarfile.is_tarfile(os.path.join(input_folder, valid_input_files))
+        or zipfile.is_zipfile(os.path.join(input_folder, valid_input_files))
+    ]
+
 
 ## custom application class
 class gsentitweetApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
+
     application_name = 'gsentitweet'
 
     def __init__(self, input_file, getsentiment_script, cores, **extra_args):
@@ -97,21 +103,22 @@ class gsentitweetApplication(Application):
         if getsentiment_script:
             inputs[getsentiment_script] = "./twitter-senti-extract.py"
         else:
-            wrapper = resource_filename(Requirement.parse("gc3pie"),
-                                        "gc3libs/etc/twitter-senti-extract.py")
+            wrapper = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/twitter-senti-extract.py")
             inputs[wrapper] = "./twitter-senti-extract.py"
 
         extra_args['requested_cores'] = cores
 
         Application.__init__(
             self,
-            arguments = cmd,
-            inputs = inputs,
-            outputs = ["{input_file_name_prefix}.csv".format(input_file_name_prefix=os.path.basename(input_file))],
-            stdout = 'gsentitweet.log',
+            arguments=cmd,
+            inputs=inputs,
+            outputs=["{input_file_name_prefix}.csv".format(input_file_name_prefix=os.path.basename(input_file))],
+            stdout='gsentitweet.log',
             join=True,
-            executables = executables,
-            **extra_args)
+            executables=executables,
+            **extra_args
+        )
+
 
 class gsentitweetScript(SessionBasedScript):
     """
@@ -132,30 +139,40 @@ class gsentitweetScript(SessionBasedScript):
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__,
-            application = gsentitweetApplication,
-            stats_only_for = gsentitweetApplication,
-            )
+            self, version=__version__, application=gsentitweetApplication, stats_only_for=gsentitweetApplication
+        )
 
     def setup_options(self):
-        self.add_param("-P", "--getsentiment", metavar="[PATH]",
-                       type=existing_file,
-                       dest="getsentiment_script", default=None,
-                       help="Location of python script to process input twitter file. "
-                       "Default: %(default)s.")
+        self.add_param(
+            "-P",
+            "--getsentiment",
+            metavar="[PATH]",
+            type=existing_file,
+            dest="getsentiment_script",
+            default=None,
+            help="Location of python script to process input twitter file. " "Default: %(default)s.",
+        )
 
-        self.add_param("-S", "--sharedfs", dest="shared_FS",
-                       action="store_true", default=True,
-                       help="Whether the destination resource should assume shared filesystem where Input/Output data will be made available. Data transfer will happen through lcoal filesystem. Default: %(default)s.")
+        self.add_param(
+            "-S",
+            "--sharedfs",
+            dest="shared_FS",
+            action="store_true",
+            default=True,
+            help="Whether the destination resource should assume shared filesystem where Input/Output data will be made available. Data transfer will happen through lcoal filesystem. Default: %(default)s.",
+        )
 
-        self.add_param("--cores", dest="core_count", default=4, help="Specifiy number of cores to use Default: %(default)s.")
+        self.add_param(
+            "--cores", dest="core_count", default=4, help="Specifiy number of cores to use Default: %(default)s."
+        )
 
     def setup_args(self):
-        self.add_param('input_folder',
-                       type=existing_directory,
-                       help="Path to input folder containing valid input "
-                       " twitter .tar/zip files. Does NOT navigate the folder.")
+        self.add_param(
+            'input_folder',
+            type=existing_directory,
+            help="Path to input folder containing valid input "
+            " twitter .tar/zip files. Does NOT navigate the folder.",
+        )
 
     def new_tasks(self, extra):
         """
@@ -177,10 +194,10 @@ class gsentitweetScript(SessionBasedScript):
 
             self.log.debug("Creating Application for twitter data '%s'" % (input_file))
 
-            tasks.append(gsentitweetApplication(
-                input_file,
-                self.params.getsentiment_script,
-                self.params.core_count,
-                **extra_args))
+            tasks.append(
+                gsentitweetApplication(
+                    input_file, self.params.getsentiment_script, self.params.core_count, **extra_args
+                )
+            )
 
         return tasks

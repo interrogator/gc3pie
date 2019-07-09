@@ -19,6 +19,7 @@ Specialized support for TURBOMOLE.
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
+
 __docformat__ = 'reStructuredText'
 
 
@@ -48,13 +49,9 @@ class TurbomoleApplication(gc3libs.Application):
     application_name = 'turbomole'
 
     def __init__(self, program, control, *others, **extra_args):
-        src_wrapper_sh = resource_filename(
-            Requirement.parse("gc3pie"), "gc3libs/etc/turbomole.sh")
+        src_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/turbomole.sh")
 
-        inputs = {
-            src_wrapper_sh: 'turbomole.sh',
-            control: 'control',
-        }
+        inputs = {src_wrapper_sh: 'turbomole.sh', control: 'control'}
         for path in others:
             inputs[path] = os.path.basename(path)
 
@@ -66,11 +63,7 @@ class TurbomoleApplication(gc3libs.Application):
         extra_args.setdefault('output_dir', None)
 
         gc3libs.Application.__init__(
-            self,
-            arguments=["./turbomole.sh", program],
-            inputs=inputs,
-            outputs=gc3libs.ANY_OUTPUT,
-            **extra_args
+            self, arguments=["./turbomole.sh", program], inputs=inputs, outputs=gc3libs.ANY_OUTPUT, **extra_args
         )
 
     def terminated(self):
@@ -112,14 +105,9 @@ class TurbomoleDefineApplication(gc3libs.Application):
     application_name = 'turbomole_define'
 
     def __init__(self, program, define_in, coord, *others, **extra_args):
-        src_wrapper_sh = resource_filename(
-            Requirement.parse("gc3pie"), "gc3libs/etc/turbomole.sh")
+        src_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/turbomole.sh")
 
-        inputs = {
-            src_wrapper_sh: 'turbomole.sh',
-            define_in: 'define.in',
-            coord: 'coord',
-        }
+        inputs = {src_wrapper_sh: 'turbomole.sh', define_in: 'define.in', coord: 'coord'}
         for path in others:
             inputs[path] = os.path.basename(path)
 
@@ -131,11 +119,7 @@ class TurbomoleDefineApplication(gc3libs.Application):
         extra_args.setdefault('output_dir', None)
 
         gc3libs.Application.__init__(
-            self,
-            arguments=["./turbomole.sh", program],
-            inputs=inputs,
-            outputs=gc3libs.ANY_OUTPUT,
-            **extra_args
+            self, arguments=["./turbomole.sh", program], inputs=inputs, outputs=gc3libs.ANY_OUTPUT, **extra_args
         )
 
     def terminated(self):
@@ -157,5 +141,5 @@ class TurbomoleDefineApplication(gc3libs.Application):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="square",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="square", optionflags=doctest.NORMALIZE_WHITESPACE)

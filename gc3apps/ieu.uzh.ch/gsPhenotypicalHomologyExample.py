@@ -51,6 +51,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gsPhenotypicalHomologyExample
+
     gsPhenotypicalHomologyExample.GsPhenotypicalHomologyExampleScript().run()
 
 import os
@@ -60,6 +61,7 @@ import tempfile
 import re
 
 import shutil
+
 # import csv
 
 from pkg_resources import Requirement, resource_filename
@@ -72,14 +74,15 @@ import gc3libs.utils
 from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
 from gc3libs.workflow import RetryableTask
 
-DEFAULT_ITERATIONS=10000
-DEFAULT_OUTPUT_FOLDER="results"
-DEFAULT_OUTPUT_ARCHIVE="results.tgz"
+DEFAULT_ITERATIONS = 10000
+DEFAULT_OUTPUT_FOLDER = "results"
+DEFAULT_OUTPUT_ARCHIVE = "results.tgz"
 
 ## custom application class
 class GsPhenotypicalHomologyExampleApplication(Application):
     """
     """
+
     application_name = 'gsphenotypicalhomologyexample'
 
     def __init__(self, hunting, **extra_args):
@@ -94,8 +97,7 @@ class GsPhenotypicalHomologyExampleApplication(Application):
         inputs = dict()
         outputs = dict()
 
-        wrapper = resource_filename(Requirement.parse("gc3pie"),
-                                    "gc3libs/etc/sheepriver_wrapper.sh")
+        wrapper = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/sheepriver_wrapper.sh")
         inputs[wrapper] = "./wrapper.sh"
 
         arguments = "./wrapper.sh %d " % hunting
@@ -128,13 +130,15 @@ class GsPhenotypicalHomologyExampleApplication(Application):
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = [DEFAULT_OUTPUT_ARCHIVE],
-            stdout = 'gsPhenotypicalHomologyExample.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=[DEFAULT_OUTPUT_ARCHIVE],
+            stdout='gsPhenotypicalHomologyExample.log',
             join=True,
-            executables = ["./wrapper.sh"],
-            **extra_args)
+            executables=["./wrapper.sh"],
+            **extra_args
+        )
+
 
 class GsPhenotypicalHomologyExampleScript(SessionBasedScript):
     """
@@ -153,107 +157,120 @@ class GsPhenotypicalHomologyExampleScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GsPhenotypicalHomologyExampleApplication,
+            version=__version__,  # module version == script version
+            application=GsPhenotypicalHomologyExampleApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GsPhenotypicalHomologyExampleApplication,
-            )
+            stats_only_for=GsPhenotypicalHomologyExampleApplication,
+        )
 
     def setup_args(self):
 
-        self.add_param('range', type=str,
-                       help="hunting pressures range. "
-                       "Format: [int],[int]|[int]:[int]. E.g 1:432|3|6,9")
+        self.add_param(
+            'range', type=str, help="hunting pressures range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3|6,9"
+        )
 
     def setup_options(self):
-        self.add_param("-S", "--source", metavar="STRING", type=str,
-                       dest="sources",
-                       default=None,
-                       help="Location of java scripts to drive the "
-                       " execution of sheepriver. Default: %(default)s")
+        self.add_param(
+            "-S",
+            "--source",
+            metavar="STRING",
+            type=str,
+            dest="sources",
+            default=None,
+            help="Location of java scripts to drive the " " execution of sheepriver. Default: %(default)s",
+        )
 
-        self.add_param("-j", "--jar", metavar="STRING", type=str,
-                       dest="jar",
-                       default=None,
-                       help="Location of .jar package to drive the "
-                       " execution of sheepriver. Default: %(default)s")
+        self.add_param(
+            "-j",
+            "--jar",
+            metavar="STRING",
+            type=str,
+            dest="jar",
+            default=None,
+            help="Location of .jar package to drive the " " execution of sheepriver. Default: %(default)s",
+        )
 
-        self.add_param("-P", "--param_SheepRiver_wear", metavar="PATH", type=str,
-                       dest="param_SheepRiver_wear",
-                       default=None,
-                       help="Location of the 'param_SheepRiver_wear' input file. "
-                       "Default: %(default)s")
+        self.add_param(
+            "-P",
+            "--param_SheepRiver_wear",
+            metavar="PATH",
+            type=str,
+            dest="param_SheepRiver_wear",
+            default=None,
+            help="Location of the 'param_SheepRiver_wear' input file. " "Default: %(default)s",
+        )
 
-        self.add_param("-M", "--seeds", metavar="PATH", type=str,
-                       dest="seeds",
-                       default=None,
-                       help="Location of the seeds file. "
-                       "Default: %(default)s")
+        self.add_param(
+            "-M",
+            "--seeds",
+            metavar="PATH",
+            type=str,
+            dest="seeds",
+            default=None,
+            help="Location of the seeds file. " "Default: %(default)s",
+        )
 
-        self.add_param("-I", "--replications", metavar="INT", type=int,
-                       dest="iterations",
-                       default=DEFAULT_ITERATIONS,
-                       help="Number of repeating iterations. "
-                       "Default: %(default)s")
+        self.add_param(
+            "-I",
+            "--replications",
+            metavar="INT",
+            type=int,
+            dest="iterations",
+            default=DEFAULT_ITERATIONS,
+            help="Number of repeating iterations. " "Default: %(default)s",
+        )
 
     def parse_args(self):
         try:
             if self.params.sources:
-                assert os.path.isdir(self.params.sources), \
-                    "Simulation source folder %s not found" % self.params.sources
-
+                assert os.path.isdir(self.params.sources), "Simulation source folder %s not found" % self.params.sources
 
             if self.params.param_SheepRiver_wear:
-                assert os.path.isfile(self.params.param_SheepRiver_wear), \
+                assert os.path.isfile(self.params.param_SheepRiver_wear), (
                     "SheepRiver file %s not found" % self.params.param_SheepRiver_wear
+                )
 
             if self.params.seeds:
-                assert os.path.isfile(self.params.seeds), \
-                    "Seeds file %s not found" % self.params.seeds
+                assert os.path.isfile(self.params.seeds), "Seeds file %s not found" % self.params.seeds
 
             if self.params.jar:
-                assert os.path.isfile(self.params.jar), \
-                    "Jar file %s not found" % self.params.jar
+                assert os.path.isfile(self.params.jar), "Jar file %s not found" % self.params.jar
 
-
-            assert isinstance(int(self.params.iterations),int), \
-                "Iterations should be a positive integer"
+            assert isinstance(int(self.params.iterations), int), "Iterations should be a positive integer"
 
             # Validate month range
             try:
                 # Check whether only single value has been passed
                 try:
-                    assert isinstance(int(self.params.range),int)
+                    assert isinstance(int(self.params.range), int)
                     self.input_range = [int(self.params.range)]
                 except ValueError as ex:
                     # Identify the separator
                     if len(self.params.range.split(":")) == 2:
                         # Use ':' as separator
                         try:
-                            start,end = [ int(mrange) for mrange in self.params.range.split(":") ]
+                            start, end = [int(mrange) for mrange in self.params.range.split(":")]
                             if end <= start:
-                                raise ValueError("No valid input range. "
-                                                 "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
-                            self.input_range = range(start,end+1)
+                                raise ValueError(
+                                    "No valid input range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3"
+                                )
+                            self.input_range = range(start, end + 1)
                         except (TypeError, ValueError) as ex:
                             gc3libs.log.critical(ex.message)
-                            raise ValueError("No valid input range. "
-                                             "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
+                            raise ValueError("No valid input range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
                     elif len(self.params.range.split(",")) > 0:
                         # Use ',' as separator
-                        self.input_range = [ int(mrange) for mrange in self.params.range.split(",") ]
+                        self.input_range = [int(mrange) for mrange in self.params.range.split(",")]
                     else:
                         # Anything else should fail
-                        raise ValueError("No valid input range. "
-                                         "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
+                        raise ValueError("No valid input range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
 
             except ValueError as ex:
                 gc3libs.log.debug(ex.message)
-                raise AttributeError("No valid input range. "
-                                     "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
+                raise AttributeError("No valid input range. " "Format: [int],[int]|[int]:[int]. E.g 1:432|3")
 
         except AssertionError as ex:
             raise OSError(ex.message)
@@ -272,14 +289,10 @@ class GsPhenotypicalHomologyExampleScript(SessionBasedScript):
             extra_args['jobname'] = 'sheepriver-%s' % str(hunting)
 
             extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                        'run_%s' % hunting)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION',
-                                                                        'run_%s' % hunting)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE',
-                                                                        'run_%s' % hunting)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME',
-                                                                        'run_%s' % hunting)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', 'run_%s' % hunting)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', 'run_%s' % hunting)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', 'run_%s' % hunting)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', 'run_%s' % hunting)
 
             if self.params.sources:
                 extra_args['sources'] = os.path.abspath(self.params.sources)
@@ -295,8 +308,6 @@ class GsPhenotypicalHomologyExampleScript(SessionBasedScript):
 
             extra_args['iterations'] = self.params.iterations
 
-            tasks.append(GsPhenotypicalHomologyExampleApplication(
-                hunting,
-                **extra_args))
+            tasks.append(GsPhenotypicalHomologyExampleApplication(hunting, **extra_args))
 
         return tasks

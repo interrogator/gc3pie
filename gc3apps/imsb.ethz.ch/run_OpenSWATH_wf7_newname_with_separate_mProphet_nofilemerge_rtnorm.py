@@ -14,28 +14,29 @@ import gc3libs.utils
 CONST = gc3libs.utils.Struct(
     # one can use string literal here as well, like:
     #  foo ='bar',
-    codedir = os.environ['codedir'],
-    openms_dir = os.environ['openms_dir'],
+    codedir=os.environ['codedir'],
+    openms_dir=os.environ['openms_dir'],
     # used in MRMRTNormalizer
-    irt_library = os.environ['irt_library'],
+    irt_library=os.environ['irt_library'],
     # used in MRMAnalyzer
-    library = os.environ['library'],
-    min_upper_edge = os.environ['min_upper_edge'],
-    ini = os.environ['ini'],
-    threads = 2,
-    )
+    library=os.environ['library'],
+    min_upper_edge=os.environ['min_upper_edge'],
+    ini=os.environ['ini'],
+    threads=2,
+)
 
 
 ## auxiliary classes
+
 
 def replace_suffix(filename, old_suffix, new_suffix):
     """
     Replace `old_suffix` with `new_suffix`.
     """
     # remove extension
-    basename = filename[0:-len(old_suffix)]
+    basename = filename[0 : -len(old_suffix)]
     # re-add new one
-    return (basename + new_suffix)
+    return basename + new_suffix
 
 
 def make_identifier(string):
@@ -56,7 +57,7 @@ class ProcessFilesInParallel(ParallelTaskCollection):
     """
 
     def __init__(self, directory, pattern, task_ctor, **extra_args):
-        tasks = [ ]
+        tasks = []
         for filename in os.listdir(directory):
             if not fnmatch.fnmatch(filename, pattern):
                 continue
@@ -70,10 +71,12 @@ class ProcessFilesInParallel(ParallelTaskCollection):
             # list of tasks to execute
             tasks,
             # boilerplate
-            **extra_args)
+            **extra_args
+        )
 
 
 ## define our workflow, top to bottom
+
 
 class SwathWorkflow(StagedTaskCollection):
     """
@@ -100,16 +103,14 @@ class SwathWorkflow(StagedTaskCollection):
         """
         directory = self.tasks[0].output_dir
         # FIXME: MRMAnalyzerApp needs 3 files!!!
-        return ProcessFilesInParallel(directory, self.basename, '*._chrom.mzML',
-                                      MRMAnalyzerApplication)
+        return ProcessFilesInParallel(directory, self.basename, '*._chrom.mzML', MRMAnalyzerApplication)
 
     def stage2(self):
         """
         Run FeatureXMLToTSV on `*_.featureXML` files and produce `*_.short_format.csv` ones.
         """
         directory = self.tasks[1].output_dir
-        return ProcessFilesInParallel(directory, self.basename, '*_.featureXML',
-                                      FeatureXMLToTSVApplication)
+        return ProcessFilesInParallel(directory, self.basename, '*_.featureXML', FeatureXMLToTSVApplication)
 
     # def stage3(self):
     #     """
@@ -127,6 +128,7 @@ class SwathWorkflowStage0(ParallelTaskCollection):
       - chroma extraction (long job)
       - chroma extraction (short job) + file merger + MRT normalization
     """
+
     def __init__(self, directory, basename, pattern, **extra_args):
         self.directory = directory
         self.basename = basename
@@ -142,39 +144,45 @@ class SwathWorkflowStage0(ParallelTaskCollection):
                 ChromaExtractShortPlusNormalization(directory, pattern, **extra_args),
             ],
             # boilerplate
-            **extra_args)
+            **extra_args
+        )
 
     def terminated(self):
         self.trafoxml_file = self.tasks[1].trafoxml_file
         # map mzML.gz files to the corresponding `._chom.mzML` file
         # (which might be in a different directory)
-        self.chrom_files = { }
+        self.chrom_files = {}
         for chromalong_task in self.tasks[0].tasks:
             infile = os.path.basename(chromalong_task.mzmlgz_file)
-            outfile = os.path.join(chromalong_task.output_dir,
-                                   replace_suffix(infile, '.mzML.gz', '._chrom.mzML'))
+            outfile = os.path.join(chromalong_task.output_dir, replace_suffix(infile, '.mzML.gz', '._chrom.mzML'))
             self.chrom_files[infile] = outfile
 
 
 class ChromaExtractLong(Application):
     application_name = 'chromatogram_extractor'
+
     def __init__(self, path, **extra_args):
-        outfile = replace_suffix(
-            os.path.basename(path, '.mzML.gz', '._chrom.mzML'))
+        outfile = replace_suffix(os.path.basename(path, '.mzML.gz', '._chrom.mzML'))
         Application.__init__(
             self,
             executable="ChromatogramExtractor",
-            arguments = [
-                '-in', path,
-                '-tr', CONST.library,
-                '-out', outfile,
+            arguments=[
+                '-in',
+                path,
+                '-tr',
+                CONST.library,
+                '-out',
+                outfile,
                 '-is_swath',
-                '-min_upper_edge_dist', CONST.min_upper_edge,
-                '-threads', CONST.threads,
-                ],
+                '-min_upper_edge_dist',
+                CONST.min_upper_edge,
+                '-threads',
+                CONST.threads,
+            ],
             inputs=[path],
             outputs=[outfile],
-            **extra_args)
+            **extra_args
+        )
         self.mzmlgz_file = path
         self.outfile = outfile
 
@@ -190,6 +198,7 @@ class ChromaExtractShortPlusNormalization(StagedTaskCollection):
     2. Merge all produced files;
     3. Run MRMRTNormalizer on the merged file.
     """
+
     def __init__(self, directory, basename, pattern, **extra_args):
         self.directory = directory
         self.basename = basename
@@ -201,17 +210,16 @@ class ChromaExtractShortPlusNormalization(StagedTaskCollection):
         """
         Run chroma extraction (short).
         """
-        return ProcessFilesInParallel(self.directory, self.pattern, ChromaExtractShort,
-                                      **self.extra_args)
+        return ProcessFilesInParallel(self.directory, self.pattern, ChromaExtractShort, **self.extra_args)
 
     def stage1(self):
         """
         Merge all produced files.
         """
         directory = self.tasks[0].output_dir
-        in_files = [ os.path.join(directory, filename)
-                     for filename in os.listdir(directory)
-                     if fnmatch(filename, self.pattern) ]
+        in_files = [
+            os.path.join(directory, filename) for filename in os.listdir(directory) if fnmatch(filename, self.pattern)
+        ]
         outfile = self.basename + '.rtnorm.chrom.mzML'
         return Application(
             executable="FileMerger",
@@ -221,7 +229,8 @@ class ChromaExtractShortPlusNormalization(StagedTaskCollection):
             # record this for ease of referencing from other jobs
             outfilename=outfile,
             # std options from the script
-            **self.extra_args)
+            **self.extra_args
+        )
 
     def stage2(self):
         """
@@ -238,36 +247,42 @@ class ChromaExtractShortPlusNormalization(StagedTaskCollection):
             # record this for ease of referencing from other jobs
             outfilename=outfile,
             # std options from the script
-            **self.extra_args)
+            **self.extra_args
+        )
 
     def terminated(self):
         """
         Define the `self.trafoxml_file` attribute to the full path name
         of the `.rtnorm.trafoXML` output file.
         """
-        self.trafoxml_file = os.path.join(self.tasks[2].output_dir,
-                                          self.basename + '.rtnorm.trafoXML')
+        self.trafoxml_file = os.path.join(self.tasks[2].output_dir, self.basename + '.rtnorm.trafoXML')
 
 
 class ChromaExtractShort(Application):
     application_name = 'chromatogram_extractor'
+
     def __init__(self, path, **extra_args):
-        outfile = replace_suffix(
-            os.path.basename(path, '.mzML.gz', '._rtnorm.chrom.mzML'))
+        outfile = replace_suffix(os.path.basename(path, '.mzML.gz', '._rtnorm.chrom.mzML'))
         Application.__init__(
             self,
             executable="ChromatogramExtractor",
-            arguments = [
-                '-in', path,
-                '-tr', CONST.irt_library,
-                '-out', outfile,
+            arguments=[
+                '-in',
+                path,
+                '-tr',
+                CONST.irt_library,
+                '-out',
+                outfile,
                 '-is_swath',
-                '-min_upper_edge_dist', CONST.min_upper_edge,
-                '-threads', CONST.threads,
-                ],
+                '-min_upper_edge_dist',
+                CONST.min_upper_edge,
+                '-threads',
+                CONST.threads,
+            ],
             inputs=[path],
             outputs=[outfile],
-            **extra_args)
+            **extra_args
+        )
         self.mzmlgz_file = path
         self.outfile = outfile
 
@@ -277,6 +292,7 @@ class ChromaExtractShort(Application):
 
 class MRMAnalyzerApplication(Application):
     application_name = 'mrmanalyzer'
+
     def __init__(self, mzmlgz_file, trafoxml_file, chrom_file, **extra_args):
         assert mzmlgz_filename.endswith('.mzML.gz')
         assert trafoxml_file.endswith('rtnorm.trafoXML')
@@ -285,39 +301,43 @@ class MRMAnalyzerApplication(Application):
             self,
             executable="MRMAnalyzer",
             arguments=[
-                '-in', chrom_file,
-                '-swath_files', mzmlgz_file,
-                '-tr', CONST.library,
-                '-out', outfile,
-                '-min_upper_edge_dist', CONST.min_upper_edge,
-                '-ini', CONST.ini,
-                '-rt_norm', trafoxml_file,
-                '-threads', CONST.threads,
-                ],
+                '-in',
+                chrom_file,
+                '-swath_files',
+                mzmlgz_file,
+                '-tr',
+                CONST.library,
+                '-out',
+                outfile,
+                '-min_upper_edge_dist',
+                CONST.min_upper_edge,
+                '-ini',
+                CONST.ini,
+                '-rt_norm',
+                trafoxml_file,
+                '-threads',
+                CONST.threads,
+            ],
             inputs=[mzmlgz_file, trafoxml_file, chrom_file],
             outputs=[outfile],
-            **extra_args)
+            **extra_args
+        )
 
 
 class FeatureXMLToTSVApplication(Application):
     application_name = 'featurexml_to_tsv'
+
     def __init__(self, path):
         assert path.endswith('_.featureXML')
-        outfile = replace_suffix(mzmlgz_file, '_.featureXML',
-                                              '_.short_format.csv')
+        outfile = replace_suffix(mzmlgz_file, '_.featureXML', '_.short_format.csv')
         Application.__init__(
             self,
             executable="FeatureXMLToTSV",
-            arguments=[
-                '-tr', CONST.library,
-                '-in', path,
-                '-out', outfile,
-                '-short_format',
-                '-threads', CONST.threads,
-                ],
+            arguments=['-tr', CONST.library, '-in', path, '-out', outfile, '-short_format', '-threads', CONST.threads],
             inputs=[path],
             outputs=[outfile],
-            **extra_args)
+            **extra_args
+        )
 
 
 # class MProphetApplication(Application):

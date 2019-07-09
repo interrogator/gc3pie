@@ -23,6 +23,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 from builtins import str
 from builtins import range
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 # stdlib imports
@@ -61,17 +62,13 @@ def test_store_ctor_with_extra_arguments(cls, tmpdir):
     arguments which are valid only on other `Store` classes.
     """
     args = {
-        'url': 'sqlite:///%s/test.sqlite' %
-        os.path.abspath(str(tmpdir)),
+        'url': 'sqlite:///%s/test.sqlite' % os.path.abspath(str(tmpdir)),
         'table_name': 'store',
         'create': True,
         'directory': str(tmpdir),
         'idfactory': IdFactory(),
         'protocol': DEFAULT_PROTOCOL,
-        'extra_fields': {
-            sqlalchemy.Column(
-                'extra',
-                sqlalchemy.TEXT()): lambda x: "test"},
+        'extra_fields': {sqlalchemy.Column('extra', sqlalchemy.TEXT()): lambda x: "test"},
     }
 
     cls(**args)
@@ -94,6 +91,7 @@ def test_eq_persisted_objects():
     L.remove(a)
     assert len(L) == 1
 
+
 def test_eq_non_persisted_objects():
     """Test that the comparison of two not (yet) persisted objects falls
     back to default Python comparison"""
@@ -102,17 +100,17 @@ def test_eq_non_persisted_objects():
     assert a != b
     assert a is not b
 
+
 # for testing basic functionality we do no need fully-fledged GC3Pie
 # objects; let's define some simple make-do's.
 
 
 class SimplePersistableObject(Persistable):
-
     def __init__(self, x):
         self.value = x
 
     def __eq__(self, other):
-        return (self.value == other.value)
+        return self.value == other.value
 
 
 class SimplePersistableList(list, Persistable):
@@ -121,6 +119,7 @@ class SimplePersistableList(list, Persistable):
     Add a `__dict__` to `list`, so that creating a `persistent_id`
     entry on an instance works.
     """
+
     pass
 
 
@@ -147,7 +146,7 @@ class NonPersistableClassWithSlots(object):
     http://stackoverflow.com/questions/3522765/python-pickling-slots-error
     """
 
-    __slots__ = ["attr", ]
+    __slots__ = ["attr"]
 
     def __init__(self, attr):
         self.attr = attr
@@ -158,13 +157,11 @@ class PersistableClassWithSlots(NonPersistableClassWithSlots):
 
 
 class MyChunkedParameterSweep(gc3libs.workflow.ChunkedParameterSweep):
-
     def new_task(self, param, **extra_args):
         return Task(**extra_args)
 
 
 class MyStagedTaskCollection(gc3libs.workflow.StagedTaskCollection):
-
     def stage0(self):
         return Task()
 
@@ -303,13 +300,18 @@ class GenericStoreChecks(object):
         return (container_id, objid)
 
 
-@pytest.mark.parametrize("task", (Task(),
+@pytest.mark.parametrize(
+    "task",
+    (
+        Task(),
         gc3libs.workflow.TaskCollection(tasks=[Task(), Task()]),
         gc3libs.workflow.SequentialTaskCollection([Task(), Task()]),
         MyStagedTaskCollection(),
         gc3libs.workflow.ParallelTaskCollection(tasks=[Task(), Task()]),
         MyChunkedParameterSweep(1, 20, 1, 5),
-        gc3libs.workflow.RetryableTask(Task())))
+        gc3libs.workflow.RetryableTask(Task()),
+    ),
+)
 def test_task_objects_buggy(task):
     """
     Test that all `Task`-like objects are persistable
@@ -321,18 +323,18 @@ def test_task_objects_buggy(task):
         store.load(id)
     finally:
         os.remove(tmpfile)
-            
+
 
 class TestFilesystemStore(GenericStoreChecks):
-
-    @pytest.fixture(autouse=True)    
+    @pytest.fixture(autouse=True)
     def setUp(self):
         from gc3libs.persistence.filesystem import FilesystemStore
+
         self.tmpdir = tempfile.mkdtemp()
         self.store = FilesystemStore(self.tmpdir)
 
         yield
-        
+
         shutil.rmtree(self.tmpdir)
 
     # XXX: there's nothing which is `FilesystemStore`-specific here!
@@ -369,8 +371,7 @@ class TestFilesystemStore(GenericStoreChecks):
         also test that files have been created.
         """
         # std checks
-        container_id, obj_id = super(
-            TestFilesystemStore, self).test_disaggregate_persistable_objects()
+        container_id, obj_id = super(TestFilesystemStore, self).test_disaggregate_persistable_objects()
         # check that files exist
         container_file = os.path.join(self.store._directory, str(container_id))
         assert os.path.exists(container_file)
@@ -393,19 +394,14 @@ class SqlStoreChecks(GenericStoreChecks):
 
     def test_default_fields(self):
         app = gc3libs.Application(
-            arguments=['/bin/true'],
-            inputs=[],
-            outputs=[],
-            output_dir='/tmp',
-            jobname='test_job_persistence')
+            arguments=['/bin/true'], inputs=[], outputs=[], output_dir='/tmp', jobname='test_job_persistence'
+        )
 
         app.execution.state = Run.State.NEW
         app.execution.lrms_jobid = 1
         id_ = self.store.save(app)
 
-        q = sql.select([
-            self.store._tables.c.state
-        ]).where(self.store._tables.c.id == id_)
+        q = sql.select([self.store._tables.c.state]).where(self.store._tables.c.id == id_)
         result = self.conn.execute(q)
         row = result.fetchone()
 
@@ -413,19 +409,13 @@ class SqlStoreChecks(GenericStoreChecks):
 
     # the `jobname` attribute is optional in the `Application` ctor
     def test_persist_Application_with_no_job_name(self):
-        app = gc3libs.Application(
-            arguments=['/bin/true'],
-            inputs=[],
-            outputs=[],
-            output_dir='/tmp')
+        app = gc3libs.Application(arguments=['/bin/true'], inputs=[], outputs=[], output_dir='/tmp')
 
         app.execution.state = Run.State.NEW
         app.execution.lrms_jobid = 1
         id_ = self.store.save(app)
 
-        q = sql.select([
-            self.store._tables.c.state
-        ]).where(self.store._tables.c.id == id_)
+        q = sql.select([self.store._tables.c.state]).where(self.store._tables.c.id == id_)
         result = self.conn.execute(q)
         row = result.fetchone()
         assert row[0] == app.execution.state
@@ -436,12 +426,8 @@ class SqlStoreChecks(GenericStoreChecks):
         storetemp = make_store(
             self.db_url,
             table_name='sql_injection_test',
-            extra_fields={
-                sqlalchemy.Column(
-                    'extra',
-                    sqlalchemy.VARCHAR(
-                        length=128)): GET.extra,
-            })
+            extra_fields={sqlalchemy.Column('extra', sqlalchemy.VARCHAR(length=128)): GET.extra},
+        )
 
         obj = SimpleTask()
         # obligatory XKCD citation ;-)
@@ -458,17 +444,12 @@ class SqlStoreChecks(GenericStoreChecks):
         Test if `SqlStore` reads and writes extra columns.
         """
         # extend the db
-        self.conn.execute('alter table `%s` add column extra varchar(256)'
-                          % self.store.table_name)
+        self.conn.execute('alter table `%s` add column extra varchar(256)' % self.store.table_name)
 
         # re-build store, as the table list is read upon `__init__`
         self.store = self._make_store(
-            extra_fields={
-                sqlalchemy.Column(
-                    'extra',
-                    sqlalchemy.VARCHAR(
-                        length=128)): GET.foo.value,
-            })
+            extra_fields={sqlalchemy.Column('extra', sqlalchemy.VARCHAR(length=128)): GET.foo.value}
+        )
 
         # if this query does not error out, the column is defined
         q = sql.select([sqlfunc.count(self.store._tables.c.extra)]).distinct()
@@ -482,8 +463,7 @@ class SqlStoreChecks(GenericStoreChecks):
         id_ = self.store.save(obj)
 
         # check that the value has been saved
-        q = sql.select([self.store._tables.c.extra]).where(
-            self.store._tables.c.id == id_)
+        q = sql.select([self.store._tables.c.extra]).where(self.store._tables.c.id == id_)
 
         # Oops, apparently the store.save call will close our
         # connection too.
@@ -501,12 +481,8 @@ class SqlStoreChecks(GenericStoreChecks):
         # re-build store with a non-existent extra column
         with pytest.raises(AssertionError):
             self._make_store(
-                extra_fields={
-                    sqlalchemy.Column(
-                        'extra',
-                        sqlalchemy.VARCHAR(
-                            length=128)): (
-                                lambda arg: arg.foo.value)})
+                extra_fields={sqlalchemy.Column('extra', sqlalchemy.VARCHAR(length=128)): (lambda arg: arg.foo.value)}
+            )
 
 
 class ExtraSqlChecks(object):
@@ -528,12 +504,8 @@ class ExtraSqlChecks(object):
         # extend the db
         self._make_store(
             self.db_url,
-            extra_fields={
-                sqlalchemy.Column(
-                    'extra',
-                    sqlalchemy.VARCHAR(
-                        length=128)): (
-                    lambda arg: arg.foo.value)})
+            extra_fields={sqlalchemy.Column('extra', sqlalchemy.VARCHAR(length=128)): (lambda arg: arg.foo.value)},
+        )
 
         # if this query does not error out, the column is defined
         q = sql.select([sqlfunc.count(self.store._tables.c.extra)]).distinct()
@@ -547,8 +519,7 @@ class ExtraSqlChecks(object):
         id_ = self.store.save(obj)
 
         # check that the value has been saved
-        q = sql.select([self.store._tables.c.extra]).where(
-            self.store._tables.c.id == id_)
+        q = sql.select([self.store._tables.c.extra]).where(self.store._tables.c.id == id_)
         # self.c.execute("select extra from %s where id=%d"
         #                % (self.store.table_name, id_))
         results = self.conn.execute(q)
@@ -605,7 +576,6 @@ class TestSqliteStoreWithAlternateTable(TestSqliteStore):
 
 
 class TestMysqlStore(SqlStoreChecks):
-
     @classmethod
     def setup_class(cls):
         # we skip MySQL tests if no MySQLdb module is present

@@ -51,6 +51,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: http://code.google.com/p/gc3pie/issues/detail?id=95
 if __name__ == "__main__":
     import gkjpd
+
     gkjpd.GkjpdScript().run()
 
 import os
@@ -72,6 +73,7 @@ class GkjpdApplication(Application):
     """
     Custom class to wrap the execution of the Matlab script.
     """
+
     application_name = 'gkjpd'
 
     def __init__(self, subject, input_data_folder, **extra_args):
@@ -83,15 +85,12 @@ class GkjpdApplication(Application):
         outputs = dict()
         executables = []
 
-
         # execution wrapper needs to be added anyway
-        gkjpd_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gkjpd.sh")
+        gkjpd_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gkjpd.sh")
         inputs[gkjpd_wrapper_sh] = os.path.basename(gkjpd_wrapper_sh)
         inputs[input_data_folder] = './input'
 
-        _command = "./%s ./input %s " % (os.path.basename(gkjpd_wrapper_sh),
-                                    subject)
+        _command = "./%s ./input %s " % (os.path.basename(gkjpd_wrapper_sh), subject)
 
         # arguments = "matlab -nodesktop -nosplash -nodisplay -nodesktop "\
         #             "-r \"addpath(\'/home/gc3-user/spm12\'); addpath(\'./input\'); preprocessing_s3it(\'./input\',\'%s\'); quit\""\
@@ -101,13 +100,15 @@ class GkjpdApplication(Application):
 
         Application.__init__(
             self,
-            arguments = _command,
-            inputs = inputs,
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'gkjpd.log',
+            arguments=_command,
+            inputs=inputs,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout='gkjpd.log',
             join=True,
-            executables = "./%s" % os.path.basename(gkjpd_wrapper_sh),
-            **extra_args)
+            executables="./%s" % os.path.basename(gkjpd_wrapper_sh),
+            **extra_args
+        )
+
 
 class GkjpdScript(SessionBasedScript):
     """
@@ -130,22 +131,20 @@ class GkjpdScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GkjpdApplication,
+            version=__version__,  # module version == script version
+            application=GkjpdApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GkjpdApplication,
-            )
+            stats_only_for=GkjpdApplication,
+        )
 
     def setup_args(self):
 
-        self.add_param('subjects_file', type=str,
-                       help="Path to the files containing a list of subjects. ")
+        self.add_param('subjects_file', type=str, help="Path to the files containing a list of subjects. ")
 
-        self.add_param('input', type=str,
-                       help="Path to the data files.")
+        self.add_param('input', type=str, help="Path to the data files.")
 
     def parse_args(self):
         """
@@ -153,12 +152,10 @@ class GkjpdScript(SessionBasedScript):
         """
 
         if not os.path.isdir(self.params.input):
-            raise OSError("No such file or directory: %s ",
-                          os.path.abspath(self.params.input))
+            raise OSError("No such file or directory: %s ", os.path.abspath(self.params.input))
 
         if not os.path.isfile(self.params.subjects_file):
-            raise OSError("No such file or directory: %s ",
-                          os.path.abspath(self.params.subjects_file))
+            raise OSError("No such file or directory: %s ", os.path.abspath(self.params.subjects_file))
 
         # Read subjects_file and create initial list
         with open(self.params.subjects_file) as fin:
@@ -173,7 +170,6 @@ class GkjpdScript(SessionBasedScript):
         """
         tasks = []
 
-
         for subject in self.params.subjects:
             jobname = "KJPD-%s" % (subject)
 
@@ -186,11 +182,7 @@ class GkjpdScript(SessionBasedScript):
             extra_args['output_dir'] = self.params.output
             extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', '%s' % (jobname))
 
-            gc3libs.log.info("Creating GkjpdApplication for subject: %s",
-                             subject)
-            tasks.append(GkjpdApplication(
-                subject,
-                os.path.abspath(self.params.input),
-                **extra_args))
+            gc3libs.log.info("Creating GkjpdApplication for subject: %s", subject)
+            tasks.append(GkjpdApplication(subject, os.path.abspath(self.params.input), **extra_args))
 
         return tasks

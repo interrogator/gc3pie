@@ -23,6 +23,7 @@ Simple interface to the CODEML application.
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import str
 from builtins import range
+
 __changelog__ = """
 Summary of user-visible changes:
 * 16-08-2011 AM: Extract aln_info from the .phy file and record it
@@ -51,6 +52,7 @@ import gc3libs.utils
 
 # The CODEML application
 
+
 class CodemlApplication(gc3libs.Application):
 
     """
@@ -72,8 +74,7 @@ class CodemlApplication(gc3libs.Application):
         # we're submitting CODEML jobs thorugh the support script
         # "codeml.pl", so do the specific setup tailored to this
         # script' usage
-        codeml_pl = resource_filename(Requirement.parse("gc3pie"),
-                                      "gc3libs/etc/codeml.pl")
+        codeml_pl = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/codeml.pl")
 
         # need to send the PERL driver script, and the binary only
         # if we're not using the RTE
@@ -87,7 +88,7 @@ class CodemlApplication(gc3libs.Application):
 
         if codeml is None:
             # use the RTE
-            rte = ('APPS/BIO/CODEML-%s' % version)
+            rte = 'APPS/BIO/CODEML-%s' % version
             if 'tags' in extra_args:
                 extra_args['tags'].append(rte)
             else:
@@ -119,15 +120,14 @@ class CodemlApplication(gc3libs.Application):
                         try:
                             fd = open(path)
                             aln_infos = fd.readline().strip().split()
-                            self.aln_info = {
-                                'n_seq': int(aln_infos[0]),
-                                'aln_len': int(aln_infos[1]),
-                            }
+                            self.aln_info = {'n_seq': int(aln_infos[0]), 'aln_len': int(aln_infos[1])}
                             fd.close()
                         except Exception as ex:
                             gc3libs.log.warning(
-                                "Unable to parse `n_seq` and `aln_len` values"
-                                " from `.phy` file `%s`: %s", path, str(ex))
+                                "Unable to parse `n_seq` and `aln_len` values" " from `.phy` file `%s`: %s",
+                                path,
+                                str(ex),
+                            )
                             try:
                                 fd.close()
                             except:
@@ -143,12 +143,11 @@ class CodemlApplication(gc3libs.Application):
             except RuntimeError as ex:
                 gc3libs.log.warning(
                     "Ignoring input file '%s':"
-                    " cannot find seqfile and/or treefile referenced in it: %s" %
-                    (ctl, str(ex)))
+                    " cannot find seqfile and/or treefile referenced in it: %s" % (ctl, str(ex))
+                )
         gc3libs.Application.__init__(
             self,
-            arguments=["./codeml.pl"] +
-            [os.path.basename(ctl) for ctl in ctls],
+            arguments=["./codeml.pl"] + [os.path.basename(ctl) for ctl in ctls],
             inputs=inputs,
             outputs=outputs,
             stdout='codeml.stdout.txt',
@@ -190,6 +189,7 @@ class CodemlApplication(gc3libs.Application):
                 return filename
             else:
                 return os.path.join(dirname, filename)
+
         result = {}
         ctl = open(ctl_path, 'r')
         for line in ctl.readlines():
@@ -200,8 +200,7 @@ class CodemlApplication(gc3libs.Application):
             # ignore empty lines
             if len(line) == 0:
                 continue
-            key, value = CodemlApplication._assignment_re.split(
-                line, maxsplit=1)
+            key, value = CodemlApplication._assignment_re.split(line, maxsplit=1)
             if key not in CodemlApplication._aux_file_keys:
                 continue
             elif key in ['seqfile', 'treefile']:
@@ -217,9 +216,7 @@ class CodemlApplication(gc3libs.Application):
         # ``treefile = ...`` lines were not found; signal this to the
         # caller by raising an exception
         ctl.close()
-        raise RuntimeError(
-            "Could not extract path to seqfile and/or treefile from '%s'" %
-            ctl_path)
+        raise RuntimeError("Could not extract path to seqfile and/or treefile from '%s'" % ctl_path)
 
     @staticmethod
     def parse_output_file(path):
@@ -239,7 +236,7 @@ class CodemlApplication(gc3libs.Application):
                 time_used_found = True
                 break
         if time_used_found:
-            return (hours * 3600 + minutes * 60 + seconds)
+            return hours * 3600 + minutes * 60 + seconds
         else:
             return 'invalid'
 
@@ -247,9 +244,7 @@ class CodemlApplication(gc3libs.Application):
     # variable number of spaces so we need a regexp to match
     _KEY_VALUE_SEP = re.compile(r':\s*')
 
-    _TIME_USED_RE = re.compile(
-        r'Time \s+ used:\s+ ((?P<hours>[0-9]*):)?(?P<minutes>[0-9]+):(?P<seconds>[0-9]+)',
-        re.X)
+    _TIME_USED_RE = re.compile(r'Time \s+ used:\s+ ((?P<hours>[0-9]*):)?(?P<minutes>[0-9]+):(?P<seconds>[0-9]+)', re.X)
     _H_WHICH_RE = re.compile(r'H(?P<n>[01]).mlc')
 
     # perform the post-processing and set exit code.
@@ -303,11 +298,8 @@ class CodemlApplication(gc3libs.Application):
             return
 
         outputs = [
-            os.path.join(
-                download_dir,
-                filename) for filename in fnmatch.filter(
-                os.listdir(download_dir),
-                '*.mlc')]
+            os.path.join(download_dir, filename) for filename in fnmatch.filter(os.listdir(download_dir), '*.mlc')
+        ]
         if len(outputs) == 0:
             # no output retrieved, did ``codeml`` run at all?
             self.execution.exitcode = 127
@@ -322,8 +314,7 @@ class CodemlApplication(gc3libs.Application):
                 if match:
                     n = int(match.group('n'))
                 else:
-                    gc3libs.log.debug(
-                        "Output file '%s' does not match pattern 'H*.mlc' -- ignoring.")
+                    gc3libs.log.debug("Output file '%s' does not match pattern 'H*.mlc' -- ignoring.")
                     continue  # with next output_path
                 duration = CodemlApplication.parse_output_file(output_path)
                 if duration == 'no file':
@@ -342,29 +333,24 @@ class CodemlApplication(gc3libs.Application):
         # if output files parsed OK, then move them to 'result_dir'
         if self.result_dir:
             import shutil
+
             for output_path in outputs:
                 try:
-                    shutil.copy(output_path,
-                                os.path.join(self.result_dir,
-                                             os.path.basename(output_path)))
+                    shutil.copy(output_path, os.path.join(self.result_dir, os.path.basename(output_path)))
                     os.remove(output_path)
                 except Exception as ex:
                     gc3libs.log.error(
-                        "Failed while transferring output file " +
-                        "%s " %
-                        output_path +
-                        "to result folder %s. " %
-                        self.result_dir +
-                        "Error type %s. Message %s. " %
-                        (type(ex),
-                         str(ex)))
+                        "Failed while transferring output file "
+                        + "%s " % output_path
+                        + "to result folder %s. " % self.result_dir
+                        + "Error type %s. Message %s. " % (type(ex), str(ex))
+                    )
                     failed += 1
                     continue
         else:
             gc3libs.log.warning(
-                "No 'result_dir' set. Leaving results in original" +
-                " output folder %s" %
-                self.output_dir)
+                "No 'result_dir' set. Leaving results in original" + " output folder %s" % self.output_dir
+            )
 
         # if output files parsed OK, then override the exit code and
         # mark the job as successful
@@ -378,11 +364,9 @@ class CodemlApplication(gc3libs.Application):
             for line in stdout_file:
                 line = line.strip()
                 if line.startswith('HOST:'):
-                    tag, self.hostname = CodemlApplication._KEY_VALUE_SEP.split(
-                        line, maxsplit=1)
+                    tag, self.hostname = CodemlApplication._KEY_VALUE_SEP.split(line, maxsplit=1)
                 elif line.startswith('CPU:'):
-                    tag, self.cpuinfo = CodemlApplication._KEY_VALUE_SEP.split(
-                        line, maxsplit=1)
+                    tag, self.cpuinfo = CodemlApplication._KEY_VALUE_SEP.split(line, maxsplit=1)
                     break
             stdout_file.close()
 

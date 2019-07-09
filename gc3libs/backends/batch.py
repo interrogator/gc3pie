@@ -21,6 +21,7 @@ batch-like backends should inherit.
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import str
+
 __docformat__ = 'reStructuredText'
 
 
@@ -56,39 +57,37 @@ def generic_filename_mapping(jobname, jobid, file_name):
     ``<jobname>.o<jobid>``).
     """
     try:
-        return {('%s.out' % jobname): ('%s.o%s' % (jobname, jobid)),
-                ('%s.err' % jobname): ('%s.e%s' % (jobname, jobid)),
-                # FIXME: the following is definitely GAMESS-specific
-                ('%s.cosmo' % jobname): ('%s.o%s.cosmo' % (jobname, jobid)),
-                ('%s.dat' % jobname): ('%s.o%s.dat' % (jobname, jobid)),
-                ('%s.inp' % jobname): ('%s.o%s.inp' % (jobname, jobid)),
-                ('%s.irc' % jobname): ('%s.o%s.irc' % (jobname, jobid))
-                }[file_name]
+        return {
+            ('%s.out' % jobname): ('%s.o%s' % (jobname, jobid)),
+            ('%s.err' % jobname): ('%s.e%s' % (jobname, jobid)),
+            # FIXME: the following is definitely GAMESS-specific
+            ('%s.cosmo' % jobname): ('%s.o%s.cosmo' % (jobname, jobid)),
+            ('%s.dat' % jobname): ('%s.o%s.dat' % (jobname, jobid)),
+            ('%s.inp' % jobname): ('%s.o%s.inp' % (jobname, jobid)),
+            ('%s.irc' % jobname): ('%s.o%s.irc' % (jobname, jobid)),
+        }[file_name]
     except KeyError:
         return file_name
 
 
-def _make_remote_and_local_path_pair(transport, job, remote_relpath,
-                                     local_root_dir, local_relpath):
+def _make_remote_and_local_path_pair(transport, job, remote_relpath, local_root_dir, local_relpath):
     """
     Return list of (remote_path, local_path) pairs corresponding to
     """
     # see https://github.com/fabric/fabric/issues/306 about why it is
     # correct to use `posixpath.join` for remote paths (instead of
     # `os.path.join`)
-    remote_path = posixpath.join(job.ssh_remote_folder,
-                                 generic_filename_mapping(job.lrms_jobname,
-                                                          job.lrms_jobid,
-                                                          remote_relpath))
+    remote_path = posixpath.join(
+        job.ssh_remote_folder, generic_filename_mapping(job.lrms_jobname, job.lrms_jobid, remote_relpath)
+    )
     local_path = os.path.join(local_root_dir, local_relpath)
     if transport.isdir(remote_path):
         # recurse, accumulating results
         result = []
         for entry in transport.listdir(remote_path):
             result += _make_remote_and_local_path_pair(
-                transport, job,
-                posixpath.join(remote_relpath, entry),
-                local_path, entry)
+                transport, job, posixpath.join(remote_relpath, entry), local_path, entry
+            )
         return result
     else:
         return [(remote_path, local_path)]
@@ -112,29 +111,43 @@ class BatchSystem(LRMS):
     class/type (e.g., PBS, LSF, etc.).
     """
 
-    def __init__(self, name,
-                 # this are inherited from the base LRMS class
-                 architecture, max_cores, max_cores_per_job,
-                 max_memory_per_core, max_walltime,
-                 auth,  # ignored if `transport` is 'local'
-                 # these are specific to the this backend
-                 frontend, transport,
-                 accounting_delay=15,
-                 # SSH-related options; ignored if `transport` is 'local'
-                 ssh_config=None,
-                 keyfile=None,
-                 ignore_ssh_host_keys=False,
-                 ssh_timeout=None,
-                 large_file_threshold=None,
-                 large_file_chunk_size=None,
-                 spooldir=Default.SPOOLDIR,
-                 **extra_args):
+    def __init__(
+        self,
+        name,
+        # this are inherited from the base LRMS class
+        architecture,
+        max_cores,
+        max_cores_per_job,
+        max_memory_per_core,
+        max_walltime,
+        auth,  # ignored if `transport` is 'local'
+        # these are specific to the this backend
+        frontend,
+        transport,
+        accounting_delay=15,
+        # SSH-related options; ignored if `transport` is 'local'
+        ssh_config=None,
+        keyfile=None,
+        ignore_ssh_host_keys=False,
+        ssh_timeout=None,
+        large_file_threshold=None,
+        large_file_chunk_size=None,
+        spooldir=Default.SPOOLDIR,
+        **extra_args
+    ):
 
         # init base class
         LRMS.__init__(
-            self, name,
-            architecture, max_cores, max_cores_per_job,
-            max_memory_per_core, max_walltime, auth, **extra_args)
+            self,
+            name,
+            architecture,
+            max_cores,
+            max_cores_per_job,
+            max_memory_per_core,
+            max_walltime,
+            auth,
+            **extra_args
+        )
 
         # backend-specific setup
         self.frontend = frontend
@@ -144,7 +157,7 @@ class BatchSystem(LRMS):
             self._username = getuser()
         elif transport == 'ssh':
             auth = self._auth_fn()
-            self._username=auth.username
+            self._username = auth.username
             self.transport = gc3libs.backends.transport.SshTransport(
                 frontend,
                 ignore_ssh_host_keys=ignore_ssh_host_keys,
@@ -157,10 +170,8 @@ class BatchSystem(LRMS):
                 large_file_chunk_size=large_file_chunk_size,
             )
         else:
-            raise gc3libs.exceptions.TransportError(
-                "Unknown transport '%s'" % transport)
+            raise gc3libs.exceptions.TransportError("Unknown transport '%s'" % transport)
         self.accounting_delay = accounting_delay
-
 
     def get_jobid_from_submit_output(self, output, regexp):
         """Parse the output of the submission command. Regexp is
@@ -169,9 +180,7 @@ class BatchSystem(LRMS):
             match = regexp.match(line)
             if match:
                 return match.group('jobid')
-        raise gc3libs.exceptions.InternalError(
-            "Could not extract jobid from qsub output '%s'"
-            % output.rstrip())
+        raise gc3libs.exceptions.InternalError("Could not extract jobid from qsub output '%s'" % output.rstrip())
 
     def _get_command_argv(self, name, default=None):
         """
@@ -246,22 +255,22 @@ class BatchSystem(LRMS):
         """This method returns a string containing the command to
         issue to submit the job."""
         raise NotImplementedError(
-            "Abstract method `_submit_command()` called - "
-            "this should have been defined in a derived class.")
+            "Abstract method `_submit_command()` called - " "this should have been defined in a derived class."
+        )
 
     def _parse_submit_output(self, stdout):
         """This method will parse the output of the submit command and
         return the jobid of the submitted job."""
         raise NotImplementedError(
-            "Abstract method `parse_submit_output()` called - "
-            "this should have been defined in a derived class.")
+            "Abstract method `parse_submit_output()` called - " "this should have been defined in a derived class."
+        )
 
     def _stat_command(self, job):
         """This method returns a string containing the command to
         issue to get status information about a job."""
         raise NotImplementedError(
-            "Abstract method `_stat_command()` called - "
-            "this should have been defined in a derived class.")
+            "Abstract method `_stat_command()` called - " "this should have been defined in a derived class."
+        )
 
     def _parse_stat_output(self, stdout):
         """
@@ -271,8 +280,8 @@ class BatchSystem(LRMS):
         :return: A `_stat_result`:class: instance.
         """
         raise NotImplementedError(
-            "Abstract method `_parse_stat_output()` called - "
-            "this should have been defined in a derived class.")
+            "Abstract method `_parse_stat_output()` called - " "this should have been defined in a derived class."
+        )
 
     # the only purpose of this class definition is to add a docstring
     # to the named tuple
@@ -292,6 +301,7 @@ class BatchSystem(LRMS):
         The ``termstatus`` part is only meaningful when ``state``
         is ``TERMINATING``.
         """
+
         pass
 
     def _acct_command(self, job):
@@ -302,8 +312,8 @@ class BatchSystem(LRMS):
         It is usually called only if the _stat_command() fails.
         """
         raise NotImplementedError(
-            "Abstract method `_acct_command()` called - "
-            "this should have been defined in a derived class.")
+            "Abstract method `_acct_command()` called - " "this should have been defined in a derived class."
+        )
 
     def _parse_acct_output(self, stdout):
         """
@@ -314,8 +324,8 @@ class BatchSystem(LRMS):
         the keys contained in the dictionary.
         """
         raise NotImplementedError(
-            "Abstract method `_parse_acct_output()` called - "
-            "this should have been defined in a derived class.")
+            "Abstract method `_parse_acct_output()` called - " "this should have been defined in a derived class."
+        )
 
     def _secondary_acct_command(self, job):
         """
@@ -340,30 +350,27 @@ class BatchSystem(LRMS):
         """
         raise NotImplementedError(
             "Abstract method `_parse_secondary_acct_output()` called - "
-            "this should have been defined in a derived class.")
+            "this should have been defined in a derived class."
+        )
 
     def _cancel_command(self, jobid):
         """This method returns a string containing the command to
         issue to delete the job identified by `jobid`
         """
         raise NotImplementedError(
-            "Abstract method `_cancel_command()` called -"
-            " this should have been defined in a derived class.")
+            "Abstract method `_cancel_command()` called -" " this should have been defined in a derived class."
+        )
 
     def _get_prepost_scripts(self, app, scriptnames):
         script_txt = []
         for script in scriptnames:
             if script not in self:
-                gc3libs.log.debug(
-                    "%s script not defined for resource %s", script, self.name)
+                gc3libs.log.debug("%s script not defined for resource %s", script, self.name)
                 continue
             if os.path.isfile(self[script]):
-                gc3libs.log.debug(
-                    "Adding %s file `%s` to the submission script"
-                    % (script, self[script]))
+                gc3libs.log.debug("Adding %s file `%s` to the submission script" % (script, self[script]))
                 script_file = open(self[script])
-                script_txt.append("\n# %s file `%s` BEGIN\n"
-                                  % (script, self[script]))
+                script_txt.append("\n# %s file `%s` BEGIN\n" % (script, self[script]))
                 script_txt.append(script_file.read())
                 script_txt.append("\n# %s file END\n" % script)
                 script_file.close()
@@ -381,9 +388,12 @@ class BatchSystem(LRMS):
         application and will return a string which contains the
         contents of the script(s) merged together.
         """
-        prologues = ['prologue', app.application_name + '_prologue',
-                     'prologue_content',
-                     app.application_name + '_prologue_content']
+        prologues = [
+            'prologue',
+            app.application_name + '_prologue',
+            'prologue_content',
+            app.application_name + '_prologue_content',
+        ]
         return self._get_prepost_scripts(app, prologues)
 
     def get_epilogue_script(self, app):
@@ -392,9 +402,12 @@ class BatchSystem(LRMS):
         application and will return a string which contains the
         contents of the script(s) merged together.
         """
-        epilogues = ['epilogue', app.application_name + '_epilogue',
-                     'epilogue_content',
-                     app.application_name + '_epilogue_content']
+        epilogues = [
+            'epilogue',
+            app.application_name + '_epilogue',
+            'epilogue_content',
+            app.application_name + '_epilogue_content',
+        ]
         return self._get_prepost_scripts(app, epilogues)
 
     @LRMS.authenticated
@@ -406,17 +419,14 @@ class BatchSystem(LRMS):
 
         # Create the remote directory.
         self.transport.connect()
-        cmd = (
-            "mkdir -p {0};"
-            " mktemp -d {0}/batch_job.XXXXXXXXXX"
-            .format(self.spooldir))
+        cmd = "mkdir -p {0};" " mktemp -d {0}/batch_job.XXXXXXXXXX".format(self.spooldir)
         exit_code, stdout, stderr = self.transport.execute_command(cmd)
         if exit_code != 0:
             raise gc3libs.exceptions.SpoolDirError(
                 "Cannot create temporary job working directory"
                 " on resource '%s'; command '%s' exited"
-                " with code: %d and stderr: '%s'."
-                % (self.name, cmd, exit_code, stderr))
+                " with code: %d and stderr: '%s'." % (self.name, cmd, exit_code, stderr)
+            )
         ssh_remote_folder = stdout.split('\n')[0]
 
         # Copy the input file(s) to remote directory.
@@ -425,26 +435,20 @@ class BatchSystem(LRMS):
             remote_parent = os.path.dirname(remote_path)
             try:
                 if remote_parent not in ['', '.']:
-                    log.debug("Making remote directory '%s'",
-                              remote_parent)
+                    log.debug("Making remote directory '%s'", remote_parent)
                     self.transport.makedirs(remote_parent)
-                log.debug("Transferring file '%s' to '%s'",
-                          local_path.path, remote_path)
+                log.debug("Transferring file '%s' to '%s'", local_path.path, remote_path)
                 self.transport.put(local_path.path, remote_path)
                 # preserve execute permission on input files
                 if os.access(local_path.path, os.X_OK):
                     self.transport.chmod(remote_path, 0o755)
             except:
-                log.critical(
-                    "Copying input file '%s' to remote cluster '%s' failed",
-                    local_path.path, self.frontend)
+                log.critical("Copying input file '%s' to remote cluster '%s' failed", local_path.path, self.frontend)
                 raise
 
         if app.arguments[0].startswith('./'):
-            gc3libs.log.debug("Making remote path '%s' executable.",
-                              app.arguments[0])
-            self.transport.chmod(os.path.join(ssh_remote_folder,
-                                              app.arguments[0]), 0o755)
+            gc3libs.log.debug("Making remote path '%s' executable.", app.arguments[0])
+            self.transport.chmod(os.path.join(ssh_remote_folder, app.arguments[0]), 0o755)
 
         # if STDOUT/STDERR should be saved in a directory, ensure it
         # exists (see Issue 495 for details)
@@ -452,14 +456,13 @@ class BatchSystem(LRMS):
             if dest:
                 destdir = os.path.dirname(dest)
                 if destdir:
-                    self.transport.makedirs(
-                        posixpath.join(ssh_remote_folder, destdir))
+                    self.transport.makedirs(posixpath.join(ssh_remote_folder, destdir))
 
         try:
             sub_cmd, aux_script = self._submit_command(app)
             if aux_script != '':
                 # create temporary script name
-                script_filename = ('./script.%s.sh' % uuid.uuid4())
+                script_filename = './script.%s.sh' % uuid.uuid4()
                 # save script to a temporary file and submit that one instead
                 local_script_file = tempfile.NamedTemporaryFile()
                 local_script_file.write('#!/bin/sh\n')
@@ -477,12 +480,9 @@ class BatchSystem(LRMS):
 
                 local_script_file.flush()
                 # upload script to remote location
-                self.transport.put(
-                    local_script_file.name,
-                    os.path.join(ssh_remote_folder, script_filename))
+                self.transport.put(local_script_file.name, os.path.join(ssh_remote_folder, script_filename))
                 # set execution mode on remote script
-                self.transport.chmod(
-                    os.path.join(ssh_remote_folder, script_filename), 0o755)
+                self.transport.chmod(os.path.join(ssh_remote_folder, script_filename), 0o755)
                 # cleanup
                 local_script_file.close()
                 if os.path.exists(local_script_file.name):
@@ -494,15 +494,15 @@ class BatchSystem(LRMS):
 
             # Submit it
             exit_code, stdout, stderr = self.transport.execute_command(
-                "/bin/sh -c %s" % sh_quote_safe('cd %s && %s %s' % (
-                    ssh_remote_folder, sub_cmd, script_filename)))
+                "/bin/sh -c %s" % sh_quote_safe('cd %s && %s %s' % (ssh_remote_folder, sub_cmd, script_filename))
+            )
 
             if exit_code != 0:
                 raise gc3libs.exceptions.LRMSError(
                     "Failed executing command 'cd %s && %s %s' on resource"
                     " '%s'; exit code: %d, stderr: '%s'."
-                    % (ssh_remote_folder, sub_cmd, script_filename,
-                       self.name, exit_code, stderr))
+                    % (ssh_remote_folder, sub_cmd, script_filename, self.name, exit_code, stderr)
+                )
 
             jobid = self._parse_submit_output(stdout)
             log.debug('Job submitted with jobid: %s', jobid)
@@ -528,23 +528,22 @@ class BatchSystem(LRMS):
                     job.stderr_filename = app.stderr
                 else:
                     job.stderr_filename = '%s.e%s' % (job.lrms_jobname, jobid)
-            job.history.append('Submitted to %s @ %s, got jobid %s'
-                               % (self._batchsys_name, self.name, jobid))
-            job.history.append("Submission command output:\n"
-                               "  === stdout ===\n%s"
-                               "  === stderr ===\n%s"
-                               "  === end ===\n"
-                               % (stdout, stderr), 'pbs', 'qsub')
+            job.history.append('Submitted to %s @ %s, got jobid %s' % (self._batchsys_name, self.name, jobid))
+            job.history.append(
+                "Submission command output:\n"
+                "  === stdout ===\n%s"
+                "  === stderr ===\n%s"
+                "  === end ===\n" % (stdout, stderr),
+                'pbs',
+                'qsub',
+            )
             job.ssh_remote_folder = ssh_remote_folder
 
             return job
 
         except:
-            log.critical(
-                "Failure submitting job to resource '%s' - "
-                "see log file for errors", self.name)
+            log.critical("Failure submitting job to resource '%s' - " "see log file for errors", self.name)
             raise
-
 
     def __run_command_and_parse_output(self, cmd, parser, kind='accounting'):
         log.debug("Checking remote job %s info with `%s` ...", kind, cmd)
@@ -553,11 +552,9 @@ class BatchSystem(LRMS):
             return parser(stdout, stderr)
         else:
             raise gc3libs.exceptions.AuxiliaryCommandError(
-                "Failed running %s command `%s`:"
-                " exit code: %d, stderr: '%s'"
-                % (kind, cmd, exit_code, stderr),
-                do_log=True)
-
+                "Failed running %s command `%s`:" " exit code: %d, stderr: '%s'" % (kind, cmd, exit_code, stderr),
+                do_log=True,
+            )
 
     @same_docstring_as(LRMS.update_job_state)
     @LRMS.authenticated
@@ -567,15 +564,13 @@ class BatchSystem(LRMS):
             job.lrms_jobid
         except AttributeError as ex:
             # `job` has no `lrms_jobid`: object is invalid
-            raise gc3libs.exceptions.InvalidArgument(
-                "Job object is invalid: {ex}".format(ex=ex))
+            raise gc3libs.exceptions.InvalidArgument("Job object is invalid: {ex}".format(ex=ex))
 
         self.transport.connect()
 
         cmd = self._stat_command(job)
         try:
-            state, termstatus = self.__run_command_and_parse_output(
-                cmd, self._parse_stat_output, 'status')
+            state, termstatus = self.__run_command_and_parse_output(cmd, self._parse_stat_output, 'status')
             if state != Run.State.TERMINATING:
                 # no need to go further and parse acct info; also,
                 # exit status is not relevant in this case
@@ -588,9 +583,9 @@ class BatchSystem(LRMS):
             # after the "acct" command has run
             state, termstatus = None, None
         assert state is None or state == Run.State.TERMINATING
-        log.debug("Job status command gave state `%s`"
-                  " and termination status `%s` for task %s",
-                  state, termstatus, app)
+        log.debug(
+            "Job status command gave state `%s`" " and termination status `%s` for task %s", state, termstatus, app
+        )
 
         # In some batch systems, jobs disappear from qstat
         # output as soon as they are finished. In these cases,
@@ -598,14 +593,14 @@ class BatchSystem(LRMS):
         # the exit status.
         acctinfo = {}
         for cmd_fn, parse_fn in [
-                # this is the regular sacct/qacct/bjobs command
-                (self._acct_command, self._parse_acct_output),
-                # This is used to distinguish between a standard
-                # Torque installation and a PBSPro where `tracejob`
-                # does not work but if `job_history_enable=True`,
-                # then we can actually access information about
-                # finished jobs with `qstat -x -f`.
-                (self._secondary_acct_command, self._parse_secondary_acct_output),
+            # this is the regular sacct/qacct/bjobs command
+            (self._acct_command, self._parse_acct_output),
+            # This is used to distinguish between a standard
+            # Torque installation and a PBSPro where `tracejob`
+            # does not work but if `job_history_enable=True`,
+            # then we can actually access information about
+            # finished jobs with `qstat -x -f`.
+            (self._secondary_acct_command, self._parse_secondary_acct_output),
         ]:
             cmd = cmd_fn(job)
             # `._secondary_acct_command` returns ``None`` if no
@@ -614,21 +609,17 @@ class BatchSystem(LRMS):
             if cmd is None:
                 continue
             try:
-                acctinfo = self.__run_command_and_parse_output(
-                    cmd, parse_fn, 'accounting')
+                acctinfo = self.__run_command_and_parse_output(cmd, parse_fn, 'accounting')
                 # use info from the first acct command that succeeds
                 if acctinfo:
-                    log.debug("Gathered accounting info %r for task %s",
-                              acctinfo, app)
+                    log.debug("Gathered accounting info %r for task %s", acctinfo, app)
                     break
             except gc3libs.exceptions.AuxiliaryCommandError:
                 log.debug("Accounting command `%s` failed.", cmd)
                 # try next one
                 pass
             except gc3libs.exceptions.UnexpectedJobState as ex:
-                log.debug(
-                    "Unexpected output from accounting command `%s`: %s.",
-                    cmd, ex)
+                log.debug("Unexpected output from accounting command `%s`: %s.", cmd, ex)
                 # try next one
                 pass
 
@@ -646,8 +637,7 @@ class BatchSystem(LRMS):
                 # a bug report and a chance to fix...
                 assert termstatus == acctinfo['termstatus'], (
                     "Status and accounting commands disagree"
-                    " on job termination status: {1} vs {2}"
-                    .format(termstatus, acctinfo['termstatus'])
+                    " on job termination status: {1} vs {2}".format(termstatus, acctinfo['termstatus'])
                 )
 
         if termstatus is None:
@@ -668,8 +658,8 @@ class BatchSystem(LRMS):
                 # then job is definitely lost
                 job.state = Run.State.UNKNOWN
                 raise gc3libs.exceptions.LRMSError(
-                    "Could not retrieve status information for task {app}"
-                    .format(app=app))
+                    "Could not retrieve status information for task {app}".format(app=app)
+                )
 
         # if we got to this point the job is in TERMINATING state
         # and we know at least the termination status
@@ -685,27 +675,23 @@ class BatchSystem(LRMS):
     @LRMS.authenticated
     def peek(self, app, remote_filename, local_file, offset=0, size=None):
         job = app.execution
-        assert 'ssh_remote_folder' in job, \
-            "Missing attribute `ssh_remote_folder` on `Job` instance" \
-            " passed to `PbsLrms.peek`."
+        assert 'ssh_remote_folder' in job, (
+            "Missing attribute `ssh_remote_folder` on `Job` instance" " passed to `PbsLrms.peek`."
+        )
 
         if size is None:
             size = sys.maxsize
 
-        _filename_mapping = generic_filename_mapping(
-            job.lrms_jobname, job.lrms_jobid, remote_filename)
-        _remote_filename = os.path.join(
-            job.ssh_remote_folder, _filename_mapping)
+        _filename_mapping = generic_filename_mapping(job.lrms_jobname, job.lrms_jobid, remote_filename)
+        _remote_filename = os.path.join(job.ssh_remote_folder, _filename_mapping)
 
         try:
             self.transport.connect()
-            remote_handler = self.transport.open(
-                _remote_filename, mode='r', bufsize=-1)
+            remote_handler = self.transport.open(_remote_filename, mode='r', bufsize=-1)
             remote_handler.seek(offset)
             data = remote_handler.read(size)
         except Exception as ex:
-            log.error("Could not read remote file '%s': %s: %s",
-                      _remote_filename, ex.__class__.__name__, str(ex))
+            log.error("Could not read remote file '%s': %s: %s", _remote_filename, ex.__class__.__name__, str(ex))
 
         try:
             local_file.write(data)
@@ -737,16 +723,14 @@ class BatchSystem(LRMS):
                 # XXX: It is possible that 'qdel' fails because job
                 # has been already completed thus the cancel_job
                 # behaviour should be tolerant to these errors.
-                log.error(
-                    "Failed executing remote command '%s'; exit status %d",
-                    cmd, exit_code)
+                log.error("Failed executing remote command '%s'; exit status %d", cmd, exit_code)
                 log.debug("  remote command returned STDOUT '%s'", stdout)
                 log.debug("  remote command returned STDERR '%s'", stderr)
                 if exit_code == 127:
                     # command was not executed, time to signal an exception
                     raise gc3libs.exceptions.LRMSError(
-                        "Cannot execute remote command '%s'"
-                        " -- See DEBUG level log for details" % (cmd,))
+                        "Cannot execute remote command '%s'" " -- See DEBUG level log for details" % (cmd,)
+                    )
             return job
         except:
             log.critical('Failure checking status')
@@ -761,18 +745,16 @@ class BatchSystem(LRMS):
             self.transport.connect()
             self.transport.remove_tree(job.ssh_remote_folder)
         except Exception as err:
-            log.warning("Failed removing remote folder '%s': %s: %s",
-                        job.ssh_remote_folder, err.__class__, err)
+            log.warning("Failed removing remote folder '%s': %s: %s", job.ssh_remote_folder, err.__class__, err)
         return
 
     @same_docstring_as(LRMS.get_results)
     @LRMS.authenticated
-    def get_results(self, app, download_dir,
-                    overwrite=False, changed_only=True):
+    def get_results(self, app, download_dir, overwrite=False, changed_only=True):
         if app.output_base_url is not None:
             raise gc3libs.exceptions.UnrecoverableDataStagingError(
-                "Retrieval of output files to non-local destinations"
-                " is not supported (yet).")
+                "Retrieval of output files to non-local destinations" " is not supported (yet)."
+            )
 
         job = app.execution
         try:
@@ -788,18 +770,17 @@ class BatchSystem(LRMS):
                     remote_relpath = ''
                     local_relpath = ''
                 stageout += _make_remote_and_local_path_pair(
-                    self.transport, job, remote_relpath, download_dir,
-                    local_relpath)
+                    self.transport, job, remote_relpath, download_dir, local_relpath
+                )
 
             # copy back all files, renaming them to adhere to the
             # ArcLRMS convention
             log.debug("Downloading job output into '%s' ...", download_dir)
             for remote_path, local_path in stageout:
                 # ignore missing files (this is what ARC does too)
-                self.transport.get(remote_path, local_path,
-                                   ignore_nonexisting=True,
-                                   overwrite=overwrite,
-                                   changed_only=changed_only)
+                self.transport.get(
+                    remote_path, local_path, ignore_nonexisting=True, overwrite=overwrite, changed_only=changed_only
+                )
             return
 
         except:
@@ -813,5 +794,5 @@ class BatchSystem(LRMS):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="sge",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="sge", optionflags=doctest.NORMALIZE_WHITESPACE)

@@ -25,6 +25,7 @@ from gc3libs.cmdline import SessionBasedScript
 
 if __name__ == '__main__':
     from ex6d import SimAssetScript
+
     SimAssetScript().run()
 
 
@@ -34,22 +35,29 @@ class SimAssetScript(SessionBasedScript):
     """
 
     def __init__(self):
-      super(SimAssetScript, self).__init__(version='1.0')
+        super(SimAssetScript, self).__init__(version='1.0')
 
     def setup_args(self):
-        self.add_param('S0',    type=float, help="stock price today (e.g., 50)")
-        self.add_param('mu',    type=float, help="expected return (e.g., 0.04)")
+        self.add_param('S0', type=float, help="stock price today (e.g., 50)")
+        self.add_param('mu', type=float, help="expected return (e.g., 0.04)")
         self.add_param('sigma', type=float, help="volatility (e.g., 0.1)")
-        self.add_param('dt',    type=float, help="size of time steps (e.g., 0.273)")
-        self.add_param('etime', type=int,   help="days to expiry (e.g., 1000)")
-        self.add_param('nsims', type=int,   help="number of simulation paths per task")
-        self.add_param('P',     type=int,   help="number of task to run")
+        self.add_param('dt', type=float, help="size of time steps (e.g., 0.273)")
+        self.add_param('etime', type=int, help="days to expiry (e.g., 1000)")
+        self.add_param('nsims', type=int, help="number of simulation paths per task")
+        self.add_param('P', type=int, help="number of task to run")
 
     def new_tasks(self, extra):
         apps_to_run = []
         for seqnr in range(self.params.P):
-            app = SimAssetApp(self.params.S0, self.params.mu, self.params.sigma,
-                              self.params.dt, self.params.etime, self.params.nsims, seqnr)
+            app = SimAssetApp(
+                self.params.S0,
+                self.params.mu,
+                self.params.sigma,
+                self.params.dt,
+                self.params.etime,
+                self.params.nsims,
+                seqnr,
+            )
             apps_to_run.append(app)
         return apps_to_run
 
@@ -85,5 +93,5 @@ class SimAssetApp(Application):
             outputs=['results.csv'],
             output_dir=('simAsset-%d.d' % seqnr),
             stdout="simAsset.log",
-            stderr="simAsset.log"
+            stderr="simAsset.log",
         )

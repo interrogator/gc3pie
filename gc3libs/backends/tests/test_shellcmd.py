@@ -20,8 +20,10 @@ Unit tests for the `gc3libs.backends.shellcmd` module.
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from future import standard_library
+
 standard_library.install_aliases()
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 
@@ -38,11 +40,7 @@ from gc3libs.backends.shellcmd import ShellcmdLrms
 import gc3libs.config
 import gc3libs.core
 from gc3libs.quantity import Duration, Memory, s, kB
-from gc3libs.testing.helpers import (
-    SuccessfulApp,
-    temporary_core,
-    temporary_directory,
-)
+from gc3libs.testing.helpers import SuccessfulApp, temporary_core, temporary_directory
 
 
 class TestBackendShellcmd(object):
@@ -111,12 +109,10 @@ type=none
         but timeout and raise an error if it takes too much time.
         """
         waited = 0
-        while (app.execution.state != gc3libs.Run.State.TERMINATING
-                and waited < max_wait):
+        while app.execution.state != gc3libs.Run.State.TERMINATING and waited < max_wait:
             time.sleep(polling_interval)
             waited += polling_interval
             self.core.update_job_state(app)
-
 
     def test_submission_ok(self):
         """Test a successful submission cycle and the backends' resource book-keeping"""
@@ -129,7 +125,8 @@ type=none
             output_dir=tmpdir,
             stdout="stdout.txt",
             stderr="stderr.txt",
-            requested_cores=1, )
+            requested_cores=1,
+        )
         self.core.submit(app)
         self.apps_to_kill.append(app)
 
@@ -177,7 +174,8 @@ type=none
             output_dir=tmpdir,
             stdout="stdout.txt",
             stderr="stderr.txt",
-            requested_cores=1, )
+            requested_cores=1,
+        )
         self.core.submit(app)
         self.apps_to_kill.append(app)
 
@@ -202,7 +200,8 @@ type=none
             output_dir=tmpdir,
             stdout="stdout.txt",
             stderr="stderr.txt",
-            requested_cores=1, )
+            requested_cores=1,
+        )
         self.core.submit(app)
         self.apps_to_kill.append(app)
         self.cleanup_file(app.execution.lrms_execdir)
@@ -222,7 +221,8 @@ type=none
             outputs=[],
             output_dir=tmpdir,
             requested_cores=2,
-            requested_memory=10 * Memory.MB, )
+            requested_memory=10 * Memory.MB,
+        )
         cores_before = self.backend.free_slots
         mem_before = self.backend.available_memory
         self.core.submit(app)
@@ -247,7 +247,8 @@ type=none
             outputs=[],
             output_dir=tmpdir,
             stdout='stdout.txt',
-            environment={'MSG':'OK'})
+            environment={'MSG': 'OK'},
+        )
         self.core.submit(app)
         self.apps_to_kill.append(app)
 
@@ -266,11 +267,8 @@ type=none
         self.cleanup_file(tmpdir)
 
         app = gc3libs.Application(
-            arguments=['/bin/echo', 'OK'],
-            inputs=[],
-            outputs=[],
-            output_dir=tmpdir,
-            stdout='logs/stdout.txt')
+            arguments=['/bin/echo', 'OK'], inputs=[], outputs=[], output_dir=tmpdir, stdout='logs/stdout.txt'
+        )
         self.core.submit(app)
         self.apps_to_kill.append(app)
 
@@ -296,7 +294,8 @@ type=none
             outputs=[],
             output_dir=tmpdir,
             requested_cores=self.backend.free_slots + 1,
-            requested_memory=10 * Memory.MiB, )
+            requested_memory=10 * Memory.MiB,
+        )
         with pytest.raises(gc3libs.exceptions.NoResources):
             self.core.submit(bigapp)
 
@@ -310,7 +309,8 @@ type=none
             outputs=[],
             output_dir=tmpdir,
             requested_cores=1,
-            requested_memory=self.backend.total_memory + Memory.B, )
+            requested_memory=self.backend.total_memory + Memory.B,
+        )
         with pytest.raises(gc3libs.exceptions.NoResources):
             self.core.submit(bigapp)
 
@@ -348,7 +348,6 @@ type=none
 
     def cleanup_file(self, fname):
         self.files_to_remove.append(fname)
-
 
     def test_override_cfg_flag(self):
         (fd, cfgfile) = tempfile.mkstemp()
@@ -409,21 +408,19 @@ type=none
             outputs=[],
             output_dir=tmpdir,
             requested_cores=1,
-            requested_memory=10 * Memory.MiB, )
+            requested_memory=10 * Memory.MiB,
+        )
 
         try:
             core1.submit(app)
-            assert (backend1.free_slots ==
-                         backend1.max_cores - app.requested_cores)
+            assert backend1.free_slots == backend1.max_cores - app.requested_cores
 
             assert backend2.free_slots == backend2.max_cores
             backend2.get_resource_status()
-            assert (backend2.free_slots ==
-                         backend2.max_cores - app.requested_cores)
+            assert backend2.free_slots == backend2.max_cores - app.requested_cores
         finally:
             core1.kill(app)
             core1.free(app)
-
 
     def test_pid_list_is_string(self):
         tmpdir = tempfile.mkdtemp(prefix=__name__, suffix='.d')
@@ -441,20 +438,22 @@ type=none
         # Update resource status
 
         app = gc3libs.Application(
-        arguments=['/bin/echo', 'Hello', 'World'],
+            arguments=['/bin/echo', 'Hello', 'World'],
             inputs=[],
             outputs=[],
             output_dir=tmpdir,
             requested_cores=1,
-            requested_memory=10 * Memory.MiB, )
+            requested_memory=10 * Memory.MiB,
+        )
 
         try:
             self.core.submit(app)
             for pid in list(self.backend._job_infos.keys()):
-                assert isinstance(pid,str)
+                assert isinstance(pid, str)
         finally:
             self.core.kill(app)
             self.core.free(app)
+
 
 def test_shellcmd_backend_create_spooldir():
     with temporary_directory() as tmpdir:
@@ -467,7 +466,8 @@ def test_shellcmd_backend_create_spooldir():
 
 
 def test_shellcmd_backend_parse_wrapper_output_successful():
-    resource_usage = StringIO("""
+    resource_usage = StringIO(
+        """
 WallTime=2.10s
 KernelTime=0.61s
 UserTime=0.67s
@@ -490,17 +490,18 @@ SocketReceived=0
 SocketSent=0
 Signals=0
 ReturnCode=0
-    """)
+    """
+    )
     with temporary_core(type='shellcmd') as core:
         assert 'test' in core.resources
         backend = core.get_backend('test')
         termstatus, acctinfo, valid = backend._parse_wrapper_output(resource_usage)
         assert valid
-        assert acctinfo.duration == 2.10*s
-        assert acctinfo.shellcmd_kernel_time == 0.61*s
-        assert acctinfo.shellcmd_user_time == 0.67*s
-        assert acctinfo.max_used_memory == 61604*kB
-        assert acctinfo.shellcmd_average_total_memory == 0*kB
+        assert acctinfo.duration == 2.10 * s
+        assert acctinfo.shellcmd_kernel_time == 0.61 * s
+        assert acctinfo.shellcmd_user_time == 0.67 * s
+        assert acctinfo.max_used_memory == 61604 * kB
+        assert acctinfo.shellcmd_average_total_memory == 0 * kB
         assert acctinfo.shellcmd_filesystem_inputs == 0
         assert acctinfo.shellcmd_filesystem_outputs == 400
         assert acctinfo.shellcmd_swapped == 0
@@ -508,7 +509,8 @@ ReturnCode=0
 
 
 def test_shellcmd_backend_parse_wrapper_output_signalled():
-    resource_usage = StringIO("""Command terminated by signal 15
+    resource_usage = StringIO(
+        """Command terminated by signal 15
 WallTime=6.44s
 KernelTime=0.00s
 UserTime=0.00s
@@ -531,17 +533,18 @@ SocketReceived=0
 SocketSent=0
 Signals=0
 ReturnCode=0
-    """)
+    """
+    )
     with temporary_core(type='shellcmd') as core:
         assert 'test' in core.resources
         backend = core.get_backend('test')
         termstatus, acctinfo, valid = backend._parse_wrapper_output(resource_usage)
         assert valid
-        assert acctinfo.duration == 6.44*s
-        assert acctinfo.shellcmd_kernel_time == 0.*s
-        assert acctinfo.shellcmd_user_time == 0.*s
-        assert acctinfo.max_used_memory == 2004*kB
-        assert acctinfo.shellcmd_average_total_memory == 0*kB
+        assert acctinfo.duration == 6.44 * s
+        assert acctinfo.shellcmd_kernel_time == 0.0 * s
+        assert acctinfo.shellcmd_user_time == 0.0 * s
+        assert acctinfo.max_used_memory == 2004 * kB
+        assert acctinfo.shellcmd_average_total_memory == 0 * kB
         assert acctinfo.shellcmd_filesystem_inputs == 0
         assert acctinfo.shellcmd_filesystem_outputs == 0
         assert acctinfo.shellcmd_swapped == 0

@@ -21,6 +21,7 @@ from gc3libs.quantity import GB
 
 if __name__ == '__main__':
     from ex6b import GrayscaleScript
+
     GrayscaleScript().run()
 
 
@@ -28,8 +29,10 @@ class GrayscaleScript(SessionBasedScript):
     """
     Convert images to grayscale.
     """
+
     def __init__(self):
         super(GrayscaleScript, self).__init__(version='1.0')
+
     def new_tasks(self, extra):
         # since `self.params.args` is already a list of file names,
         # just iterate over it to build the list of apps to run...
@@ -42,20 +45,22 @@ class GrayscaleScript(SessionBasedScript):
 
 class GrayscaleApp(Application):
     """Convert a single image file to grayscale."""
+
     def __init__(self, img):
         inp = basename(img)
         out = "gray-" + inp
         Application.__init__(
             self,
-            arguments=[
-                "convert", inp, "-colorspace", "gray", out],
+            arguments=["convert", inp, "-colorspace", "gray", out],
             inputs=[img],
             outputs=[out],
             output_dir=("gray-" + inp + ".d"),
             stdout="stdout.txt",
             stderr="stderr.txt",
             # this is needed to circumvent GC3Pie issue #559
-            requested_memory=1*GB)
+            requested_memory=1 * GB,
+        )
+
     def terminated(self):
         if self.execution.signal != 0:
             log.info("Task %s killed by signal %d", self, self.execution.signal)

@@ -20,6 +20,7 @@ Unit tests for the `gc3libs.backends.noop` module.
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import object
+
 __docformat__ = 'reStructuredText'
 
 
@@ -82,7 +83,6 @@ enabled=True
     def cleanup_file(self, fname):
         self.files_to_remove.append(fname)
 
-
     def test_submission_ok(self):
         """
         Test a successful submission cycle and the backends' resource
@@ -91,11 +91,8 @@ enabled=True
         tmpdir = tempfile.mkdtemp(prefix=__name__, suffix='.d')
 
         app = gc3libs.Application(
-            arguments=['/usr/bin/env'],
-            inputs=[],
-            outputs=[],
-            output_dir=tmpdir,
-            requested_cores=1, )
+            arguments=['/usr/bin/env'], inputs=[], outputs=[], output_dir=tmpdir, requested_cores=1
+        )
         self.core.submit(app)
 
         self.cleanup_file(tmpdir)
@@ -103,33 +100,33 @@ enabled=True
         # app must be in SUBMITTED state here
         assert app.execution.state == gc3libs.Run.State.SUBMITTED
         assert self.backend.free_slots == 122
-        assert self.backend.queued ==       1
-        assert self.backend.user_queued ==  1
-        assert self.backend.user_run ==     0
+        assert self.backend.queued == 1
+        assert self.backend.user_queued == 1
+        assert self.backend.user_run == 0
 
         # transition to RUNNING
         self.core.update_job_state(app)
         assert app.execution.state == gc3libs.Run.State.RUNNING
         assert self.backend.free_slots == 122
-        assert self.backend.queued ==       0
-        assert self.backend.user_queued ==  0
-        assert self.backend.user_run ==     1
+        assert self.backend.queued == 0
+        assert self.backend.user_queued == 0
+        assert self.backend.user_run == 1
 
         # transition to TERMINATING
         self.core.update_job_state(app)
         assert app.execution.state == gc3libs.Run.State.TERMINATING
         assert self.backend.free_slots == 123
-        assert self.backend.queued ==       0
-        assert self.backend.user_queued ==  0
-        assert self.backend.user_run ==     0
+        assert self.backend.queued == 0
+        assert self.backend.user_queued == 0
+        assert self.backend.user_run == 0
 
         # transition to TERMINATED
         self.core.fetch_output(app)
         assert app.execution.state == gc3libs.Run.State.TERMINATED
         assert self.backend.free_slots == 123
-        assert self.backend.queued ==       0
-        assert self.backend.user_queued ==  0
-        assert self.backend.user_run ==     0
+        assert self.backend.queued == 0
+        assert self.backend.user_queued == 0
+        assert self.backend.user_run == 0
 
     def test_resource_usage(self):
         """Test slots/memory book-keeping on the backend."""
@@ -142,7 +139,8 @@ enabled=True
             outputs=[],
             output_dir=tmpdir,
             requested_cores=2,
-            requested_memory=10 * Memory.MB, )
+            requested_memory=10 * Memory.MB,
+        )
         cores_before = self.backend.free_slots
         mem_before = self.backend.available_memory
 
@@ -162,7 +160,7 @@ enabled=True
         # app in state TERMINATED, resources are released
         self.core.update_job_state(app)
         assert app.execution.state == gc3libs.Run.State.TERMINATING
-        assert self.backend.free_slots ==       cores_before
+        assert self.backend.free_slots == cores_before
         assert self.backend.available_memory == mem_before
 
     def test_slots_usage(self):
@@ -171,11 +169,8 @@ enabled=True
         self.cleanup_file(tmpdir)
 
         app = gc3libs.Application(
-            arguments=['/bin/echo', 'Hello', 'World'],
-            inputs=[],
-            outputs=[],
-            output_dir=tmpdir,
-            requested_cores=2)
+            arguments=['/bin/echo', 'Hello', 'World'], inputs=[], outputs=[], output_dir=tmpdir, requested_cores=2
+        )
         cores_before = self.backend.free_slots
         mem_before = self.backend.available_memory
 
@@ -195,7 +190,7 @@ enabled=True
         # app in state TERMINATED, resources are released
         self.core.update_job_state(app)
         assert app.execution.state == gc3libs.Run.State.TERMINATING
-        assert self.backend.free_slots ==       cores_before
+        assert self.backend.free_slots == cores_before
         assert self.backend.available_memory == mem_before
 
     def test_not_enough_cores_usage(self):
@@ -207,7 +202,8 @@ enabled=True
             outputs=[],
             output_dir=tmpdir,
             requested_cores=self.backend.free_slots + 1,
-            requested_memory=10 * Memory.MiB, )
+            requested_memory=10 * Memory.MiB,
+        )
         with pytest.raises(gc3libs.exceptions.NoResources):
             self.core.submit(bigapp)
 
@@ -220,11 +216,13 @@ enabled=True
             outputs=[],
             output_dir=tmpdir,
             requested_cores=1,
-            requested_memory=self.backend.available_memory + Memory.B, )
+            requested_memory=self.backend.available_memory + Memory.B,
+        )
         with pytest.raises(gc3libs.exceptions.NoResources):
             self.core.submit(bigapp)
 
 
 if __name__ == "__main__":
     import pytest
+
     pytest.main(["-v", __file__])

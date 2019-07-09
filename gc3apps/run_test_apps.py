@@ -63,16 +63,17 @@ add a mapping `directory` => `(Test1, Test2, Test3)`
 __docformat__ = 'reStructuredText'
 
 from __future__ import absolute_import, print_function
+
 import os
 import re
 
 import gc3libs
 from gc3libs import Application, Task
-from gc3libs.utils import read_contents
-from gc3libs.cmdline import SessionBasedScript
-from gc3libs.workflow import ParallelTaskCollection, TaskCollection
 from gc3libs.backends.shellcmd import ShellcmdLrms
 from gc3libs.backends.transport import LocalTransport
+from gc3libs.cmdline import SessionBasedScript
+from gc3libs.utils import read_contents
+from gc3libs.workflow import ParallelTaskCollection, TaskCollection
 
 
 class TestRunner(object):

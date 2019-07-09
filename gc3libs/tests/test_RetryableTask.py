@@ -18,6 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
+
 __docformat__ = 'reStructuredText'
 
 
@@ -28,13 +29,8 @@ from gc3libs.workflow import RetryableTask
 
 
 class MyApplication(Application):
-
     def __init__(self):
-        Application.__init__(self,
-                             arguments=[''],
-                             inputs=[],
-                             outputs=[],
-                             output_dir=None)
+        Application.__init__(self, arguments=[''], inputs=[], outputs=[], output_dir=None)
         self.execution.state = 'TERMINATED'
         self.execution.returncode = 0
         self.changed = False
@@ -60,4 +56,5 @@ def test_persisted_change():
 if "__main__" == __name__:
     # pylint: disable=ungrouped-imports
     import pytest
+
     pytest.main(["-v", __file__])

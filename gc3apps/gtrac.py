@@ -35,6 +35,23 @@ Options:
 
 from __future__ import absolute_import, print_function
 
+import os
+import re
+import shutil
+import sys
+import tempfile
+import time
+
+from pkg_resources import Requirement, resource_filename
+
+import gc3libs
+import gc3libs.exceptions
+import gc3libs.utils
+from gc3libs import Application, Run, Task
+from gc3libs.cmdline import SessionBasedScript, executable_file
+from gc3libs.quantity import GB, MB, Duration, Memory, MiB, hours, kB, minutes, seconds
+from gc3libs.workflow import RetryableTask
+
 # summary of user-visible changes
 __changelog__ = """
   2015-02-17:
@@ -48,38 +65,25 @@ __docformat__ = 'reStructuredText'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gtrac
+
     gtrac.GtracScript().run()
 
-import os
-import sys
-import time
-import tempfile
-import re
 
-import shutil
 # import csv
 
-from pkg_resources import Requirement, resource_filename
-
-import gc3libs
-import gc3libs.exceptions
-from gc3libs import Application, Run, Task
-from gc3libs.cmdline import SessionBasedScript, executable_file
-import gc3libs.utils
-from gc3libs.quantity import Memory, kB, MB, MiB, GB, Duration, hours, minutes, seconds
-from gc3libs.workflow import RetryableTask
 
 DEFAULT_CORES = 1
-DEFAULT_MEMORY = Memory(3000,MB)
+DEFAULT_MEMORY = Memory(3000, MB)
 
-DEFAULT_REMOTE_INPUT_FOLDER="./"
-DEFAULT_REMOTE_OUTPUT_FOLDER="./output"
+DEFAULT_REMOTE_INPUT_FOLDER = "./"
+DEFAULT_REMOTE_OUTPUT_FOLDER = "./output"
 DMRIC_PATTERN = "dmrirc"
 
 ## custom application class
 class GtracApplication(Application):
     """
     """
+
     application_name = 'gtraci'
 
     def __init__(self, subject, subject_folder, dmrirc, **extra_args):
@@ -95,12 +99,14 @@ class GtracApplication(Application):
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = [DEFAULT_REMOTE_OUTPUT_FOLDER],
-            stdout = 'gtrac.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=[DEFAULT_REMOTE_OUTPUT_FOLDER],
+            stdout='gtrac.log',
             join=True,
-            **extra_args)
+            **extra_args
+        )
+
 
 class GtracScript(SessionBasedScript):
     """
@@ -119,25 +125,28 @@ class GtracScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GtracApplication,
+            version=__version__,  # module version == script version
+            application=GtracApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GtracApplication,
-            )
+            stats_only_for=GtracApplication,
+        )
 
     def setup_args(self):
 
-        self.add_param('input_data', type=str,
-                       help="Root localtion of input data. "
-                       "Note: expected folder structure: "
-                       " 1 subfodler for each subject. "
-                       " In each subject folder, "
-                       " 1 subfolder for each TimePoint. "
-                       " Each TimePoint folder should contain 2 input "
-                       "NFTI files.")
+        self.add_param(
+            'input_data',
+            type=str,
+            help="Root localtion of input data. "
+            "Note: expected folder structure: "
+            " 1 subfodler for each subject. "
+            " In each subject folder, "
+            " 1 subfolder for each TimePoint. "
+            " Each TimePoint folder should contain 2 input "
+            "NFTI files.",
+        )
 
     def new_tasks(self, extra):
         """
@@ -145,27 +154,23 @@ class GtracScript(SessionBasedScript):
         """
         tasks = []
 
-        for (subject_folder,subject_name, dmric) in self.get_input_subject_folder(self.params.input_data):
+        for (subject_folder, subject_name, dmric) in self.get_input_subject_folder(self.params.input_data):
 
             # extract root folder name to be used as jobname
             extra_args = extra.copy()
             extra_args['jobname'] = subject_name
 
             extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                        'run_%s' % subject_name)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION',
-                                                                        'run_%s' % subject_name)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE',
-                                                                        'run_%s' % subject_name)
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME',
-                                                                        'run_%s' % subject_name)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', 'run_%s' % subject_name)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION', 'run_%s' % subject_name)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', 'run_%s' % subject_name)
+            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', 'run_%s' % subject_name)
 
-            tasks.append(GtracApplication(
-                subject_name,
-                os.path.join(self.params.input_data,subject_folder),
-                dmric,
-                **extra_args))
+            tasks.append(
+                GtracApplication(
+                    subject_name, os.path.join(self.params.input_data, subject_folder), dmric, **extra_args
+                )
+            )
 
         return tasks
 
@@ -175,9 +180,9 @@ class GtracScript(SessionBasedScript):
         XXX: for the time being just pass
         """
 
-        for r,d,f in os.walk(input_folder):
+        for r, d, f in os.walk(input_folder):
             for infile in f:
                 if infile.startswith(DMRIC_PATTERN):
-                    yield (os.path.abspath(r),r,infile)
+                    yield (os.path.abspath(r), r, infile)
 
         # return os.listdir(input_folder)

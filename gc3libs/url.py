@@ -14,31 +14,41 @@ Utility classes and methods for dealing with URLs.
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
+
+standard_library.install_aliases()
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from __future__ import absolute_import, print_function, unicode_literals
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
 
-
-from collections import namedtuple
 import os
 import urllib.parse
+from builtins import str
+from collections import namedtuple
 
+#
+# You should have received a copy of the GNU Lesser General Public License
+from future import standard_library
 
 __docformat__ = 'reStructuredText'
 
 
-_UrlFields = namedtuple('_UrlFields', [
-    # watch out that this is *exactly* the order used in
-    # `_UrlFields.__new__()` calls below!
-    'scheme', 'netloc', 'path',
-    'hostname', 'port', 'query',
-    'username', 'password', 'fragment'
-])
+_UrlFields = namedtuple(
+    '_UrlFields',
+    [
+        # watch out that this is *exactly* the order used in
+        # `_UrlFields.__new__()` calls below!
+        'scheme',
+        'netloc',
+        'path',
+        'hostname',
+        'port',
+        'query',
+        'username',
+        'password',
+        'fragment',
+    ],
+)
+
 
 class Url(_UrlFields):
 
@@ -154,14 +164,25 @@ class Url(_UrlFields):
 
     See also: http://goo.gl/9WcRvR
     """
+
     __slots__ = ()
 
-    def __new__(cls, urlstring=None, force_abs=True,
-                # force all string constants to be `future`'s `newstr` type,
-                # see comment at lines 178 and ff. for explanation
-                scheme=str('file'), netloc=str(''), path=str(''),
-                hostname=None, port=None, query=str(''),
-                username=None, password=None, fragment=str('')):
+    def __new__(
+        cls,
+        urlstring=None,
+        force_abs=True,
+        # force all string constants to be `future`'s `newstr` type,
+        # see comment at lines 178 and ff. for explanation
+        scheme=str('file'),
+        netloc=str(''),
+        path=str(''),
+        hostname=None,
+        port=None,
+        query=str(''),
+        username=None,
+        password=None,
+        fragment=str(''),
+    ):
         """
         Create a new `Url` object.  See the `Url`:class: documentation
         for invocation syntax.
@@ -169,10 +190,17 @@ class Url(_UrlFields):
         if urlstring is not None:
             if isinstance(urlstring, Url):
                 # copy constructor
-                return _UrlFields.__new__(cls,
-                    urlstring.scheme, urlstring.netloc, urlstring.path,
-                    urlstring.hostname, urlstring.port, urlstring.query,
-                    urlstring.username, urlstring.password, urlstring.fragment
+                return _UrlFields.__new__(
+                    cls,
+                    urlstring.scheme,
+                    urlstring.netloc,
+                    urlstring.path,
+                    urlstring.hostname,
+                    urlstring.port,
+                    urlstring.query,
+                    urlstring.username,
+                    urlstring.password,
+                    urlstring.fragment,
                 )
             else:
                 # XXX: `future` provides a backport of Py3's
@@ -192,21 +220,19 @@ class Url(_UrlFields):
 
                 # parse `urlstring` and use kwd arguments as default values
                 try:
-                    urldata = urllib.parse.urlsplit(
-                        urlstring, scheme=scheme, allow_fragments=True)
+                    urldata = urllib.parse.urlsplit(urlstring, scheme=scheme, allow_fragments=True)
                     # Python 2.6 parses fragments only for http(s),
                     # for any other scheme, the fragment is returned as
                     # part of the path...
                     if '#' in urldata.path:
                         path_, fragment_ = urldata.path.split('#')
                         urldata = urllib.parse.SplitResult(
-                            urldata.scheme, urldata.netloc,
-                            path_, urldata.query, fragment_)
-                    if urldata.scheme == 'file' and not os.path.isabs(
-                            urldata.path) and force_abs:
-                        urldata = urllib.parse.urlsplit(
-                            'file://' + os.path.abspath(urldata.path))
-                    return _UrlFields.__new__(cls,
+                            urldata.scheme, urldata.netloc, path_, urldata.query, fragment_
+                        )
+                    if urldata.scheme == 'file' and not os.path.isabs(urldata.path) and force_abs:
+                        urldata = urllib.parse.urlsplit('file://' + os.path.abspath(urldata.path))
+                    return _UrlFields.__new__(
+                        cls,
                         urldata.scheme or scheme,
                         urldata.netloc or netloc,
                         urldata.path or path,
@@ -219,21 +245,26 @@ class Url(_UrlFields):
                     )
                 except (ValueError, TypeError, AttributeError) as err:
                     raise ValueError(
-                        "Cannot parse string '%s' as a URL: %s: %s"
-                        % (urlstring, err.__class__.__name__, err))
+                        "Cannot parse string '%s' as a URL: %s: %s" % (urlstring, err.__class__.__name__, err)
+                    )
         else:
             # no `urlstring`, use kwd arguments
-            return _UrlFields.__new__(cls,
-                scheme, netloc, path,
-                hostname, port, query,
-                username, password, fragment
-            )
+            return _UrlFields.__new__(cls, scheme, netloc, path, hostname, port, query, username, password, fragment)
 
     def __getnewargs__(self):
         """Support pickling/unpickling `Url` class objects."""
-        return (None, False,  # urlstring, force_abs
-                self.scheme, self.netloc, self.path, self.hostname, self.port,
-                self.query, self.username, self.password)
+        return (
+            None,
+            False,  # urlstring, force_abs
+            self.scheme,
+            self.netloc,
+            self.path,
+            self.hostname,
+            self.port,
+            self.query,
+            self.username,
+            self.password,
+        )
 
     def __repr__(self):
         """
@@ -243,16 +274,18 @@ class Url(_UrlFields):
         return (
             "Url(scheme=%r, netloc=%r, path=%r, hostname=%r,"
             " port=%r, query=%r, username=%r, password=%r, fragment=%r)"
-            %
-            (self.scheme,
-             self.netloc,
-             self.path,
-             self.hostname,
-             self.port,
-             self.query,
-             self.username,
-             self.password,
-             self.fragment))
+            % (
+                self.scheme,
+                self.netloc,
+                self.path,
+                self.hostname,
+                self.port,
+                self.query,
+                self.username,
+                self.password,
+                self.fragment,
+            )
+        )
 
     def __str__(self):
         """
@@ -322,9 +355,11 @@ class Url(_UrlFields):
             # The `tuple.__eq__` call can only be used if both `self`
             # and `other` are `tuple` subclasses; we know that `self`
             # is, but we need to check `other`.
-            return ((isinstance(other, tuple) and tuple.__eq__(self, other))
-                    or str(self) == str(other)
-                    or tuple.__eq__(self, Url(other)))
+            return (
+                (isinstance(other, tuple) and tuple.__eq__(self, other))
+                or str(self) == str(other)
+                or tuple.__eq__(self, Url(other))
+            )
         except ValueError:
             # `other` is not a URL and cannot be made into one
             return False
@@ -368,11 +403,17 @@ class Url(_UrlFields):
         """
         if relpath.startswith('/'):
             relpath = relpath[1:]
-        return Url(scheme=self.scheme, netloc=self.netloc,
-                   path=os.path.join((self.path or '/'), relpath),
-                   hostname=self.hostname, port=self.port,
-                   username=self.username, password=self.password,
-                   query=self.query, fragment=self.fragment)
+        return Url(
+            scheme=self.scheme,
+            netloc=self.netloc,
+            path=os.path.join((self.path or '/'), relpath),
+            hostname=self.hostname,
+            port=self.port,
+            username=self.username,
+            password=self.password,
+            query=self.query,
+            fragment=self.fragment,
+        )
 
 
 class UrlKeyDict(dict):
@@ -464,8 +505,7 @@ class UrlKeyDict(dict):
 
     def __contains__(self, key):
         # this is necessary to have key-lookup work with strings as well
-        return (dict.__contains__(self, key)
-                or key in list(self.keys()))
+        return dict.__contains__(self, key) or key in list(self.keys())
 
     def __getitem__(self, key):
         try:
@@ -569,5 +609,5 @@ class UrlValueDict(dict):
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="url",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="url", optionflags=doctest.NORMALIZE_WHITESPACE)

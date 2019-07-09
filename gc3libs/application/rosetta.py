@@ -20,6 +20,7 @@ Specialized support for computational jobs running programs in the Rosetta suite
 #
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import str
+
 __docformat__ = 'reStructuredText'
 
 
@@ -53,14 +54,22 @@ class RosettaApplication(gc3libs.Application):
 
     application_name = 'rosetta'
 
-    def __init__(self, application, application_release, inputs, outputs=[],
-                 flags_file=None, database=None, arguments=[], **extra_args):
+    def __init__(
+        self,
+        application,
+        application_release,
+        inputs,
+        outputs=[],
+        flags_file=None,
+        database=None,
+        arguments=[],
+        **extra_args
+    ):
 
         # we're submitting Rosetta jobs thorugh the support script
         # "rosetta.sh", so do the specific setup tailored to this
         # script' usage
-        src_rosetta_sh = resource_filename(Requirement.parse("gc3pie"),
-                                           "gc3libs/etc/rosetta.sh")
+        src_rosetta_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/rosetta.sh")
 
         # ensure `application` has no trailing ".something' (e.g., ".linuxgccrelease")
         # because it depends on the execution platform/compiler
@@ -78,23 +87,17 @@ class RosettaApplication(gc3libs.Application):
         # tar archive all of all the output files; therefore, the
         # GC3Libs Application is only told to fetch two files back,
         # and we extract output files back during the postprocessing stage
-        _outputs = [
-            self.__protocol + '.log',
-            self.__protocol + '.tar.gz'
-        ]
+        _outputs = [self.__protocol + '.log', self.__protocol + '.tar.gz']
         if outputs:
             _arguments = ['--tar', ' '.join(['{0}'.format(o) for o in outputs])]
         else:
             _arguments = ['--tar', '*.pdb *.sc *.fasc']
 
-        _inputs = gc3libs.Application._io_spec_to_dict(
-            gc3libs.url.UrlKeyDict,
-            inputs,
-            True)
+        _inputs = gc3libs.Application._io_spec_to_dict(gc3libs.url.UrlKeyDict, inputs, True)
         if flags_file:
             _inputs[flags_file] = self.__protocol + '.flags'
             # the `rosetta.sh` driver will do this automatically:
-            #_arguments.append("@" + os.path.basename(flags_file))
+            # _arguments.append("@" + os.path.basename(flags_file))
 
         if database:
             _inputs[database] = os.path.basename(database)
@@ -117,11 +120,8 @@ class RosettaApplication(gc3libs.Application):
         _inputs[src_rosetta_sh] = rosetta_sh
 
         gc3libs.Application.__init__(
-            self,
-            arguments=[("./%s" % rosetta_sh)] + _arguments,
-            inputs=_inputs,
-            outputs=_outputs,
-            **extra_args)
+            self, arguments=[("./%s" % rosetta_sh)] + _arguments, inputs=_inputs, outputs=_outputs, **extra_args
+        )
 
     def terminated(self):
         """
@@ -129,8 +129,7 @@ class RosettaApplication(gc3libs.Application):
         'rosetta.sh' script.
         """
         output_dir = self.output_dir
-        tar_file_name = os.path.join(output_dir,
-                                     self.__protocol + '.tar.gz')
+        tar_file_name = os.path.join(output_dir, self.__protocol + '.tar.gz')
         if os.path.exists(tar_file_name):
             if tarfile.is_tarfile(tar_file_name):
                 try:
@@ -139,17 +138,16 @@ class RosettaApplication(gc3libs.Application):
                     os.remove(tar_file_name)
                 except tarfile.TarError as ex:
                     gc3libs.log.error(
-                        "Error extracting output from archive '%s': %s: %s" %
-                        (tar_file_name, ex.__class__.__name__, str(ex)))
+                        "Error extracting output from archive '%s': %s: %s"
+                        % (tar_file_name, ex.__class__.__name__, str(ex))
+                    )
             else:
                 gc3libs.log.error(
                     "Could not extract output archive '%s':"
-                    " format not handled by Python 'tarfile' module" %
-                    tar_file_name)
+                    " format not handled by Python 'tarfile' module" % tar_file_name
+                )
         else:
-            gc3libs.log.error(
-                "Could not find output archive '%s' for Rosetta job" %
-                tar_file_name)
+            gc3libs.log.error("Could not find output archive '%s' for Rosetta job" % tar_file_name)
 
 
 class RosettaDockingApplication(RosettaApplication):
@@ -163,9 +161,15 @@ class RosettaDockingApplication(RosettaApplication):
 
     application_name = 'rosetta_docking'
 
-    def __init__(self, pdb_file_path, native_file_path=None,
-                 number_of_decoys_to_create=1, flags_file=None,
-                 application_release='3.1', **extra_args):
+    def __init__(
+        self,
+        pdb_file_path,
+        native_file_path=None,
+        number_of_decoys_to_create=1,
+        flags_file=None,
+        application_release='3.1',
+        **extra_args
+    ):
         pdb_file_name = os.path.basename(pdb_file_path)
         pdb_file_dir = os.path.dirname(pdb_file_path)
         pdb_file_name_sans = os.path.splitext(pdb_file_name)[0]
@@ -175,26 +179,28 @@ class RosettaDockingApplication(RosettaApplication):
             self,
             application='docking_protocol',
             application_release=application_release,
-            inputs=[
-                pdb_file_path,
-                native_file_path,
-            ],
-            outputs=[
-            ],
+            inputs=[pdb_file_path, native_file_path],
+            outputs=[],
             flags_file=flags_file,
             arguments=[
-                "-in:file:s", os.path.basename(pdb_file_path),
-                "-in:file:native", os.path.basename(native_file_path),
-                "-out:file:o", pdb_file_name_sans,
-                "-out:nstruct", number_of_decoys_to_create,
-            ] + extra_args.pop('arguments', []),
+                "-in:file:s",
+                os.path.basename(pdb_file_path),
+                "-in:file:native",
+                os.path.basename(native_file_path),
+                "-out:file:o",
+                pdb_file_name_sans,
+                "-out:nstruct",
+                number_of_decoys_to_create,
+            ]
+            + extra_args.pop('arguments', []),
             output_dir=extra_args.pop('output_dir', pdb_file_dir),
-            **extra_args)
+            **extra_args
+        )
 
 
 # main: run tests
 
 if "__main__" == __name__:
     import doctest
-    doctest.testmod(name="rosetta",
-                    optionflags=doctest.NORMALIZE_WHITESPACE)
+
+    doctest.testmod(name="rosetta", optionflags=doctest.NORMALIZE_WHITESPACE)

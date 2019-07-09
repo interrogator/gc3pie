@@ -49,6 +49,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gsceuafish
+
     gsceuafish.GsceuafishScript().run()
 
 import os
@@ -74,6 +75,7 @@ class GsceuafishApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
+
     application_name = 'sceuafish'
 
     def __init__(self, parameter, **extra_args):
@@ -82,25 +84,24 @@ class GsceuafishApplication(Application):
         outputs = dict()
 
         # execution wrapper needs to be added anyway
-        gsceuafish_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gsceuafish.sh")
+        gsceuafish_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gsceuafish.sh")
         inputs[gsceuafish_wrapper_sh] = os.path.basename(gsceuafish_wrapper_sh)
 
-        _command = "./%s %s " % (os.path.basename(gsceuafish_wrapper_sh),
-                                 ' '.join(str(x) for x in parameter))
+        _command = "./%s %s " % (os.path.basename(gsceuafish_wrapper_sh), ' '.join(str(x) for x in parameter))
 
         if "main_loop_folder" in extra_args:
             inputs[extra_args['main_loop_folder']] = './data/'
 
         Application.__init__(
             self,
-            arguments = _command,
-            inputs = inputs,
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'gsceuafish.log',
+            arguments=_command,
+            inputs=inputs,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout='gsceuafish.log',
             join=True,
-            executables = "./%s" % os.path.basename(gsceuafish_wrapper_sh),
-            **extra_args)
+            executables="./%s" % os.path.basename(gsceuafish_wrapper_sh),
+            **extra_args
+        )
 
 
 class GsceuafishScript(SessionBasedScript):
@@ -125,34 +126,33 @@ class GsceuafishScript(SessionBasedScript):
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__,
-            application = GsceuafishApplication,
-            stats_only_for = GsceuafishApplication,
-            )
+            self, version=__version__, application=GsceuafishApplication, stats_only_for=GsceuafishApplication
+        )
 
     def setup_options(self):
-        self.add_param("-d", "--data", metavar="PATH", type=str,
-                       dest="main_loop", default=None,
-                       help="Location of the Main_Loop.m script and "
-                       "related MAtlab functions. Default: None")
+        self.add_param(
+            "-d",
+            "--data",
+            metavar="PATH",
+            type=str,
+            dest="main_loop",
+            default=None,
+            help="Location of the Main_Loop.m script and " "related MAtlab functions. Default: None",
+        )
 
     def setup_args(self):
 
-        self.add_param('csv_input_file', type=str,
-                       help="Input .csv file")
+        self.add_param('csv_input_file', type=str, help="Input .csv file")
 
     def parse_args(self):
         """
         Check presence of input folder (should contains R scripts).
         path to command_file should also be valid.
         """
-        assert os.path.isfile(self.params.csv_input_file), \
-        "Input CSV file %s not found" % self.params.csv_input_file
+        assert os.path.isfile(self.params.csv_input_file), "Input CSV file %s not found" % self.params.csv_input_file
 
         if self.params.main_loop:
-            assert os.path.isdir(self.params.main_loop), \
-            "Main_Loop.m location %s not found" % self.params.main_loop
+            assert os.path.isdir(self.params.main_loop), "Main_Loop.m location %s not found" % self.params.main_loop
 
     def new_tasks(self, extra):
         """
@@ -178,12 +178,9 @@ class GsceuafishScript(SessionBasedScript):
             if self.params.main_loop:
                 extra_args['main_loop_folder'] = self.params.main_loop
 
-            self.log.debug("Creating Application for parameter : %s" %
-                           (parameter_str))
+            self.log.debug("Creating Application for parameter : %s" % (parameter_str))
 
-            tasks.append(GsceuafishApplication(
-                    parameter,
-                    **extra_args))
+            tasks.append(GsceuafishApplication(parameter, **extra_args))
 
         return tasks
 
@@ -192,6 +189,6 @@ class GsceuafishScript(SessionBasedScript):
         For each line of the input .csv file
         return list of parameters
         """
-        parameters = pandas.read_csv(input_csv,header=None)
-        for i,p in enumerate(parameters.values):
+        parameters = pandas.read_csv(input_csv, header=None)
+        for i, p in enumerate(parameters.values):
             yield p.tolist()

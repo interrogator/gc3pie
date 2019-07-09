@@ -47,6 +47,7 @@ __version__ = '0.1.0'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gfittingaddm
+
     gfittingaddm.GfittingaddmScript().run()
 
 import os
@@ -67,20 +68,21 @@ from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, secon
 from gc3libs.workflow import RetryableTask, StagedTaskCollection, ParallelTaskCollection
 
 DEFAULT_CORES = 1
-DEFAULT_MEMORY = Memory(1500,MB)
-DEFAULT_WALLTIME = Duration(300,hours)
+DEFAULT_MEMORY = Memory(1500, MB)
+DEFAULT_WALLTIME = Duration(300, hours)
 DEFAULT_RESULTS = "Results"
-DEFAULT_SIMULATIONS=100
-DEFAULT_ITERATIONS=150
+DEFAULT_SIMULATIONS = 100
+DEFAULT_ITERATIONS = 150
 
 ## custom application class
 class GfittingaddmApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
+
     application_name = 'gfittingaddm'
 
-    def __init__(self, subject_number,  rscript_folder, main_function, n_simulations, n_iterations, **extra_args):
+    def __init__(self, subject_number, rscript_folder, main_function, n_simulations, n_iterations, **extra_args):
 
         inputs = {}
         outputs = {}
@@ -91,20 +93,21 @@ class GfittingaddmApplication(Application):
 
         outputs[DEFAULT_RESULTS] = DEFAULT_RESULTS
 
-        arguments = "Rscript --vanilla {0}.R {1} {2} {3}".format(main_function,
-                                                                 subject_number,
-                                                                 n_simulations,
-                                                                 n_iterations)
+        arguments = "Rscript --vanilla {0}.R {1} {2} {3}".format(
+            main_function, subject_number, n_simulations, n_iterations
+        )
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gfittingaddm.log',
-            executables = executables,
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout='gfittingaddm.log',
+            executables=executables,
             join=True,
-            **extra_args)
+            **extra_args
+        )
+
 
 class GfittingaddmScript(SessionBasedScript):
     """
@@ -125,49 +128,70 @@ class GfittingaddmScript(SessionBasedScript):
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__,
-            application = GfittingaddmApplication,
-            stats_only_for = GfittingaddmApplication,
-            )
+            self, version=__version__, application=GfittingaddmApplication, stats_only_for=GfittingaddmApplication
+        )
 
     def setup_args(self):
-        self.add_param('number_of_subjects', type=positive_int,
-                       help="Number of subjects to be analysed")
+        self.add_param('number_of_subjects', type=positive_int, help="Number of subjects to be analysed")
 
     def setup_options(self):
-        self.add_param("-M", "--Rscripts", metavar="[PATH]",
-                       type=existing_directory,
-                       dest="Rscripts", default=None,
-                       help="Location of R Main scripts. Default: '%(default)s'.")
+        self.add_param(
+            "-M",
+            "--Rscripts",
+            metavar="[PATH]",
+            type=existing_directory,
+            dest="Rscripts",
+            default=None,
+            help="Location of R Main scripts. Default: '%(default)s'.",
+        )
 
-        self.add_param("-F", "--main_function", metavar="[PATH]",
-                       dest="main_function", default="runme",
-                       help="R script main function to be invoked. Default: '%(default)s'.")
+        self.add_param(
+            "-F",
+            "--main_function",
+            metavar="[PATH]",
+            dest="main_function",
+            default="runme",
+            help="R script main function to be invoked. Default: '%(default)s'.",
+        )
 
-        self.add_param("-R", "--repeat", metavar="[INT]",
-                       type=positive_int,
-                       dest="repeat", default=1,
-                       help="Repeat each subject simulation. Default: '%(default)s'.")
+        self.add_param(
+            "-R",
+            "--repeat",
+            metavar="[INT]",
+            type=positive_int,
+            dest="repeat",
+            default=1,
+            help="Repeat each subject simulation. Default: '%(default)s'.",
+        )
 
-        self.add_param("-S", "--simulations", metavar="[INT]",
-                       type=positive_int,
-                       dest="simulations", default=DEFAULT_SIMULATIONS,
-                       help="Number of simulations for each individual subject." \
-                       " Default: '%(default)s'.")
+        self.add_param(
+            "-S",
+            "--simulations",
+            metavar="[INT]",
+            type=positive_int,
+            dest="simulations",
+            default=DEFAULT_SIMULATIONS,
+            help="Number of simulations for each individual subject." " Default: '%(default)s'.",
+        )
 
-        self.add_param("-I", "--iterations", metavar="[INT]",
-                       type=positive_int,
-                       dest="iterations", default=DEFAULT_ITERATIONS,
-                       help="Number of iterations for each individual simulation." \
-                       " Default: '%(default)s'.")
+        self.add_param(
+            "-I",
+            "--iterations",
+            metavar="[INT]",
+            type=positive_int,
+            dest="iterations",
+            default=DEFAULT_ITERATIONS,
+            help="Number of iterations for each individual simulation." " Default: '%(default)s'.",
+        )
 
-        self.add_param("-F", "--follow",
-                       dest="follow",
-                       action="store_true",
-                       default=False,
-                       help="Periodically fetch job's output folder and copy locally." \
-                       " Default: '%(default)s'.")
+        self.add_param(
+            "-F",
+            "--follow",
+            dest="follow",
+            action="store_true",
+            default=False,
+            help="Periodically fetch job's output folder and copy locally." " Default: '%(default)s'.",
+        )
 
     def before_main_loop(self):
         # XXX: should this be done with `make_controller` instead?
@@ -182,18 +206,21 @@ class GfittingaddmScript(SessionBasedScript):
         """
         tasks = []
 
-        for subject_number in range(1,self.params.number_of_subjects+1):
-            for rep in range(1,self.params.repeat+1):
+        for subject_number in range(1, self.params.number_of_subjects + 1):
+            for rep in range(1, self.params.repeat + 1):
                 extra_args = extra.copy()
-                extra_args['jobname'] = "subject{0}-rep{1}".format(subject_number,
-                                                                   rep)
+                extra_args['jobname'] = "subject{0}-rep{1}".format(subject_number, rep)
                 gc3libs.log.info("Creating task for subject number {0}".format(subject_number))
 
-                tasks.append(GfittingaddmApplication(subject_number,
-                                                     self.params.Rscripts,
-                                                     self.params.main_function,
-                                                     self.params.simulations,
-                                                     self.params.iterations,
-                                                     **extra_args))
+                tasks.append(
+                    GfittingaddmApplication(
+                        subject_number,
+                        self.params.Rscripts,
+                        self.params.main_function,
+                        self.params.simulations,
+                        self.params.iterations,
+                        **extra_args
+                    )
+                )
 
         return tasks

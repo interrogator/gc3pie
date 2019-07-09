@@ -12,12 +12,15 @@ import sys
 # Setuptools 20.10.0 seems to have restored full support for them, including
 # `python_implementation`
 from ez_setup import use_setuptools
+
 use_setuptools(version='21.0.0')
 
 import setuptools
 import setuptools.dist
+
 # avoid setuptools including `.svn` directories into the PyPI package
 from setuptools.command import sdist
+
 try:
     del sdist.finders[:]
 except AttributeError:
@@ -42,6 +45,7 @@ def read_whole_file(path):
 #
 from setuptools.command.test import test as TestCommand
 
+
 class Tox(TestCommand):
     def finalize_options(self):
         TestCommand.finalize_options(self)
@@ -51,6 +55,7 @@ class Tox(TestCommand):
     def run_tests(self):
         # import here, cause outside the eggs aren't loaded
         import tox
+
         errno = tox.cmdline(self.test_args)
         sys.exit(errno)
 
@@ -92,7 +97,8 @@ if python_version == (2, 6):
 else:
     version_dependent_requires = [
         'lockfile',
-        'paramiko', 'pycrypto',
+        'paramiko',
+        'pycrypto',
         # Needed for parsing human-readable dates (gselect uses it).
         'parsedatetime',
         # Needed by `gc3libs.cmdline`
@@ -107,51 +113,52 @@ else:
 setuptools.setup(
     name="gc3pie",
     version="2.5.2",  # see PEP 440
-
     packages=setuptools.find_packages(exclude=['ez_setup']),
     # metadata for upload to PyPI
     description=(
-        "A Python library and simple command-line frontend for"
-        " computational job submission to multiple resources."
+        "A Python library and simple command-line frontend for" " computational job submission to multiple resources."
     ),
     long_description=read_whole_file('README.rst'),
-    author=', '.join([
-        # only long-time core authors are listed here;
-        # please see file `docs/credits.rst`
-        'Sergio Maffioletti',
-        'Antonio Messina',
-        'Riccardo Murri',
-    ]),
+    author=', '.join(
+        [
+            # only long-time core authors are listed here;
+            # please see file `docs/credits.rst`
+            'Sergio Maffioletti',
+            'Antonio Messina',
+            'Riccardo Murri',
+        ]
+    ),
     author_email="gc3pie-dev@googlegroups.com",
     license="LGPL",
-    keywords=str.join(' ', [
-        "batch",
-        "cloud",
-        "cluster",
-        "differential optimization",
-        "ec2",
-        "gridengine",
-        "job management",
-        "large-scale data analysis",
-        "openstack",
-        "pbs",
-        "remote execution",
-        "sge",
-        "slurm",
-        "ssh",
-        "torque",
-        "workflow",
-    ]),
+    keywords=str.join(
+        ' ',
+        [
+            "batch",
+            "cloud",
+            "cluster",
+            "differential optimization",
+            "ec2",
+            "gridengine",
+            "job management",
+            "large-scale data analysis",
+            "openstack",
+            "pbs",
+            "remote execution",
+            "sge",
+            "slurm",
+            "ssh",
+            "torque",
+            "workflow",
+        ],
+    ),
     url="http://gc3pie.readthedocs.io/",  # project home page
-
     # see http://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Environment :: Console",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: GNU Library or"
-        " Lesser General Public License (LGPL)",
+        "License :: OSI Approved :: GNU Library or" " Lesser General Public License (LGPL)",
         "License :: DFSG approved",
         "Operating System :: POSIX :: Linux",
         "Programming Language :: Python",
@@ -162,8 +169,7 @@ setuptools.setup(
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         "Topic :: Scientific/Engineering :: Chemistry",
         "Topic :: System :: Distributed Computing",
-        ],
-
+    ],
     entry_points={
         'console_scripts': [
             # the generic, catch-all script:
@@ -182,36 +188,38 @@ setuptools.setup(
             'gsession = gc3utils.frontend:main',
             'gselect = gc3utils.frontend:main',
             'gcloud = gc3utils.frontend:main',
-            ],
+        ]
     },
-
     # run-time dependencies
-    install_requires=(version_dependent_requires + [
-        'blinker',
-        'coloredlogs',
-        'dictproxyhack',
-        # prettytable -- format tabular text output
-        'prettytable',
-        # pyCLI -- object-oriented command-line app programming
-        'pyCLI',
-        # needed by DependentTaskCollection
-        # (but incompatible with Py 2.6, so we include a patched copy)
-        #toposort==1.0
-        # Py2/Py3 compatibility layer
-        'future',
-        'six',  # only used in `gc3libs/quantity.py`
-    ]),
+    install_requires=(
+        version_dependent_requires
+        + [
+            'blinker',
+            'coloredlogs',
+            'dictproxyhack',
+            # prettytable -- format tabular text output
+            'prettytable',
+            # pyCLI -- object-oriented command-line app programming
+            'pyCLI',
+            # needed by DependentTaskCollection
+            # (but incompatible with Py 2.6, so we include a patched copy)
+            # toposort==1.0
+            # Py2/Py3 compatibility layer
+            'future',
+            'six',  # only used in `gc3libs/quantity.py`
+        ]
+    ),
     extras_require={
         'ec2': [
             # The following Python modules are required by GC3Pie's `ec2`
             # resource backend.
-            'boto',
+            'boto'
         ],
         'daemon': [
             # daemon and inotifyx required for SessionBasedDaemon but
             # inotify functionality is only available on Linux, so
             # this is an optional feature ...
-            'inotify_simple',
+            'inotify_simple'
         ],
         'openstack': [
             'python-keystoneclient',
@@ -223,20 +231,12 @@ setuptools.setup(
         'optimizer': [
             # The following Python modules are required by GC3Pie's
             # `gc3libs.optimizer` module.
-            'numpy',
+            'numpy'
         ],
     },
-
     # Apparently, this list is read from bottom to top...
-    tests_require=[
-        'tox',
-        'pytest-colordots',
-        'pytest-catchlog',
-        'pytest',
-        'mock',
-    ],
+    tests_require=['tox', 'pytest-colordots', 'pytest-catchlog', 'pytest', 'mock'],
     cmdclass={'test': Tox},
-
     # additional non-Python files to be bundled in the package
     package_data={
         'gc3libs': [
@@ -272,17 +272,19 @@ setuptools.setup(
             'etc/run_gtsub_control.sh',
             'etc/smd_projections_wrapper.sh',
             'etc/square.sh',
-        ],
+        ]
     },
     data_files=[
-        ('gc3apps', [
-            'gc3apps/gc3.uzh.ch/gridrun.py',
-            'gc3apps/codeml/gcodeml.py',
-            'gc3apps/gamess/grundb.py',
-            'gc3apps/gamess/ggamess.py',
-            ]),
+        (
+            'gc3apps',
+            [
+                'gc3apps/gc3.uzh.ch/gridrun.py',
+                'gc3apps/codeml/gcodeml.py',
+                'gc3apps/gamess/grundb.py',
+                'gc3apps/gamess/ggamess.py',
+            ],
+        )
     ],
-
     # `zip_safe` can ease deployment, but is only allowed if the package
     # do *not* do any __file__/__path__ magic nor do they access package data
     # files by file name (use `pkg_resources` instead).

@@ -40,6 +40,7 @@ __version__ = '1.0.0'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == '__main__':
     import gmbsim
+
     gmbsim.GmbsimScript().run()
 
 
@@ -63,13 +64,15 @@ from gc3libs.workflow import RetryableTask
 
 ## utilities
 
+
 def repr_as_R(val):
     if isinstance(val, (list, tuple)):
-        return ('c(' + str.join(',', [repr_as_R(v) for v in val]) + ')')
+        return 'c(' + str.join(',', [repr_as_R(v) for v in val]) + ')'
     elif isinstance(val, (str, unicode)):
         return val
     else:
         return repr(val)
+
 
 def grep_not_matching(it, ignore=re.compile(r'^\s*(#.*)?$')):
     """
@@ -87,6 +90,7 @@ def grep_not_matching(it, ignore=re.compile(r'^\s*(#.*)?$')):
 
 ## custom application class
 
+
 class GmbsimApplication(Application):
     """
     Custom class to wrap the execution of the ``sim_run_dclone_design_test``
@@ -95,21 +99,22 @@ class GmbsimApplication(Application):
 
     application_name = 'sim_run_dclone_design_test'
 
-    def __init__(self,
-                 scriptfile,   # path to the R script to run
-                 datafiles,    # additional files to upload
-                 days_of_the_week, # list of up to 7 int
-                 sampling_exp, # list of 3 float
-                 isolation_exp,# list of 4 int
-                 detection_exp,# list of 7 float
-                 nb, # see `R2jags::jags` param `n.burnin`
-                 ni, # see `R2jags::jags` param `n.iter`
-                 nt, # see `R2jags::jags` param `n.thin`
-                 **extra_args):
+    def __init__(
+        self,
+        scriptfile,  # path to the R script to run
+        datafiles,  # additional files to upload
+        days_of_the_week,  # list of up to 7 int
+        sampling_exp,  # list of 3 float
+        isolation_exp,  # list of 4 int
+        detection_exp,  # list of 7 float
+        nb,  # see `R2jags::jags` param `n.burnin`
+        ni,  # see `R2jags::jags` param `n.iter`
+        nt,  # see `R2jags::jags` param `n.thin`
+        **extra_args
+    ):
         # use a wrapper script to drive remote run
-        wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                       "gc3libs/etc/run_R.sh")
-        inputs = { wrapper_sh:os.path.basename(wrapper_sh) }
+        wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/run_R.sh")
+        inputs = {wrapper_sh: os.path.basename(wrapper_sh)}
         # upload R script
         exename = os.path.basename(scriptfile)
         run_name = './' + exename
@@ -126,36 +131,39 @@ class GmbsimApplication(Application):
         self.ni = ni
         self.nt = nt
         # provide defaults for envelope requests
-        extra_args.setdefault('requested_cores',        4)
-        extra_args.setdefault('requested_memory',       1*GB)
+        extra_args.setdefault('requested_cores', 4)
+        extra_args.setdefault('requested_memory', 1 * GB)
         extra_args.setdefault('requested_architecture', Run.Arch.X86_64)
-        extra_args.setdefault('requested_walltime',     12*hours)
+        extra_args.setdefault('requested_walltime', 12 * hours)
         # chain into `Application` superclass ctor
         Application.__init__(
             self,
-            arguments=( #['/bin/echo'] +
-                        ['./' + os.path.basename(wrapper_sh), run_name]
-                        + [ repr_as_R(val) for val in (
-                            days_of_the_week,
-                            sampling_exp,
-                            isolation_exp,
-                            detection_exp,
-                            nb,
-                            ni,
-                            nt,
-                            extra_args['requested_cores'], # nc
-                        )]),
-            inputs = inputs,
-            outputs = [
-                'dclone_design_test_fits.Rdata',
-                self.application_name + '.log',
-            ],
-            stdout = self.application_name + '.log',
+            arguments=(  # ['/bin/echo'] +
+                ['./' + os.path.basename(wrapper_sh), run_name]
+                + [
+                    repr_as_R(val)
+                    for val in (
+                        days_of_the_week,
+                        sampling_exp,
+                        isolation_exp,
+                        detection_exp,
+                        nb,
+                        ni,
+                        nt,
+                        extra_args['requested_cores'],  # nc
+                    )
+                ]
+            ),
+            inputs=inputs,
+            outputs=['dclone_design_test_fits.Rdata', self.application_name + '.log'],
+            stdout=self.application_name + '.log',
             join=True,
-            **extra_args)
+            **extra_args
+        )
 
 
 ## main script class
+
 
 class GmbsimScript(SessionBasedScript):
     """
@@ -177,49 +185,69 @@ newly-created jobs so that this limit is never exceeded.
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            input_filename_pattern = '*.csv',
-            application = GmbsimApplication,
+            version=__version__,  # module version == script version
+            input_filename_pattern='*.csv',
+            application=GmbsimApplication,
             # only display stats for the top-level policy objects
-            #stats_only_for = GmbsimApplication,
-            )
-
+            # stats_only_for = GmbsimApplication,
+        )
 
     def setup_options(self):
-        self.add_param("-b", "-nb", "--burn-in", metavar="NUM",
-                       dest="nb", default=1,
-                       help="Execute NUM iterations for JAGS burn-in.")
-        self.add_param("-i", "-ni", "--iter", metavar="NUM",
-                       dest="ni", default=3,
-                       help="Execute NUM JAGS main iterations.")
-        self.add_param("-t", "-nt", "--thin", "--thinning", metavar="NUM",
-                       dest="nt", default=1,
-                       help="Execute NUM iterations for JAGS thinning.")
+        self.add_param(
+            "-b",
+            "-nb",
+            "--burn-in",
+            metavar="NUM",
+            dest="nb",
+            default=1,
+            help="Execute NUM iterations for JAGS burn-in.",
+        )
+        self.add_param(
+            "-i", "-ni", "--iter", metavar="NUM", dest="ni", default=3, help="Execute NUM JAGS main iterations."
+        )
+        self.add_param(
+            "-t",
+            "-nt",
+            "--thin",
+            "--thinning",
+            metavar="NUM",
+            dest="nt",
+            default=1,
+            help="Execute NUM iterations for JAGS thinning.",
+        )
         # change default for the core/memory/walltime options
-        self.actions['memory_per_core'].default = 1*Memory.GB
+        self.actions['memory_per_core'].default = 1 * Memory.GB
         self.actions['wctime'].default = '2 hours'
         self.actions['ncores'].default = 4
 
-
-
     def setup_args(self):
-        self.add_param('replicates', type=int,
-                       help="Number of replicates to run,"
-                       " for each combination of experiment parameters.")
-        self.add_param('sampling', type=existing_file,
-                       help="File containing sampling experiment definition,"
-                       " one per line.")
-        self.add_param('isolation', type=existing_file,
-                       help="File containing isolation experiment definition,"
-                       " one per line.")
-        self.add_param('detection', type=existing_file,
-                       help="File containing detection experiment definition,"
-                       " one per line.")
-        self.add_param("scriptfile", type=existing_file, default=None,
-                       help="Path to the `sim_run_dclone_design_test` script source.")
-        self.add_param("datafiles", nargs='*', type=existing_file, default=[],
-                       help="Additional data files to upload, e.g., `weird_dates_sdur.R`.")
-
+        self.add_param(
+            'replicates',
+            type=int,
+            help="Number of replicates to run," " for each combination of experiment parameters.",
+        )
+        self.add_param(
+            'sampling', type=existing_file, help="File containing sampling experiment definition," " one per line."
+        )
+        self.add_param(
+            'isolation', type=existing_file, help="File containing isolation experiment definition," " one per line."
+        )
+        self.add_param(
+            'detection', type=existing_file, help="File containing detection experiment definition," " one per line."
+        )
+        self.add_param(
+            "scriptfile",
+            type=existing_file,
+            default=None,
+            help="Path to the `sim_run_dclone_design_test` script source.",
+        )
+        self.add_param(
+            "datafiles",
+            nargs='*',
+            type=existing_file,
+            default=[],
+            help="Additional data files to upload, e.g., `weird_dates_sdur.R`.",
+        )
 
     def make_directory_path(self, pathspec, jobname):
         # XXX: Work around SessionBasedScript.process_args() that
@@ -227,18 +255,15 @@ newly-created jobs so that this limit is never exceeded.
         # This is really ugly, but the whole `output_dir` thing needs to
         # be re-thought from the beginning...
         if pathspec.endswith('/NAME'):
-            return pathspec[:-len('/NAME')]
+            return pathspec[: -len('/NAME')]
         else:
             return pathspec
-
 
     @staticmethod
     def read_param_file(filename):
         with open(filename, 'r') as stream:
             csvdata = csv.reader(grep_not_matching(stream))
-            return [ tuple(item.replace(' ','') for item in row)
-                     for row in csvdata ]
-
+            return [tuple(item.replace(' ', '') for item in row) for row in csvdata]
 
     def new_tasks(self, extra):
         dates_and_sampling_exps = self.read_param_file(self.params.sampling)
@@ -251,20 +276,29 @@ newly-created jobs so that this limit is never exceeded.
             extra_args = extra.copy()
             # identify job uniquely -- replace forward slashes as this
             # will be part of a directory/file name
-            basename = (str
-                        .join('_', [GmbsimApplication.application_name]
-                              + [ (param +'='+ repr_as_R(locals()[param]))
-                                  for param in ('dates', 'sampling',
-                                                'isolation', 'detection') ])
-                        .replace('/', 'over'))
+            basename = str.join(
+                '_',
+                [GmbsimApplication.application_name]
+                + [
+                    (param + '=' + repr_as_R(locals()[param]))
+                    for param in ('dates', 'sampling', 'isolation', 'detection')
+                ],
+            ).replace('/', 'over')
 
             # prepare job(s) to submit
-            already = len([ task for task in self.session
-                            if ((task.dates, task.sampling, task.isolation, task.detection)
-                                == (dates, sampling, isolation, detection)) ])
+            already = len(
+                [
+                    task
+                    for task in self.session
+                    if (
+                        (task.dates, task.sampling, task.isolation, task.detection)
+                        == (dates, sampling, isolation, detection)
+                    )
+                ]
+            )
             base_output_dir = extra_args.pop('output_dir', self.params.output)
             for n in range(already, self.params.replicates):
-                jobname=('%s#%d' % (basename, n+1))
+                jobname = '%s#%d' % (basename, n + 1)
                 yield GmbsimApplication(
                     scriptfile=self.params.scriptfile,
                     datafiles=self.params.datafiles,
@@ -277,4 +311,5 @@ newly-created jobs so that this limit is never exceeded.
                     nt=self.params.nt,
                     jobname=jobname,
                     output_dir=os.path.join(base_output_dir, jobname),
-                    **extra_args)
+                    **extra_args
+                )

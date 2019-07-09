@@ -1,4 +1,4 @@
-    #! /usr/bin/env python
+#! /usr/bin/env python
 #
 
 # Copyright (C) 2011  University of Zurich. All rights reserved.
@@ -31,23 +31,25 @@ import re, os, sys
 import logbook
 from threading import Lock
 
-class wrapLogger():
-    def __init__(self, loggerName = 'myLogger', streamVerb = 'DEBUG', logFile = 'logFile'):
+
+class wrapLogger:
+    def __init__(self, loggerName='myLogger', streamVerb='DEBUG', logFile='logFile'):
         self.loggerName = loggerName
         self.streamVerb = streamVerb
-        self.logFile    = logFile
-        logger = getLogger(loggerName = self.loggerName, streamVerb = self.streamVerb, logFile = self.logFile)
+        self.logFile = logFile
+        logger = getLogger(loggerName=self.loggerName, streamVerb=self.streamVerb, logFile=self.logFile)
         self.wrappedLog = logger
 
     def __getstate__(self):
         state = self.__dict__.copy()
         del state['wrappedLog']
         return state
+
     def __setstate__(self, state):
         self.__dict__ = state
-        logger = getLogger(loggerName = self.loggerName, streamVerb = self.streamVerb, logFile = self.logFile)
+        logger = getLogger(loggerName=self.loggerName, streamVerb=self.streamVerb, logFile=self.logFile)
         self.wrappedLog = logger
-        
+
     def __getattr__(self, attr):
         # see if this object has attr
         # NOTE do not use hasattr, it goes into
@@ -57,39 +59,39 @@ class wrapLogger():
             return getattr(self, attr)
         # proxy to the wrapped object
         return getattr(self.wrappedLog, attr)
-    
+
     def __hasattr__(self, attr):
         if attr in self.__dict__:
             return getattr(self, attr)
         return getattr(self.wrappedLog, attr)
-    
 
 
-def getLogger(loggerName = 'mylogger.log', streamVerb = 'DEBUG', logFile = 'log'):
+def getLogger(loggerName='mylogger.log', streamVerb='DEBUG', logFile='log'):
 
     # Get a logger instance.
-    logger = logbook.Logger(name = loggerName)
-    
+    logger = logbook.Logger(name=loggerName)
+
     # set up logger
-    mySH = logbook.StreamHandler(stream = sys.stdout, level = streamVerb.upper(), format_string = '{record.message}', bubble = True)
+    mySH = logbook.StreamHandler(
+        stream=sys.stdout, level=streamVerb.upper(), format_string='{record.message}', bubble=True
+    )
     mySH.format_string = '{record.message}'
     logger.handlers.append(mySH)
     if logFile:
-        myFH = logbook.FileHandler(filename = logFile, level = 'DEBUG', bubble = True)
-        myFH.format_string = '{record.message}' 
-        logger.handlers.append(myFH)   
-    
+        myFH = logbook.FileHandler(filename=logFile, level='DEBUG', bubble=True)
+        myFH.format_string = '{record.message}'
+        logger.handlers.append(myFH)
+
     try:
         stdErr = list(logbook.handlers.Handler.stack_manager.iter_context_objects())[0]
         stdErr.pop_application()
-    except: 
+    except:
         pass
     return logger
 
 
 def lower(npStrAr):
-    return np.fromiter((x.lower() for x in npStrAr.flat),
-                       npStrAr.dtype, npStrAr.size)
+    return np.fromiter((x.lower() for x in npStrAr.flat), npStrAr.dtype, npStrAr.size)
 
 
 def flatten(lst):
@@ -122,21 +124,21 @@ def str2tuple(strIn, conv=int):
     """
     strIn = strIn.strip()
     if strIn.startswith('('):
-        strIn = strIn[1:-1] # removes the leading and trailing brackets
+        strIn = strIn[1:-1]  # removes the leading and trailing brackets
     items = strIn.split(',')
     return tuple(conv(x) for x in items)
 
 
-class getIndex():
-# Python bug http://stackoverflow.com/questions/1152238/python-iterators-how-to-dynamically-assign-self-next-within-a-new-style-class
-# Cannot use new type class, that is: class getIndex(object) does not allow setting next method on the fly. 
+class getIndex:
+    # Python bug http://stackoverflow.com/questions/1152238/python-iterators-how-to-dynamically-assign-self-next-within-a-new-style-class
+    # Cannot use new type class, that is: class getIndex(object) does not allow setting next method on the fly.
     """
     Iterator that yields loop indices for an arbitrary nested loop.
     Inputs: base - array of elements in each dimension
     Output: loopIndex - array of current loop index
-    """    
+    """
 
-    def __init__(self, base, restr = None, direction = 'rowWise'):
+    def __init__(self, base, restr=None, direction='rowWise'):
         '''
           Direction specifies which direction is incremented. For matrix A = [1 , 2; rowwise means (0,0), (0,1)
           while columnwise means (0,0), (1, 0).                               3 , 4]
@@ -152,16 +154,16 @@ class getIndex():
 
         if isinstance(restr, np.ndarray):
             self.restr = restr[0].lower()
-        elif restr:      
+        elif restr:
             self.restr = restr.lower()
         else:
             self.restr = restr
         diagnolStrings = ['diagnol', 'diag']
         if self.restr in diagnolStrings:
- #           getIndex.next = self.nextDiag
+            #           getIndex.next = self.nextDiag
             self.next = self.nextDiag
         else:
-#            getIndex.next = self.nextStd
+            #            getIndex.next = self.nextStd
             self.next = self.nextStd
 
         if direction.lower() == 'rowwise':
@@ -182,7 +184,8 @@ class getIndex():
 
     def __iter__(self):
         return self
-    #getIndex(self.base, self.restr, self.direction)
+
+    # getIndex(self.base, self.restr, self.direction)
 
     def incrementRowWise(self):
         for ix in xrange(len(self.base) - 1, -1, -1):
@@ -201,7 +204,7 @@ class getIndex():
                 return
 
     def lowerTr(self):
-        for ix in xrange(0, len(self.base) - 1) :
+        for ix in xrange(0, len(self.base) - 1):
             if self.loopIndex[ix] < self.loopIndex[ix + 1]:
                 return False
         return True
@@ -209,7 +212,7 @@ class getIndex():
     def diagnol(self):
         isDiagnolIndex = all([x == self.loopIndex[0] for x in self.loopIndex])
         # Skip if not diagnol
-        return not isDiagnolIndex  
+        return not isDiagnolIndex
 
     def nextStd(self):
         skip = True
@@ -227,8 +230,7 @@ class getIndex():
             elif self.restr == None or self.restr == 'none':
                 skip = False
             else:
-                raise gc3libs.exceptions.InvalidArgument(
-                    "Unknown restriction '%s'" % self.restr)
+                raise gc3libs.exceptions.InvalidArgument("Unknown restriction '%s'" % self.restr)
 
         return self.loopIndex.tolist()
 
@@ -255,7 +257,7 @@ def str2vals(strIn):
             if re.match('\s*linspace', strIn):
                 (linSpacePart, strIn) = re.match('(\s*linspace\(.*?\)\s*)[,\s*]*(.*)', strIn).groups()
                 args = re.match('linspace\(([(0-9\.\s-]+),([0-9\.\s-]+),([0-9\.\s-]+)\)', linSpacePart).groups()
-                args = [ float(arg) for arg in args] # assume we always want float for linspace
+                args = [float(arg) for arg in args]  # assume we always want float for linspace
                 linSpaceVec = np.linspace(args[0], args[1], args[2])
                 out = np.append(out, linSpaceVec)
             elif re.match('\s*[0-9\.]*\s*,', strIn):
@@ -270,35 +272,36 @@ def str2vals(strIn):
     else:
         return str2mat(strIn)
 
+
 def format_newVal(newVal):
     import re
+
     if re.match("^[-]*[0-9]*\.[0-9e-]*$", str(newVal)):
-#    if '.' in str(newVal):
+        #    if '.' in str(newVal):
         newValMat = ('%25.15f' % float(newVal)).strip()
     else:
         try:
             # try to convert to integer, and use decimal repr
             newValMat = str(int(newVal))
-        except ValueError: 
+        except ValueError:
             # then it's a string
             newValMat = newVal
     return newValMat
 
 
-
 @gc3libs.debug.trace
 def update_parameter_in_file(path, varIn, paraIndex, newVal, regexIn):
     _loop_regexps = {
-        'bar-separated':(r'([a-z]+[\s\|]+)'
-                         r'(\w+)' # variable name
-                         r'(\s*[\|]+\s*)' # bars and spaces
-                         r'([\w\s\.,;\[\]\-]+)' # value
-                         r'(\s*)'),
-        'space-separated':(r'(\s*)'
-                           r'(\w+)' # variable name
-                           r'(\s+)' # spaces (filler)
-                           r'([\w\s\.,;\[\]\-]+)' # values
-                           r'(\s*)'), # spaces (filler)
+        'bar-separated': (
+            r'([a-z]+[\s\|]+)'
+            r'(\w+)'  # variable name
+            r'(\s*[\|]+\s*)'  # bars and spaces
+            r'([\w\s\.,;\[\]\-]+)'  # value
+            r'(\s*)'
+        ),
+        'space-separated': (
+            r'(\s*)' r'(\w+)' r'(\s+)' r'([\w\s\.,;\[\]\-]+)' r'(\s*)'  # variable name  # spaces (filler)  # values
+        ),  # spaces (filler)
     }
     isfound = False
     if regexIn in _loop_regexps.keys():
@@ -306,8 +309,9 @@ def update_parameter_in_file(path, varIn, paraIndex, newVal, regexIn):
     paraFileIn = open(path, 'r')
     paraFileOut = open(path + '.tmp', 'w')
     for line in paraFileIn:
-        #print "Read line '%s' " % line
-        if not line.rstrip(): continue
+        # print "Read line '%s' " % line
+        if not line.rstrip():
+            continue
         (a, var, b, oldValMat, c) = re.match(regexIn, line.rstrip()).groups()
         gc3libs.log.debug("Read variable '%s' with value '%s' ...", var, oldValMat)
         if var == varIn:
@@ -368,31 +372,29 @@ def str2mat(strIn):
     """
     if (',' not in strIn) and (';' not in strIn):
         # single value
-        return np.array([ safe_eval(strIn.strip()) ])
-    elif ';' not in strIn: # vector
+        return np.array([safe_eval(strIn.strip())])
+    elif ';' not in strIn:  # vector
         # remove wrapping '[' and ']' (if any)
         try:
             start = strIn.index('[')
             end = strIn.rindex(']')
-            strIn = strIn[start+1:end]
-        except ValueError: # no '[' or ']'
+            strIn = strIn[start + 1 : end]
+        except ValueError:  # no '[' or ']'
             pass
         # a vector is a ','-separated list of values
-        return np.array([ safe_eval(element.strip())
-                          for element in strIn.split(',') ])
-    else: # matrix
-        mat = [ ]
+        return np.array([safe_eval(element.strip()) for element in strIn.split(',')])
+    else:  # matrix
+        mat = []
         # remove wrapping '[' and ']' (if any)
         try:
             start = strIn.index('[')
             end = strIn.rindex(']')
-            strIn = strIn[start+1:end]
-        except ValueError: # no '[' or ']'
+            strIn = strIn[start + 1 : end]
+        except ValueError:  # no '[' or ']'
             pass
         # a matrix is a ';'-separated list of rows;
         # a row is a ','-separated list of values
-        return np.array([ [ safe_eval(val) for val in row.split(',') ]
-                          for row in strIn.split(';') ])
+        return np.array([[safe_eval(val) for val in row.split(',')] for row in strIn.split(';')])
 
 
 def mat2str(matIn, fmt='%.2f '):
@@ -403,27 +405,23 @@ def mat2str(matIn, fmt='%.2f '):
     All enclosed in `[` and `]`.
     """
     # admittedly, this is not that clear...
-    return ('[ ' +
-            str.join(";", [
-                str.join(",",
-                         [(fmt % val) for val in row])
-                for row in matIn ])
-            + ' ]')
+    return '[ ' + str.join(";", [str.join(",", [(fmt % val) for val in row]) for row in matIn]) + ' ]'
 
 
-def getParameter(fileIn, varIn, regexIn = '(\s*)([a-zA-Z0-9]+)(\s+)([a-zA-Z0-9\.\s,;\[\]\-]+)(\s*)'):
+def getParameter(fileIn, varIn, regexIn='(\s*)([a-zA-Z0-9]+)(\s+)([a-zA-Z0-9\.\s,;\[\]\-]+)(\s*)'):
     import re
+
     _loop_regexps = {
-        'bar-separated':(r'([a-z]+[\s\|]+)'
-                         r'(\w+)' # variable name
-                         r'(\s*[\|]+\s*)' # bars and spaces
-                         r'([\w\s\.,;\[\]\-]+)' # value
-                         r'(\s*)'),
-        'space-separated':(r'(\s*)'
-                           r'(\w+)' # variable name
-                           r'(\s+)' # spaces (filler)
-                           r'([\w\s\.,;\[\]\-]+)' # values
-                           r'(\s*)'), # spaces (filler)
+        'bar-separated': (
+            r'([a-z]+[\s\|]+)'
+            r'(\w+)'  # variable name
+            r'(\s*[\|]+\s*)'  # bars and spaces
+            r'([\w\s\.,;\[\]\-]+)'  # value
+            r'(\s*)'
+        ),
+        'space-separated': (
+            r'(\s*)' r'(\w+)' r'(\s+)' r'([\w\s\.,;\[\]\-]+)' r'(\s*)'  # variable name  # spaces (filler)  # values
+        ),  # spaces (filler)
     }
     if regexIn in _loop_regexps.keys():
         regexIn = _loop_regexps[regexIn]
@@ -433,10 +431,11 @@ def getParameter(fileIn, varIn, regexIn = '(\s*)([a-zA-Z0-9]+)(\s+)([a-zA-Z0-9\.
     paraFile.close()
     for ixLine, line in enumerate(lines):
         (a, var, b, paraVal, c) = re.match(regexIn, line.rstrip()).groups()
-    #      print('var=', var)
+        #      print('var=', var)
         if var == varIn:
             return paraVal
     print('variable {} not in parameter file {}'.format(varIn, fileIn))
+
 
 def walklevel(some_dir, level=1):
     '''
@@ -450,12 +449,13 @@ def walklevel(some_dir, level=1):
         num_sep_this = root.count(os.path.sep)
         if num_sep + level <= num_sep_this:
             del dirs[:]
-            
+
+
 def emptyFun():
-    return None 
+    return None
 
 
-if __name__ == '__main__':   
-    x = getIndex([3,3], 'lowerTr')
+if __name__ == '__main__':
+    x = getIndex([3, 3], 'lowerTr')
     for i in x:
         print(i)
