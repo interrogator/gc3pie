@@ -88,7 +88,7 @@ def generate_chunked_files_and_list(file_to_chunk, chunk_size=1000, tmp_folder=o
         if not(os.path.isdir(chunk_files_dir)):
             try:
                 os.mkdir(chunk_files_dir)
-            except OSError, osx:
+            except OSError as osx:
                 gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
                                   "Error %s." % str(osx) +
                                   "Using default '/tmp'")
@@ -112,7 +112,7 @@ def generate_chunked_files_and_list(file_to_chunk, chunk_size=1000, tmp_folder=o
                     chunk.append((fout.name,i))
                 fout.write(line)
             fout.close()
-        except OSError, osx:
+        except OSError as osx:
             gc3libs.log.critical("Failed while creating chunk files." +
                                  "Error %s", (str(osx)))
             failure = True
@@ -124,7 +124,7 @@ def generate_chunked_files_and_list(file_to_chunk, chunk_size=1000, tmp_folder=o
                 for (cfile, index) in chunk:
                     try:
                         os.remove(cfile)
-                    except OSError, osx:
+                    except OSError as osx:
                         gc3libs.log.error("Failed while removing " +
                                           "tmp file %s. " +
                                           "Message %s" % osx.message)

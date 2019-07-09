@@ -121,7 +121,7 @@ exit $RET
             fd.write(execution_script)
             fd.close()
             os.chmod(fd.name,0o777)
-        except Exception, ex:
+        except Exception as ex:
             gc3libs.log.debug("Error creating execution script" +
                               "Error type: %s." % type(ex) +
                               "Message: %s"  %ex.message)
@@ -270,7 +270,7 @@ class GtopologyScript(SessionBasedScript):
         if not(os.path.isdir(chunk_files_dir)):
             try:
                 os.mkdir(chunk_files_dir)
-            except OSError, osx:
+            except OSError as osx:
                 gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
                                   "Error %s." % str(osx) +
                                   "Using default '/tmp'")
@@ -294,7 +294,7 @@ class GtopologyScript(SessionBasedScript):
                     chunk.append((fout.name,i))
                 fout.write(line)
             fout.close()
-        except OSError, osx:
+        except OSError as osx:
             gc3libs.log.critical("Failed while creating chunk files." +
                                  "Error %s", (str(osx)))
             failure = True
@@ -306,7 +306,7 @@ class GtopologyScript(SessionBasedScript):
                 for (cfile, index) in chunk:
                     try:
                         os.remove(cfile)
-                    except OSError, osx:
+                    except OSError as osx:
                         gc3libs.log.error("Failed while removing " +
                                           "tmp file %s. " +
                                           "Message %s" % osx.message)

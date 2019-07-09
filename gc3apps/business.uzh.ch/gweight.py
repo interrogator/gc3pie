@@ -329,13 +329,13 @@ class GWeightScript(SessionBasedScript):
                     try:
                         for line in open(task.output_file):
                             fout.write(line)
-                    except OSError, osx:
+                    except OSError as osx:
                         # Report failure and continue
                         # XXX: Check what would be the correct behaviour
                         gc3libs.log.error("Failed while merging result file %s." % task.output_file)
                         continue
             fout.close()
-        except OSError, osx:
+        except OSError as osx:
             gc3libs.log.critical("Failed while merging result files. " +
                                  "Error %s" % str(osx))
             raise
@@ -360,7 +360,7 @@ class GWeightScript(SessionBasedScript):
         if not(os.path.isdir(chunk_files_dir)):
             try:
                 os.mkdir(chunk_files_dir)
-            except OSError, osx:
+            except OSError as osx:
                 gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
                                   "Error %s." % str(osx) +
                                   "Using default '/tmp'")
@@ -384,7 +384,7 @@ class GWeightScript(SessionBasedScript):
                     chunk.append((fout.name,i))
                 fout.write(line)
             fout.close()
-        except OSError, osx:
+        except OSError as osx:
             gc3libs.log.critical("Failed while creating chunk files." +
                                  "Error %s", (str(osx)))
             failure = True
@@ -396,7 +396,7 @@ class GWeightScript(SessionBasedScript):
                 for (cfile, index) in chunk:
                     try:
                         os.remove(cfile)
-                    except OSError, osx:
+                    except OSError as osx:
                         gc3libs.log.error("Failed while removing " +
                                           "tmp file %s. " +
                                           "Message %s" % osx.message)

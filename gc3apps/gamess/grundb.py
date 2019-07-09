@@ -606,7 +606,7 @@ def progress(session):
             # determine job exit status
             try:
                 termination = grep1(gamess_output, termination_re)
-            except IOError, ex:
+            except IOError as ex:
                 termination = None # skip next `if`
                 job.set_state('FAILED')
                 job.set_info('Could not read GAMESS output file: %s' % str(ex))

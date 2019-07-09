@@ -245,7 +245,7 @@ class GeotopApplication(Application):
                     tar.extractall(path=self.simulation_dir)
                     tar.close()
                     os.remove(full_tarname)
-                except Exception, ex:
+                except Exception as ex:
                     gc3libs.log.error("Error opening output archive '%s': %s: %s",
                                       full_tarname, ex.__class__, ex.message)
                     pass

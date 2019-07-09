@@ -416,7 +416,7 @@ class GeoSphereScript(SessionBasedScript):
                 if(s3_url.startswith("s3://")):
                    yield s3_url
 
-        except Exception, ex:
+        except Exception as ex:
             gc3libs.log.error("Failed while reading remote S3 container. "+
                               "%s", ex.message)
 

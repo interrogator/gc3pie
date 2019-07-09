@@ -280,7 +280,7 @@ def engineProgress(self):
             # try to get output
             try:
                 self._core.fetch_output(task)
-            except gc3libs.exceptions.UnrecoverableDataStagingError, ex:
+            except gc3libs.exceptions.UnrecoverableDataStagingError as ex:
                 gc3libs.log.error("Error in fetching output of task '%s',"
                                   " will mark it as TERMINATED"
                                   " (with error exit code %d): %s: %s",
@@ -871,20 +871,20 @@ class idRiskParaSearchScript(SessionBasedScript, paraLoop):
         import cli
         try:
             return cli.app.CommandLineApp.run(self)
-        except gc3libs.exceptions.InvalidUsage, ex:
+        except gc3libs.exceptions.InvalidUsage as ex:
             # Fatal errors do their own printing, we only add a short usage message
             sys.stderr.write("Type '%s --help' to get usage help.\n" % self.name)
             return 64 # EX_USAGE in /usr/include/sysexits.h
         except KeyboardInterrupt:
             sys.stderr.write("%s: Exiting upon user request (Ctrl+C)\n" % self.name)
             return 13
-        except SystemExit, ex:
+        except SystemExit as ex:
             return ex.code
         # the following exception handlers put their error message
         # into `msg` and the exit code into `rc`; the closing stanza
         # tries to log the message and only outputs it to stderr if
         # this fails
-        except lockfile.Error, ex:
+        except lockfile.Error as ex:
             exc_info = sys.exc_info()
             msg = ("Error manipulating the lock file (%s: %s)."
                    " This likely points to a filesystem error"
@@ -898,7 +898,7 @@ class idRiskParaSearchScript(SessionBasedScript, paraLoop):
             else:
                 msg %= (ex.__class__.__name__, str(ex), self.name, '')
             rc = 1
-        except AssertionError, ex:
+        except AssertionError as ex:
             exc_info = sys.exc_info()
             msg = ("BUG: %s\n"
                    "Please send an email to gc3pie@googlegroups.com"

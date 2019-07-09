@@ -253,7 +253,7 @@ class GepecellScript(SessionBasedScript):
         if not(os.path.isdir(chunk_files_dir)):
             try:
                 os.mkdir(chunk_files_dir)
-            except OSError, osx:
+            except OSError as osx:
                 gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
                                   "Error %s." % str(osx) +
                                   "Using default '/tmp'")

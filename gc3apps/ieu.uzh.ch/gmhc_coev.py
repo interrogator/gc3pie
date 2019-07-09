@@ -417,7 +417,7 @@ newly-created jobs so that this limit is never exceeded.
             if path.endswith('.csv'):
                 try:
                     inputfile = open(path, 'r')
-                except (OSError, IOError), ex:
+                except (OSError, IOError) as ex:
                     self.log.warning("Cannot open input file '%s': %s: %s",
                                      path, ex.__class__.__name__, str(ex))
                 try:
@@ -462,7 +462,7 @@ newly-created jobs so that this limit is never exceeded.
                         choose_or_rand = GMhcCoevScript._parse_choose_or_rand(choose_or_rand_str)
                         sick_or_not = GMhcCoevScript._parse_sick_or_not(sick_or_not_str)
                         off_v_last = GMhcCoevScript._parse_off_v_last(off_v_last_str)
-                    except ValueError, ex:
+                    except ValueError as ex:
                         self.log.warning("Ignoring line '%s' in input file '%s': %s",
                                          str.join(',', row), path, str(ex))
                         continue

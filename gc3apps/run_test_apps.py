@@ -279,7 +279,7 @@ class GRosettaTest(TestRunner, Application):
                         "Last line is: `%s`", outfile, output[-1])
                     self.passed = False
                     return
-            except Exception, ex:
+            except Exception as ex:
                 gc3libs.log.error(
                     "GRosetta: Error while checking exit status of `grosetta`:"
                     " %s", str(ex))

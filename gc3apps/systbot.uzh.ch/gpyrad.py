@@ -330,6 +330,6 @@ newly-created jobs so that this limit is never exceeded.
                 if(s3_url.endswith(".fastq")):
                    yield s3_url
 
-        except Exception, ex:
+        except Exception as ex:
             gc3libs.log.error("Failed while reading remote S3 container. "+
                               "%s", ex.message)

@@ -379,21 +379,21 @@ class ValueFunctionIterationApplication(Application):
                 # if we got to this point, parsing went fine
                 # so we can remove the output directory altogether
                 shutil.rmtree(output_dir, ignore_errors=True)
-            except ValueError, ex:
+            except ValueError as ex:
                 # some line cannot be parsed as a floating-point number
                 msg = ("Invalid content in file '%s' at line %d: %s"
                        % (output_filename, lineno, str(ex)))
                 gc3libs.log.error("%s: %s" % (self.persistent_id, msg))
                 self.info = msg
                 self.exitcode = 65 # EX_DATAERR in /usr/include/sysexits.h
-            except IOError, ex:
+            except IOError as ex:
                 # error opening or reading file
                 msg = ("I/O error processing output file '%s': %s"
                        % (output_filename, str(ex)))
                 gc3libs.log.error("%s: %s" % (self.persistent_id, msg))
                 self.info = msg
                 self.exitcode = 74 # EX_IOERR in /usr/include/sysexits.h
-            except Exception, ex:
+            except Exception as ex:
                 msg = ("Error processing result file '%s': %s"
                        % (output_filename, str(ex)))
                 gc3libs.log.error("%s: %s" % (self.persistent_id, msg))
@@ -509,7 +509,7 @@ class GeorgeScript(SessionBasedScript):
             try:
                 extra_args.setdefault('discount_factor',
                               p.getfloat(name, 'discount_factor'))
-            except (KeyError, ConfigParser.Error, ValueError), ex:
+            except (KeyError, ConfigParser.Error, ValueError) as ex:
                 self.log.error("Could not read required parameter 'discount_factor'"
                                " in input '%s': %s"
                                % (name, str(ex)))

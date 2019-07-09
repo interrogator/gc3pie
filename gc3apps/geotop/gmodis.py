@@ -289,7 +289,7 @@ newly-created jobs so that this limit is never exceeded.
                         os.path.join(os.path.abspath(self.params.input_dir),input_file),
                         **extra_args))
 
-            except Exception, ex:
+            except Exception as ex:
                 self.log.error("Unexpected error. Error type: %s, Message: %s" % (type(ex),str(ex)))
 
         return tasks

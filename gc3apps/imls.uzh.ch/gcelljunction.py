@@ -266,7 +266,7 @@ newly-created jobs so that this limit is never exceeded.
             if path.endswith('.csv'):
                 try:
                     inputfile = open(path, 'r')
-                except (OSError, IOError), ex:
+                except (OSError, IOError) as ex:
                     self.log.warning("Cannot open input file '%s': %s: %s",
                                      path, ex.__class__.__name__, str(ex))
                     continue

@@ -265,7 +265,7 @@ class GnlpScript(SessionBasedScript):
                                 fd.write(line)
 
                 fd.write(XML_FOOTER)
-        except OSError, osx:
+        except OSError as osx:
             gc3libs.log.error("Failed while merging results. Error %s", str(osx))
 
     def _generate_chunked_files_and_list(self, file_to_chunk, chunk_size=1000):
@@ -288,7 +288,7 @@ class GnlpScript(SessionBasedScript):
         if not(os.path.isdir(chunk_files_dir)):
             try:
                 os.mkdir(chunk_files_dir)
-            except OSError, osx:
+            except OSError as osx:
                 gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
                                   "Error %s." % str(osx) +
                                   "Using default '/tmp'")
@@ -322,7 +322,7 @@ class GnlpScript(SessionBasedScript):
             fout.close()
             chunk.append((fout.name, index))
 
-        except OSError, osx:
+        except OSError as osx:
             gc3libs.log.critical("Failed while creating chunk files." +
                                  "Error %s", (str(osx)))
             failure = True
@@ -334,7 +334,7 @@ class GnlpScript(SessionBasedScript):
                 for (cfile, index) in chunk:
                     try:
                         os.remove(cfile)
-                    except OSError, osx:
+                    except OSError as osx:
                         gc3libs.log.error("Failed while removing " +
                                           "tmp file %s. " +
                                           "Message %s" % osx.message)

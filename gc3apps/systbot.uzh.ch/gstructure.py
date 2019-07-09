@@ -236,7 +236,7 @@ newly-created jobs so that this limit is never exceeded.
             if self.params.control_file.endswith('.csv'):
                 try:
                     inputfile = open(self.params.control_file, 'r')
-                except (OSError, IOError), ex:
+                except (OSError, IOError) as ex:
                     self.log.warning("Cannot open input file '%s': %s: %s",
                                      path, ex.__class__.__name__, str(ex))
                 for row in csv.reader(inputfile):

@@ -557,7 +557,7 @@ class GeoSphereScript(SessionBasedScript):
                 gc3libs.log.error("Failed accessing S3 folder. "
                                   "Exitcode %s, error %s" % (exitcode,err))
                 yield None
-        except Exception, ex:
+        except Exception as ex:
             gc3libs.log.error("Failed while reading remote S3 folder: "+
                               "%s", str(ex))
             yield None

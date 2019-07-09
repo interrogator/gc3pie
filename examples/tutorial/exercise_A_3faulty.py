@@ -116,7 +116,7 @@ while True:
                 core.update_job_state(app)
                 sys.stdout.write("[ %s ]\r" % app.execution.state)
                 sys.stdout.flush()
-            except Exception, ex:
+            except Exception as ex:
                 sys.stdout.write("Error getting status of an application: %s" % ex)
     if not unfinished:
         break

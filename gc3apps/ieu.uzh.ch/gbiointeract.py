@@ -136,7 +136,7 @@ gzip data/*.txt
             (fd, self.tmp_filename) = tempfile.mkstemp(prefix='gc3pie-gbiointeract_')
             write_contents(self.tmp_filename, executable_script)
             os.chmod(self.tmp_filename, 0o755)
-        except Exception, ex:
+        except Exception as ex:
             gc3libs.log.debug("Error creating execution script."
                               "Error type: %s. Message: %s" % (type(ex), ex.message))
             raise
@@ -170,7 +170,7 @@ gzip data/*.txt
         """
         try:
             os.remove(self.tmp_filename)
-        except Exception, ex:
+        except Exception as ex:
             gc3libs.log.error("Failed removing temporary file %s. " % self.tmp_filename +
                           "Error type %s. Message %s" % (type(ex), str(ex)))
 

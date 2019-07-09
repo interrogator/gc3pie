@@ -158,7 +158,7 @@ exit $RET
             fd.write(execution_script)
             fd.close()
             os.chmod(fd.name,0o777)
-        except Exception, ex:
+        except Exception as ex:
             gc3libs.log.debug("Error creating execution script" +
                               "Error type: %s." % type(ex) +
                               "Message: %s"  %ex.message)
@@ -191,7 +191,7 @@ exit $RET
         # Cleanup tmp file
         try:
             os.remove(self.tmp_filename)
-        except Exception, ex:
+        except Exception as ex:
             gc3libs.log.error("Failed removing temporary file %s. " % self.tmp_filename +
                               "Error type %s. Message %s" % (type(ex), str(ex)))
 
@@ -212,7 +212,7 @@ exit $RET
             try:
                 shutil.move(self.local_output_file,
                             self.local_result_output_file)
-            except Exception, ex:
+            except Exception as ex:
                 gc3libs.log.error("Failed while transferring output file " +
                                   "%s " % self.local_output_file +
                                   "to result folder %s. " % self.result_dir +
@@ -241,7 +241,7 @@ def _parse_command(command):
             # mast.h=0.5 sd.mast.o=0"
             # return { k:v for k,v in [ v.split('=') for v in args ] }
             return dict( (k,v) for k,v in [ v.split('=') for v in args ])
-        except Exception, ex:
+        except Exception as ex:
             gc3libs.log.error("Failed while parsing command: %s. " % command +
                               "Type: %s. Message: %s" % (type(ex),str(ex)))
             return None
@@ -404,7 +404,7 @@ newly-created jobs so that this limit is never exceeded.
             self.log.error("Error while reading command file " +
                            "%s." % self.params.command_file +
                            "Message: %s" % ioe.message)
-        except Exception, ex:
+        except Exception as ex:
             self.log.error("Unexpected error. Error type: %s, Message: %s" % (type(ex),str(ex)))
 
         finally:

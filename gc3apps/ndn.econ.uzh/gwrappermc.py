@@ -269,7 +269,7 @@ class GwrappermcScript(SessionBasedScript):
                 result.to_csv("result.csv", header=False, index=False)
             else:
                 gc3libs.log.warning("No results found")
-        except OSError, osx:
+        except OSError as osx:
             gc3libs.log.critical("Failed while merging result files. " +
                                  "Error %s" % str(osx))
             raise
@@ -295,7 +295,7 @@ class GwrappermcScript(SessionBasedScript):
         if not(os.path.isdir(chunk_files_dir)):
             try:
                 os.mkdir(chunk_files_dir)
-            except OSError, osx:
+            except OSError as osx:
                 gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
                                   "Error %s." % str(osx) +
                                   "Using default '/tmp'")

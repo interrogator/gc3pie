@@ -262,7 +262,7 @@ of newly-created jobs so that this limit is never exceeded.
 
         try:
             existing_file(self.params.flags_file)
-        except Exception, ex:
+        except Exception as ex:
             gc3libs.log.error("Invalid flags file `%s`: please supply a valid flags file by adding the option `-f PATH`" % self.params.flags_file)
             raise ex
 

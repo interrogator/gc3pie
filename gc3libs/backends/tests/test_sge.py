@@ -261,7 +261,7 @@ username=NONEXISTENT
     #     t.expected_answer['qsub'] = qsub_failed_acl()
     #     try:
     #         self.core.submit(app)
-    #     except Exception, e:
+    #     except Exception as e:
     #         assert isinstance(e, gc3libs.exceptions.LRMSError)
     #     assert_equal(app.execution.state, State.NEW)
 

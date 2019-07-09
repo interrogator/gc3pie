@@ -187,7 +187,7 @@ echo "[`date`] End"
             f_handle.file.write(command)
             f_handle.file.close()
             os.chmod(f_handle.name,0o777)
-        except Exception, ex:
+        except Exception as ex:
             gc3libs.log.debug("Error creating execution script." +
                               "Error type: %s." % type(ex) +
                               "Message: %s"  %ex.message)
@@ -356,7 +356,7 @@ newly-created jobs so that this limit is never exceeded.
                 if self.params.www and task.get_images():
                     try:
                         _publish_data(task, self.params.www)
-                    except OSError, osx:
+                    except OSError as osx:
                         continue
 
 
@@ -390,14 +390,14 @@ def _publish_data(task, www_location):
         # gc3libs.log.info("Cleaning up previous folder")
         try:
             shutil.rmtree(station_folder)
-        except OSError, osx:
+        except OSError as osx:
             gc3libs.log.error("Failed while removing folder %s. Message %s" % (station_folder, str(osx)))
             return
 
     if not os.path.exists(station_folder):
         try:
             os.makedirs(station_folder)
-        except OSError, osx:
+        except OSError as osx:
             gc3libs.log.error("Failed while creating www folder '%s'" +
                               "Error: %s" % (station_folder, str(osx)))
             raise
@@ -409,7 +409,7 @@ def _publish_data(task, www_location):
 
         try:
             img_attribute_displayed = os.path.basename(image).split('.')[0]
-        except Exception, ex:
+        except Exception as ex:
             # XXX: teoretically all the above statements are safe and should not trigger
             # any Error. But to be safe...
             # In case of failure, use default
@@ -421,7 +421,7 @@ def _publish_data(task, www_location):
 
         try:
             shutil.move(image,os.path.join(station_folder,image_name))
-        except OSError, osx:
+        except OSError as osx:
             gc3libs.log.error("Failed while moving image file '%s' to '%s'." +
                               "Error message '%"  % (image, station_folder, str(osx)))
             continue
@@ -434,7 +434,7 @@ def _publish_data(task, www_location):
         fh.seek(0)
         fh.write(time_stamp)
         fh.close()
-    except OSError, osx:
+    except OSError as osx:
         gc3libs.log.error("Failed while updating timestamp file " +
                           "'%s'. Error '%s'" % (time_stamp_file, str(osx)))
 
@@ -454,6 +454,6 @@ def _update_original_sno_files(task):
         # replace .sno files with new ones
         try:
             shutil.move(snofile,os.path.join(task.sno_files_folder,os.path.basename(snofile)))
-        except Exception, ex:
+        except Exception as ex:
             gc3libs.log.error("Failed while updating .sno files %s. Error type '%s', message '%s'" % (snofile, type(ex), str(ex)))
             continue
