@@ -37,6 +37,7 @@ __docformat__ = 'reStructuredText'
 
 if __name__ == "__main__":
     import ggeneric
+
     ggeneric.GGeneric().run()
 
 
@@ -58,10 +59,9 @@ from gc3libs.workflow import RetryableTask
 
 ## helper class
 
+
 class GGenericApplication(Application):
-
-
-    def __init__(self, executable,  **extra_args):
+    def __init__(self, executable, **extra_args):
         # setup for finding actual files
 
         """
@@ -69,19 +69,17 @@ class GGenericApplication(Application):
         """
         files_to_send = []
 
-        ggeneric_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/ggeneric_wrapper.sh")
+        ggeneric_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/ggeneric_wrapper.sh")
 
         basename_executable_file = os.path.basename(executable)
-        files_to_send.append((ggeneric_wrapper_sh,os.path.basename(ggeneric_wrapper_sh)))
-        files_to_send.append((executable,basename_executable_file))
-
+        files_to_send.append((ggeneric_wrapper_sh, os.path.basename(ggeneric_wrapper_sh)))
+        files_to_send.append((executable, basename_executable_file))
 
         cmd = "./ggeneric_wrapper.sh"
 
         if 'tarfile' in extra_args:
             cmd += " -F %s " % extra_args['tarfile']
-            files_to_send.append(extra_args['tarfile'],'tarfile')
+            files_to_send.append(extra_args['tarfile'], 'tarfile')
 
         cmd += " %s " % extra_args['executable']
 
@@ -94,26 +92,28 @@ class GGenericApplication(Application):
             self,
             # arguments should mimic the command line interfaca of the command to be
             # executed on the remote end
-            arguments = cmd,
-            inputs = files_to_send,
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'ggeneric.log',
+            arguments=cmd,
+            inputs=files_to_send,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout='ggeneric.log',
             join=True,
-            **extra_args)
+            **extra_args
+        )
+
 
 class GGenericTask(RetryableTask, gc3libs.utils.Struct):
     """
     Run ``ggeneric`` with the given executable and options.
     """
+
     def __init__(self, executable, **extra_args):
         RetryableTask.__init__(
             self,
             # actual computational job
             GGenericApplication(executable, **extra_args),
             # keyword arguments
-            **extra_args)
-
-
+            **extra_args
+        )
 
 
 ## the script itself
@@ -136,28 +136,34 @@ Further options that could be specified are for:
     """
 
     def __init__(self):
-        SessionBasedScript.__init__(
-            self,
-            version = __version__,
-            )
-
+        SessionBasedScript.__init__(self, version=__version__)
 
     def setup_args(self):
-        self.add_param('executable',type=executable_file, help="Path to the executable command.")
+        self.add_param('executable', type=executable_file, help="Path to the executable command.")
         self.add_param('control_file', type=existing_file, help="Control file containing executable options")
 
-
     def setup_options(self):
-        self.add_param("-R", "--repeats", metavar="INT", dest="repeats", default=1,
-                       help="Number of repetitions for every run.")
+        self.add_param(
+            "-R", "--repeats", metavar="INT", dest="repeats", default=1, help="Number of repetitions for every run."
+        )
 
-        self.add_param("-F", "--tarfile", metavar="PATH", dest="tarfile", default=None,
-                       help="Point to an additional archive which contains files" +
-                            "or executables needed.")
+        self.add_param(
+            "-F",
+            "--tarfile",
+            metavar="PATH",
+            dest="tarfile",
+            default=None,
+            help="Point to an additional archive which contains files" + "or executables needed.",
+        )
 
-        self.add_param("-O", "--output_suffix", metavar="str", dest="suffix", default=None,
-                       help="Suffix to be added at the end of the output directory")
-
+        self.add_param(
+            "-O",
+            "--output_suffix",
+            metavar="str",
+            dest="suffix",
+            default=None,
+            help="Suffix to be added at the end of the output directory",
+        )
 
     def parse_args(self):
 
@@ -186,26 +192,22 @@ Further options that could be specified are for:
             extra_args['executable'] = self.params.executable
 
         if self.params.control_file.endswith('.csv'):
-                try:
-                    inputfile = open(self.params.control_file, 'r')
-                except (OSError, IOError) as ex:
-                    self.log.warning("Cannot open input file '%s': %s: %s",
-                                     path, ex.__class__.__name__, str(ex))
-                for row in csv.reader(inputfile):
-                    # create a string containing the parameters
-                    # to be used for calling the executable
-                    options=""
-                    for i in range(0, length(row)):
-                        options=options+args[i] + " "
-                    extra_args['options'] = options
+            try:
+                inputfile = open(self.params.control_file, 'r')
+            except (OSError, IOError) as ex:
+                self.log.warning("Cannot open input file '%s': %s: %s", path, ex.__class__.__name__, str(ex))
+            for row in csv.reader(inputfile):
+                # create a string containing the parameters
+                # to be used for calling the executable
+                options = ""
+                for i in range(0, length(row)):
+                    options = options + args[i] + " "
+                extra_args['options'] = options
 
-                    # create multiple tasks of the same type
-                    # if we have to execute multiple runs with the
-                    # same input.
-                    for i in range(1, self.params.repeats):
-                        tasks.append(GGenericTask(
-                            self.params.executable,
-                            **extra_args
-                            ))
+                # create multiple tasks of the same type
+                # if we have to execute multiple runs with the
+                # same input.
+                for i in range(1, self.params.repeats):
+                    tasks.append(GGenericTask(self.params.executable, **extra_args))
 
         return tasks

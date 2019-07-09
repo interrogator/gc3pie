@@ -46,6 +46,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gbugs
+
     gbugs.GBugsScript().run()
 
 import os
@@ -54,6 +55,7 @@ import time
 import tempfile
 
 import shutil
+
 # import csv
 
 from pkg_resources import Requirement, resource_filename
@@ -67,11 +69,12 @@ from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, secon
 from gc3libs.workflow import RetryableTask, StagedTaskCollection, ParallelTaskCollection
 
 DEFAULT_CORES = 1
-DEFAULT_MEMORY = Memory(1500,MB)
-DEFAULT_WALLTIME = Duration(300,hours)
+DEFAULT_MEMORY = Memory(1500, MB)
+DEFAULT_WALLTIME = Duration(300, hours)
+
 
 def generate_chunked_files_and_list(file_to_chunk, chunk_size=1000, tmp_folder=os.getcwd()):
-        """
+    """
         Takes a file_name as input and a defined chunk size
         ( uses 1000 as default )
         returns a list of filenames 1 for each chunk created and a corresponding
@@ -79,57 +82,51 @@ def generate_chunked_files_and_list(file_to_chunk, chunk_size=1000, tmp_folder=o
         e.g. ('/tmp/chunk2800.csv,2800) for the chunk segment that goes
         from 2800 to (2800 + chunk_size)
         """
-        index = 0
-        chunk = []
-        failure = False
-        chunk_files_dir = os.path.join(tmp_folder,"tmp")
+    index = 0
+    chunk = []
+    failure = False
+    chunk_files_dir = os.path.join(tmp_folder, "tmp")
 
-        # creating 'chunk_files_dir'
-        if not(os.path.isdir(chunk_files_dir)):
-            try:
-                os.mkdir(chunk_files_dir)
-            except OSError as osx:
-                gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
-                                  "Error %s." % str(osx) +
-                                  "Using default '/tmp'")
-                chunk_files_dir = "/tmp"
-
+    # creating 'chunk_files_dir'
+    if not (os.path.isdir(chunk_files_dir)):
         try:
-            fd = open(file_to_chunk,'rb')
-
-            fout = None
-
-            for (i, line) in enumerate(fd):
-                if i % chunk_size == 0:
-                    if fout:
-                        fout.close()
-                    (handle, tmp_filename) = tempfile.mkstemp(dir=chunk_files_dir,
-                                                                    prefix=
-                                                                   'gbugs-',
-                                                                   suffix=
-                                                                   "%d.txt" % i)
-                    fout = open(tmp_filename,'w')
-                    chunk.append((fout.name,i))
-                fout.write(line)
-            fout.close()
+            os.mkdir(chunk_files_dir)
         except OSError as osx:
-            gc3libs.log.critical("Failed while creating chunk files." +
-                                 "Error %s", (str(osx)))
-            failure = True
-        finally:
-            if failure:
-                # remove all tmp file created
-                gc3libs.log.info("Could not generate full chunk list. "
-                                 "Removing all existing tmp files... ")
-                for (cfile, index) in chunk:
-                    try:
-                        os.remove(cfile)
-                    except OSError as osx:
-                        gc3libs.log.error("Failed while removing " +
-                                          "tmp file %s. " +
-                                          "Message %s" % osx.message)
+            gc3libs.log.error(
+                "Failed while creating tmp folder %s. " % chunk_files_dir
+                + "Error %s." % str(osx)
+                + "Using default '/tmp'"
+            )
+            chunk_files_dir = "/tmp"
 
-        return chunk
+    try:
+        fd = open(file_to_chunk, 'rb')
+
+        fout = None
+
+        for (i, line) in enumerate(fd):
+            if i % chunk_size == 0:
+                if fout:
+                    fout.close()
+                (handle, tmp_filename) = tempfile.mkstemp(dir=chunk_files_dir, prefix='gbugs-', suffix="%d.txt" % i)
+                fout = open(tmp_filename, 'w')
+                chunk.append((fout.name, i))
+            fout.write(line)
+        fout.close()
+    except OSError as osx:
+        gc3libs.log.critical("Failed while creating chunk files." + "Error %s", (str(osx)))
+        failure = True
+    finally:
+        if failure:
+            # remove all tmp file created
+            gc3libs.log.info("Could not generate full chunk list. " "Removing all existing tmp files... ")
+            for (cfile, index) in chunk:
+                try:
+                    os.remove(cfile)
+                except OSError as osx:
+                    gc3libs.log.error("Failed while removing " + "tmp file %s. " + "Message %s" % osx.message)
+
+    return chunk
 
 
 ## custom application class
@@ -137,6 +134,7 @@ class GBugsApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
+
     application_name = 'gbugs'
 
     def __init__(self, input_table_filename, **extra_args):
@@ -145,8 +143,8 @@ class GBugsApplication(Application):
         # self.result_dir = result_dir
         self.output_dir = extra_args['output_dir']
         self.output_filename = 'result-%s.Rdata' % extra_args['index_chunk']
-        self.output_file = os.path.join(self.output_dir,self.output_filename)
-        outputs = [("./output.Rdata",self.output_filename)]
+        self.output_file = os.path.join(self.output_dir, self.output_filename)
+        outputs = [("./output.Rdata", self.output_filename)]
         # setup input references
         inputs = dict()
         inputs[input_table_filename] = "./input.txt"
@@ -157,17 +155,12 @@ class GBugsApplication(Application):
         if extra_args.has_key('driver_script'):
             inputs[extra_args['driver_script']] = "./run.R"
 
-        arguments +=  "run.R "
+        arguments += "run.R "
         arguments += "input.txt output.Rdata"
 
         Application.__init__(
-            self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gbugs.log',
-            join=True,
-            **extra_args)
+            self, arguments=arguments, inputs=inputs, outputs=outputs, stdout='gbugs.log', join=True, **extra_args
+        )
 
     def terminated(self):
         """
@@ -175,9 +168,10 @@ class GBugsApplication(Application):
         """
         # XXX: TBD, work on a more precise checking of the output file
         gc3libs.log.info("Application terminated with exit code %s" % self.execution.exitcode)
-        if (not os.path.isfile(self.output_file)):
+        if not os.path.isfile(self.output_file):
             gc3libs.log.error("Failed while checking outputfile %s." % self.output_file)
             self.execution.returncode = (0, 99)
+
 
 class OpenBUGSCollection(StagedTaskCollection):
     def __init__(self, input_table_file, chunk_size, driver_script, stats_script, **extra_args):
@@ -195,8 +189,7 @@ class OpenBUGSCollection(StagedTaskCollection):
         Chunk input table and run chunks in parallel
         """
         tasks = []
-        for (input_file, index_chunk) in generate_chunked_files_and_list(self.input_table_file,
-                                                                              self.chunk_size):
+        for (input_file, index_chunk) in generate_chunked_files_and_list(self.input_table_file, self.chunk_size):
             jobname = "gbugs-%s" % (str(index_chunk))
             extra_args = self.extra.copy()
             extra_args['index_chunk'] = str(index_chunk)
@@ -211,13 +204,11 @@ class OpenBUGSCollection(StagedTaskCollection):
             if self.driver_script:
                 extra_args['driver_script'] = self.driver_script
 
-            gc3libs.log.debug("Creating Task for index : %d - %d" %
-                           (index_chunk, (index_chunk + self.chunk_size)))
+            gc3libs.log.debug("Creating Task for index : %d - %d" % (index_chunk, (index_chunk + self.chunk_size)))
 
-            tasks.append(GBugsApplication(
-                    input_file,
-                    **extra_args))
+            tasks.append(GBugsApplication(input_file, **extra_args))
         return ParallelTaskCollection(tasks)
+
 
 class GBugsScript(SessionBasedScript):
     """
@@ -242,28 +233,40 @@ class GBugsScript(SessionBasedScript):
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__,
-            application = GBugsApplication,
-            stats_only_for = GBugsApplication,
-            )
+            self, version=__version__, application=GBugsApplication, stats_only_for=GBugsApplication
+        )
 
     def setup_options(self):
-        self.add_param("-k", "--chunk", metavar="[NUM]",
-                       dest="chunk_size", default="1000",
-                       help="How to split the edges input data set.")
+        self.add_param(
+            "-k",
+            "--chunk",
+            metavar="[NUM]",
+            dest="chunk_size",
+            default="1000",
+            help="How to split the edges input data set.",
+        )
 
-        self.add_param("-M", "--master", metavar="[PATH]",
-                       dest="driver_script", default=None,
-                       help="Location of master driver R script.")
+        self.add_param(
+            "-M",
+            "--master",
+            metavar="[PATH]",
+            dest="driver_script",
+            default=None,
+            help="Location of master driver R script.",
+        )
 
-        self.add_param("-S", "--statistic", metavar="[PATH]",
-                       dest="stats_script", default=None,
-                       help="Location of statistic R script.")
+        self.add_param(
+            "-S",
+            "--statistic",
+            metavar="[PATH]",
+            dest="stats_script",
+            default=None,
+            help="Location of statistic R script.",
+        )
+
     def setup_args(self):
 
-        self.add_param('input_table', type=str,
-                       help="Input input table full path name.")
+        self.add_param('input_table', type=str, help="Input input table full path name.")
 
     def parse_args(self):
         """
@@ -273,8 +276,8 @@ class GBugsScript(SessionBasedScript):
 
         if not os.path.isfile(self.params.input_table):
             raise gc3libs.exceptions.InvalidUsage(
-                "Invalid path to input table: '%s'. File not found"
-                % self.params.input_table)
+                "Invalid path to input table: '%s'. File not found" % self.params.input_table
+            )
 
         self.table_filename = os.path.basename(self.params.input_table)
 
@@ -289,8 +292,12 @@ class GBugsScript(SessionBasedScript):
         """
         extra_args = extra.copy()
         extra_args['output_dir'] = self.params.output
-        return [OpenBUGSCollection(self.params.input_table,
-                                   self.params.chunk_size,
-                                   self.params.driver_script,
-                                   self.params.stats_script,
-                                   **extra_args)]
+        return [
+            OpenBUGSCollection(
+                self.params.input_table,
+                self.params.chunk_size,
+                self.params.driver_script,
+                self.params.stats_script,
+                **extra_args
+            )
+        ]

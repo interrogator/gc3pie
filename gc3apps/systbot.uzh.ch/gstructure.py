@@ -40,6 +40,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gstructure
+
     gstructure.GStructureScript().run()
 
 from pkg_resources import Requirement, resource_filename
@@ -57,6 +58,7 @@ from gc3libs.workflow import RetryableTask
 
 ## custom application class
 
+
 class GStructureApplication(Application):
     """
     """
@@ -69,23 +71,21 @@ class GStructureApplication(Application):
         """
         files_to_send = []
 
-        gstructure_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gstructure_wrapper.sh")
+        gstructure_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gstructure_wrapper.sh")
 
         basename_input_file = os.path.basename(input_file)
-        files_to_send.append((gstructure_wrapper_sh,os.path.basename(gstructure_wrapper_sh)))
-        files_to_send.append((input_file,basename_input_file))
-
+        files_to_send.append((gstructure_wrapper_sh, os.path.basename(gstructure_wrapper_sh)))
+        files_to_send.append((input_file, basename_input_file))
 
         cmd = "./gstructure_wrapper.sh -d "
 
         if 'mainparam_file' in extra_args:
             cmd += " -p %s " % extra_args['mainparam_file']
-            files_to_send.append(extra_args['mainparam_file'],'mainparams.txt')
+            files_to_send.append(extra_args['mainparam_file'], 'mainparams.txt')
 
         if 'extraparam_file' in extra_args:
             cmd += " -x %s " % extra_args['extraparam_file']
-            files_to_send.append(extra_args['extraparam_file'],'extraparams.txt')
+            files_to_send.append(extra_args['extraparam_file'], 'extraparams.txt')
 
         if 'output_file' in extra_args:
             cmd += " -u %s " % extra_args['output_file']
@@ -109,7 +109,7 @@ class GStructureApplication(Application):
 
         cmd += " %s " % basename_input_file
 
-        extra_args['requested_memory'] = 7*GB
+        extra_args['requested_memory'] = 7 * GB
 
         self.output_dir = basename_input_file + "_output"
         extra_args['output_dir'] = self.output_dir
@@ -118,26 +118,32 @@ class GStructureApplication(Application):
             self,
             # arguments should mimic the command line interfaca of the command to be
             # executed on the remote end
-            arguments = cmd,
-            inputs = files_to_send,
-            outputs = gc3libs.ANY_OUTPUT,
-            stdout = 'gstructure.log',
+            arguments=cmd,
+            inputs=files_to_send,
+            outputs=gc3libs.ANY_OUTPUT,
+            stdout='gstructure.log',
             join=True,
-            **extra_args)
+            **extra_args
+        )
+
 
 class GStructureTask(RetryableTask, gc3libs.utils.Struct):
     """
     Run ``gstructure`` on a given simulation directory until completion.
     """
+
     def __init__(self, input_file, **extra_args):
         RetryableTask.__init__(
             self,
             # actual computational job
             GStructureApplication(input_file, **extra_args),
             # keyword arguments
-            **extra_args)
+            **extra_args
+        )
+
 
 ## main script class
+
 
 class GStructureScript(SessionBasedScript):
     """
@@ -161,47 +167,82 @@ newly-created jobs so that this limit is never exceeded.
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GStructureTask,
+            version=__version__,  # module version == script version
+            application=GStructureTask,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GStructureTask,
-            )
-
+            stats_only_for=GStructureTask,
+        )
 
     def setup_options(self):
 
-        self.add_param("-p", "--mainparams", metavar="MAIN_CONFIG_FILE", default="mainparams.txt",
-                       dest="mainparams_file", help="Uses a different main parameters file.")
+        self.add_param(
+            "-p",
+            "--mainparams",
+            metavar="MAIN_CONFIG_FILE",
+            default="mainparams.txt",
+            dest="mainparams_file",
+            help="Uses a different main parameters file.",
+        )
 
-        self.add_param("-x", "--extraparams", metavar="EXTRA_CONFIG_FILE", default="extraparams.txt",
-                       dest="extraparams_file", help="Uses a different extra parameters file.")
+        self.add_param(
+            "-x",
+            "--extraparams",
+            metavar="EXTRA_CONFIG_FILE",
+            default="extraparams.txt",
+            dest="extraparams_file",
+            help="Uses a different extra parameters file.",
+        )
 
-        self.add_param("-u", "--output", metavar="OUTPUT_FILE_NAME",
-                       dest="output_file", help="Output file name where results will be saved. "
-                       "Default: INPUT_FILE.out" )
+        self.add_param(
+            "-u",
+            "--output",
+            metavar="OUTPUT_FILE_NAME",
+            dest="output_file",
+            help="Output file name where results will be saved. " "Default: INPUT_FILE.out",
+        )
 
-        self.add_param("-g", "--K-range", metavar="K_RANGE", default="1:20",
-                       dest="k_range", help="Structure K range. "
-                       "Default: %(default)s" )
+        self.add_param(
+            "-g",
+            "--K-range",
+            metavar="K_RANGE",
+            default="1:20",
+            dest="k_range",
+            help="Structure K range. " "Default: %(default)s",
+        )
 
-        self.add_param("-e", "--replica", metavar="REPLICA_NUM", default=3,
-                       dest="replica", help="Structure replicates. "
-                       "Default: %(default)s" )
+        self.add_param(
+            "-e",
+            "--replica",
+            metavar="REPLICA_NUM",
+            default=3,
+            dest="replica",
+            help="Structure replicates. " "Default: %(default)s",
+        )
 
-        self.add_param("-T", "--control-file", metavar="CONTROL_FILE",
-                       dest="control_file", help="Control csv file for managing multiple input files with differetn loc and ind")
+        self.add_param(
+            "-T",
+            "--control-file",
+            metavar="CONTROL_FILE",
+            dest="control_file",
+            help="Control csv file for managing multiple input files with differetn loc and ind",
+        )
 
-        self.add_param("--loc", type=int, metavar="LOC",
-                       dest="loc", help="Number of loci in the structure input file")
+        self.add_param("--loc", type=int, metavar="LOC", dest="loc", help="Number of loci in the structure input file")
 
-        self.add_param("--ind", type=int, metavar="IND",
-                       dest="ind", help="Number of individuals in the structure input file")
+        self.add_param(
+            "--ind", type=int, metavar="IND", dest="ind", help="Number of individuals in the structure input file"
+        )
 
-        self.add_param("--input_source", type=str,metavar="INPUT_SOURCE",
-                       dest="input_source", help="Structure input file/Structure input directory")
+        self.add_param(
+            "--input_source",
+            type=str,
+            metavar="INPUT_SOURCE",
+            dest="input_source",
+            help="Structure input file/Structure input directory",
+        )
 
     def parse_args(self):
 
@@ -213,7 +254,7 @@ newly-created jobs so that this limit is never exceeded.
         tasks = []
         input_files = []
         inputs = []
-        extentions = ( '.tsv', '.txt', '.struc', '.tab' )
+        extentions = ('.tsv', '.txt', '.struc', '.tab')
         extra_args = extra.copy()
 
         if self.params.mainparams_file:
@@ -231,14 +272,15 @@ newly-created jobs so that this limit is never exceeded.
         # Check if control_file variable is defined. If yes,
         # proceed differently for crating the tasks.
         if self.params.control_file:
-            gc3libs.log.warning("As you issued the script with the control, file options loc and ind paramters will be ignored")
+            gc3libs.log.warning(
+                "As you issued the script with the control, file options loc and ind paramters will be ignored"
+            )
 
             if self.params.control_file.endswith('.csv'):
                 try:
                     inputfile = open(self.params.control_file, 'r')
                 except (OSError, IOError) as ex:
-                    self.log.warning("Cannot open input file '%s': %s: %s",
-                                     path, ex.__class__.__name__, str(ex))
+                    self.log.warning("Cannot open input file '%s': %s: %s", path, ex.__class__.__name__, str(ex))
                 for row in csv.reader(inputfile):
                     extra_args['input_source'] = row[0]
                     extra_args['loc'] = row[1]
@@ -246,51 +288,44 @@ newly-created jobs so that this limit is never exceeded.
 
                     input_file = row[0]
 
-                    tasks.append(GStructureTask(
-                        input_file,
-                        **extra_args
-                        ))
+                    tasks.append(GStructureTask(input_file, **extra_args))
         else:
-             if os.path.isdir(self.params.input_source):
+            if os.path.isdir(self.params.input_source):
 
                 for i in self._list_local_folder(self.params.input_source):
                     for ext in extentions:
                         if i.endswith(ext):
                             input_files.append(i)
 
-             elif os.path.isfile(self.params.input_source):
+            elif os.path.isfile(self.params.input_source):
 
                 for ext in extentions:
-                        if self.params.input_source.endswith(ext):
-                            input_files.append(self.params.input_source)
+                    if self.params.input_source.endswith(ext):
+                        input_files.append(self.params.input_source)
 
-             for input_file in input_files:
+            for input_file in input_files:
 
-                    jobname = "%s" % input_file.split(".")[0]
+                jobname = "%s" % input_file.split(".")[0]
 
-                    extra_args['jobname'] = jobname
+                extra_args['jobname'] = jobname
 
-                    # FIXME: ignore SessionBasedScript feature of customizing
-                    # output folder
+                # FIXME: ignore SessionBasedScript feature of customizing
+                # output folder
 
-                    extra_args['loc'] = self.params.loc
-                    extra_args['ind'] = self.params.ind
-                    extra_args['input_source'] = self.params.input_source
-                    #extra_args['output_dir'] = self.params.input_source
+                extra_args['loc'] = self.params.loc
+                extra_args['ind'] = self.params.ind
+                extra_args['input_source'] = self.params.input_source
+                # extra_args['output_dir'] = self.params.input_source
 
-                    self.log.info("Creating Task for input file: %s" % input_file)
+                self.log.info("Creating Task for input file: %s" % input_file)
 
-                    tasks.append(GStructureTask(
-                        input_file,
-                        **extra_args
-                        ))
+                tasks.append(GStructureTask(input_file, **extra_args))
 
         return tasks
-
 
     def _list_local_folder(self, input_folder):
         """
         return a list of all files in the input folder
         """
 
-        return [ os.path.join(input_folder,infile) for infile in os.listdir(input_folder) ]
+        return [os.path.join(input_folder, infile) for infile in os.listdir(input_folder)]

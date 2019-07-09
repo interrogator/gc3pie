@@ -61,6 +61,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gweight
+
     gweight.GWeightScript().run()
 
 import os
@@ -69,6 +70,7 @@ import time
 import tempfile
 
 import shutil
+
 # import csv
 
 from pkg_resources import Requirement, resource_filename
@@ -86,6 +88,7 @@ class GWeightApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
+
     application_name = 'gweight'
 
     def __init__(self, edges_data_filename, **extra_args):
@@ -95,15 +98,15 @@ class GWeightApplication(Application):
         self.output_dir = extra_args['output_dir']
         # self.output_filename = os.path.basename(edges_data_filename)
         self.output_filename = 'result-%s.csv' % extra_args['index_chunk']
-        self.output_file = os.path.join(self.output_dir,self.output_filename)
+        self.output_file = os.path.join(self.output_dir, self.output_filename)
         # outputs = [("./result.csv",self.output_filename)]
-        outputs = [("./result.csv",self.output_filename)]
+        outputs = [("./result.csv", self.output_filename)]
         # setup input references
         inputs = dict()
 
         inputs[edges_data_filename] = "./input.csv"
 
-        arguments ="./wrapper.sh ./input.csv "
+        arguments = "./wrapper.sh ./input.csv "
 
         # check the optional inputs
 
@@ -117,28 +120,27 @@ class GWeightApplication(Application):
 
         if extra_args.has_key('driver_script'):
             inputs[extra_args['driver_script']] = "./bin/run.R"
-            arguments +=  "-m ./bin/run.R "
+            arguments += "-m ./bin/run.R "
 
         if extra_args.has_key('threads_posted_data'):
             inputs[extra_args['threads_posted_data']] = "./data/threads.nodes.posted.rda"
-            arguments +=  "-t ./data/threads.nodes.posted.rda "
-
+            arguments += "-t ./data/threads.nodes.posted.rda "
 
         # adding wrapper main script
-        gweight_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gweight_wrap.sh")
+        gweight_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gweight_wrap.sh")
 
         inputs[gweight_wrapper_sh] = 'wrapper.sh'
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gweight.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout='gweight.log',
             join=True,
-            executables = ['wrapper.sh'],
-            **extra_args)
+            executables=['wrapper.sh'],
+            **extra_args
+        )
 
     def terminated(self):
         """
@@ -146,7 +148,7 @@ class GWeightApplication(Application):
         """
         # XXX: TBD, work on a more precise checking of the output file
         gc3libs.log.info("Application terminated with exit code %s" % self.execution.exitcode)
-        if (not os.path.isfile(self.output_file)):
+        if not os.path.isfile(self.output_file):
             gc3libs.log.error("Failed while checking outputfile %s." % self.output_file)
             # Retry
             self.execution.returncode = (0, 99)
@@ -157,11 +159,9 @@ class GWeightTask(RetryableTask):
         RetryableTask.__init__(
             self,
             # actual computational job
-            GWeightApplication(
-                edges_data_filename,
-                **extra_args),
+            GWeightApplication(edges_data_filename, **extra_args),
             **extra_args
-            )
+        )
 
     def retry(self):
         """
@@ -185,6 +185,7 @@ class GWeightTask(RetryableTask):
         #     else:
         #         return True
         # return False
+
 
 class GWeightScript(SessionBasedScript):
     """
@@ -210,40 +211,64 @@ class GWeightScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GWeightTask,
+            version=__version__,  # module version == script version
+            application=GWeightTask,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GWeightTask,
-            )
+            stats_only_for=GWeightTask,
+        )
 
     def setup_options(self):
-        self.add_param("-k", "--chunk", metavar="[NUM]", #type=executable_file,
-                       dest="chunk_size", default="1000",
-                       help="How to split the edges input data set.")
+        self.add_param(
+            "-k",
+            "--chunk",
+            metavar="[NUM]",  # type=executable_file,
+            dest="chunk_size",
+            default="1000",
+            help="How to split the edges input data set.",
+        )
 
-        self.add_param("-M", "--master", metavar="[PATH]",
-                       dest="driver_script", default=None,
-                       help="Location of master driver R script.")
+        self.add_param(
+            "-M",
+            "--master",
+            metavar="[PATH]",
+            dest="driver_script",
+            default=None,
+            help="Location of master driver R script.",
+        )
 
-        self.add_param("-D", "--data", metavar="[PATH]",
-                       dest="data", default=None,
-                       help="Location of the reference data in .rda format.")
+        self.add_param(
+            "-D",
+            "--data",
+            metavar="[PATH]",
+            dest="data",
+            default=None,
+            help="Location of the reference data in .rda format.",
+        )
 
-        self.add_param("-F", "--weight", metavar="[PATH]",
-                       dest="weight_function", default=None,
-                       help="Location of the weight function R script.")
+        self.add_param(
+            "-F",
+            "--weight",
+            metavar="[PATH]",
+            dest="weight_function",
+            default=None,
+            help="Location of the weight function R script.",
+        )
 
-        self.add_param("-T", "--threads.posted", metavar="[PATH]",
-                       dest="threads_posted_data", default=None,
-                       help="Location of threads posted data in .rda format.")
+        self.add_param(
+            "-T",
+            "--threads.posted",
+            metavar="[PATH]",
+            dest="threads_posted_data",
+            default=None,
+            help="Location of threads posted data in .rda format.",
+        )
 
     def setup_args(self):
 
-        self.add_param('edges_data', type=str,
-                       help="Input edges data full path name.")
+        self.add_param('edges_data', type=str, help="Input edges data full path name.")
 
     def parse_args(self):
         """
@@ -255,8 +280,8 @@ class GWeightScript(SessionBasedScript):
         # XXX: make them position independent
         if not os.path.isfile(self.params.edges_data):
             raise gc3libs.exceptions.InvalidUsage(
-                "Invalid path to edges data: '%s'. File not found"
-                % self.params.edges_data)
+                "Invalid path to edges data: '%s'. File not found" % self.params.edges_data
+            )
 
         self.edges_filename = os.path.basename(self.params.edges_data)
 
@@ -271,8 +296,9 @@ class GWeightScript(SessionBasedScript):
         """
         tasks = []
 
-        for (input_file, index_chunk) in self._generate_chunked_files_and_list(self.params.edges_data,
-                                                                              self.params.chunk_size):
+        for (input_file, index_chunk) in self._generate_chunked_files_and_list(
+            self.params.edges_data, self.params.chunk_size
+        ):
             jobname = "gweight-%s" % (str(index_chunk))
 
             extra_args = extra.copy()
@@ -282,19 +308,12 @@ class GWeightScript(SessionBasedScript):
             extra_args['jobname'] = jobname
 
             extra_args['output_dir'] = self.params.output
-            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                        os.path.join('.computation',
-                                                                                     jobname))
-            extra_args['output_dir'] = extra_args['output_dir'].replace('SESSION',
-                                                                        os.path.join('.computation',
-                                                                                     jobname))
-            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE',
-                                                                        os.path.join('.computation',
-                                                                                     jobname))
-            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME',
-                                                                        os.path.join('.computation',
-                                                                                     jobname))
-
+            extra_args['output_dir'] = extra_args['output_dir'].replace('NAME', os.path.join('.computation', jobname))
+            extra_args['output_dir'] = extra_args['output_dir'].replace(
+                'SESSION', os.path.join('.computation', jobname)
+            )
+            extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', os.path.join('.computation', jobname))
+            extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', os.path.join('.computation', jobname))
 
             if self.params.driver_script:
                 extra_args['driver_script'] = self.params.driver_script
@@ -305,12 +324,9 @@ class GWeightScript(SessionBasedScript):
             if self.params.threads_posted_data:
                 extra_args['threads_posted_data'] = self.params.threads_posted_data
 
-            self.log.debug("Creating Task for index : %d - %d" %
-                           (index_chunk, (index_chunk + self.params.chunk_size)))
+            self.log.debug("Creating Task for index : %d - %d" % (index_chunk, (index_chunk + self.params.chunk_size)))
 
-            tasks.append(GWeightTask(
-                    input_file,
-                    **extra_args))
+            tasks.append(GWeightTask(input_file, **extra_args))
 
         return tasks
 
@@ -323,9 +339,9 @@ class GWeightScript(SessionBasedScript):
         merged_csv = "result-%s" % os.path.basename(self.params.edges_data)
 
         try:
-            fout=open(merged_csv,"w+")
+            fout = open(merged_csv, "w+")
             for task in self.session:
-                if isinstance(task,GWeightTask) and task.execution.returncode == 0:
+                if isinstance(task, GWeightTask) and task.execution.returncode == 0:
                     try:
                         for line in open(task.output_file):
                             fout.write(line)
@@ -336,8 +352,7 @@ class GWeightScript(SessionBasedScript):
                         continue
             fout.close()
         except OSError as osx:
-            gc3libs.log.critical("Failed while merging result files. " +
-                                 "Error %s" % str(osx))
+            gc3libs.log.critical("Failed while merging result files. " + "Error %s" % str(osx))
             raise
         finally:
             fout.close()
@@ -354,20 +369,22 @@ class GWeightScript(SessionBasedScript):
         index = 0
         chunk = []
         failure = False
-        chunk_files_dir = os.path.join(self.session.path,"tmp")
+        chunk_files_dir = os.path.join(self.session.path, "tmp")
 
         # creating 'chunk_files_dir'
-        if not(os.path.isdir(chunk_files_dir)):
+        if not (os.path.isdir(chunk_files_dir)):
             try:
                 os.mkdir(chunk_files_dir)
             except OSError as osx:
-                gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
-                                  "Error %s." % str(osx) +
-                                  "Using default '/tmp'")
+                gc3libs.log.error(
+                    "Failed while creating tmp folder %s. " % chunk_files_dir
+                    + "Error %s." % str(osx)
+                    + "Using default '/tmp'"
+                )
                 chunk_files_dir = "/tmp"
 
         try:
-            fd = open(file_to_chunk,'rb')
+            fd = open(file_to_chunk, 'rb')
 
             fout = None
 
@@ -375,30 +392,24 @@ class GWeightScript(SessionBasedScript):
                 if i % chunk_size == 0:
                     if fout:
                         fout.close()
-                    (handle, self.tmp_filename) = tempfile.mkstemp(dir=chunk_files_dir,
-                                                                    prefix=
-                                                                   'gweight-',
-                                                                   suffix=
-                                                                   "%d.csv" % i)
-                    fout = open(self.tmp_filename,'w')
-                    chunk.append((fout.name,i))
+                    (handle, self.tmp_filename) = tempfile.mkstemp(
+                        dir=chunk_files_dir, prefix='gweight-', suffix="%d.csv" % i
+                    )
+                    fout = open(self.tmp_filename, 'w')
+                    chunk.append((fout.name, i))
                 fout.write(line)
             fout.close()
         except OSError as osx:
-            gc3libs.log.critical("Failed while creating chunk files." +
-                                 "Error %s", (str(osx)))
+            gc3libs.log.critical("Failed while creating chunk files." + "Error %s", (str(osx)))
             failure = True
         finally:
             if failure:
                 # remove all tmp file created
-                gc3libs.log.info("Could not generate full chunk list. "
-                                 "Removing all existing tmp files... ")
+                gc3libs.log.info("Could not generate full chunk list. " "Removing all existing tmp files... ")
                 for (cfile, index) in chunk:
                     try:
                         os.remove(cfile)
                     except OSError as osx:
-                        gc3libs.log.error("Failed while removing " +
-                                          "tmp file %s. " +
-                                          "Message %s" % osx.message)
+                        gc3libs.log.error("Failed while removing " + "tmp file %s. " + "Message %s" % osx.message)
 
         return chunk

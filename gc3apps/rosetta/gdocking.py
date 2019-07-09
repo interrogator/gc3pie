@@ -91,6 +91,7 @@ __docformat__ = 'reStructuredText'
 # see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gdocking
+
     gdocking.GDockingScript().run()
 
 
@@ -112,24 +113,31 @@ from gc3libs.cmdline import SessionBasedScript, existing_file, positive_int
 
 ## The GDocking application
 
+
 class GDockingApplication(RosettaDockingApplication):
     """
     Augment a `RosettaDockingApplication` with state transition
     methods that implement job status reporting for the UI, and data
     post-processing.
     """
-    def __init__(self, pdb_file_path, native_file_path=None,
-                 number_of_decoys_to_create=1, flags_file=None,
-                 collect=False, **extra_args):
+
+    def __init__(
+        self,
+        pdb_file_path,
+        native_file_path=None,
+        number_of_decoys_to_create=1,
+        flags_file=None,
+        collect=False,
+        **extra_args
+    ):
         RosettaDockingApplication.__init__(
-            self, pdb_file_path, native_file_path,
-            number_of_decoys_to_create, flags_file,
-            **extra_args)
+            self, pdb_file_path, native_file_path, number_of_decoys_to_create, flags_file, **extra_args
+        )
         # save pdb_file_path for later processing
         self.pdb_file_path = pdb_file_path
         # define additional attributes
-        self.collect = collect, # whether to collect result PDBs into a tarfile
-        self.computed = 0 # number of decoys actually computed by this job
+        self.collect = (collect,)  # whether to collect result PDBs into a tarfile
+        self.computed = 0  # number of decoys actually computed by this job
 
     def terminated(self):
         output_dir = self.output_dir
@@ -153,17 +161,15 @@ class GDockingApplication(RosettaDockingApplication):
                 else:
                     pdbs = tarfile.open(pdbs_tarfile_path, 'a')
             for entry in output_tar:
-                if (entry.name.endswith('.fasc') or entry.name.endswith('.sc')):
+                if entry.name.endswith('.fasc') or entry.name.endswith('.sc'):
                     filename, extension = os.path.splitext(entry.name)
-                    scoring_file_name = (os.path.join(work_dir, input_name_sans)
-                                         + '.' + self.jobname + extension)
+                    scoring_file_name = os.path.join(work_dir, input_name_sans) + '.' + self.jobname + extension
                     src = output_tar.extractfile(entry)
                     dst = open(scoring_file_name, 'wb')
                     dst.write(src.read())
                     dst.close()
                     src.close()
-                elif (self.collect and
-                      (entry.name.endswith('.pdb.gz') or entry.name.endswith('.pdb'))):
+                elif self.collect and (entry.name.endswith('.pdb.gz') or entry.name.endswith('.pdb')):
                     src = output_tar.extractfile(entry)
                     dst = tarfile.TarInfo(entry.name)
                     dst.size = entry.size
@@ -180,11 +186,12 @@ class GDockingApplication(RosettaDockingApplication):
                     src.close()
             if self.collect:
                 pdbs.close()
-        else: # no `docking_protocol.tar.gz` file
-            self.info = ("No 'docking_protocol.tar.gz' file found.")
+        else:  # no `docking_protocol.tar.gz` file
+            self.info = "No 'docking_protocol.tar.gz' file found."
 
 
 ## the script class
+
 
 class GDockingScript(SessionBasedScript):
     """
@@ -210,47 +217,71 @@ of newly-created jobs so that this limit is never exceeded.
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
+            version=__version__,  # module version == script version
             # Use fully-qualified name for class,
             # to allow GC3Utils to unpickle job instances
             # see: https://github.com/uzh/gc3pie/issues/95
-            application = GDockingApplication,
-            input_filename_pattern = '*.pdb'
-            )
+            application=GDockingApplication,
+            input_filename_pattern='*.pdb',
+        )
 
     def setup_options(self):
-        self.add_param("-f", "--flags-file", dest="flags_file",
-                       default=os.path.join(gc3libs.Default.RCDIR, 'docking_protocol.flags'),
-                       metavar="PATH",
-                       help="Pass the specified flags file to Rosetta 'docking_protocol'"
-                       " Default: '%(default)s'"
-                       )
-        self.add_param("-P", "--decoys-per-file", dest="decoys_per_file",
-                       type=positive_int, default=1,
-                       metavar="NUM",
-                       help="Compute NUM decoys per input file (default: %(default)s)."
-                       )
-        self.add_param("-p", "--decoys-per-job", dest="decoys_per_job",
-                       type=positive_int, default=1,
-                       metavar="NUM",
-                       help="Compute NUM decoys in a single job (default: %(default)s)."
-                       " This parameter should be tuned so that the running time"
-                       " of a single job does not exceed the maximum wall-clock time."
-                       )
-        self.add_param("-R", "--release",
-                       type=str, dest="rosetta_release", default="3.1",
-                       metavar="NAME",
-                       help="Numerical suffix to identify which version of Rosetta should be requested."
-                       " For example: '-e 20110622' will run rosetta-svn20110622."
-                       " (default: %(default)s)"
-                       )
-        self.add_param("-T", "--collect", dest="collect", default=False, action="store_true",
-                       help="Collect all output PDB and FASC/SC files into a single '.tar' file,"
-                       " located in the output directory (see the '-o' option)."
-                       )
-        self.add_param("-z", "--compress-pdb", dest="compress", default=False, action="store_true",
-                       help="Compress '.pdb' output files with `gzip`."
-                       )
+        self.add_param(
+            "-f",
+            "--flags-file",
+            dest="flags_file",
+            default=os.path.join(gc3libs.Default.RCDIR, 'docking_protocol.flags'),
+            metavar="PATH",
+            help="Pass the specified flags file to Rosetta 'docking_protocol'" " Default: '%(default)s'",
+        )
+        self.add_param(
+            "-P",
+            "--decoys-per-file",
+            dest="decoys_per_file",
+            type=positive_int,
+            default=1,
+            metavar="NUM",
+            help="Compute NUM decoys per input file (default: %(default)s).",
+        )
+        self.add_param(
+            "-p",
+            "--decoys-per-job",
+            dest="decoys_per_job",
+            type=positive_int,
+            default=1,
+            metavar="NUM",
+            help="Compute NUM decoys in a single job (default: %(default)s)."
+            " This parameter should be tuned so that the running time"
+            " of a single job does not exceed the maximum wall-clock time.",
+        )
+        self.add_param(
+            "-R",
+            "--release",
+            type=str,
+            dest="rosetta_release",
+            default="3.1",
+            metavar="NAME",
+            help="Numerical suffix to identify which version of Rosetta should be requested."
+            " For example: '-e 20110622' will run rosetta-svn20110622."
+            " (default: %(default)s)",
+        )
+        self.add_param(
+            "-T",
+            "--collect",
+            dest="collect",
+            default=False,
+            action="store_true",
+            help="Collect all output PDB and FASC/SC files into a single '.tar' file,"
+            " located in the output directory (see the '-o' option).",
+        )
+        self.add_param(
+            "-z",
+            "--compress-pdb",
+            dest="compress",
+            default=False,
+            action="store_true",
+            help="Compress '.pdb' output files with `gzip`.",
+        )
 
     def parse_args(self):
         self.instances_per_file = self.params.decoys_per_file
@@ -263,7 +294,10 @@ of newly-created jobs so that this limit is never exceeded.
         try:
             existing_file(self.params.flags_file)
         except Exception as ex:
-            gc3libs.log.error("Invalid flags file `%s`: please supply a valid flags file by adding the option `-f PATH`" % self.params.flags_file)
+            gc3libs.log.error(
+                "Invalid flags file `%s`: please supply a valid flags file by adding the option `-f PATH`"
+                % self.params.flags_file
+            )
             raise ex
 
         self.extra['flags_file'] = os.path.abspath(self.params.flags_file)

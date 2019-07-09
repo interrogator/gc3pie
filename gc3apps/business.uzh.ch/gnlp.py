@@ -68,6 +68,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gnlp
+
     gnlp.GnlpScript().run()
 
 import os
@@ -102,6 +103,7 @@ class GnlpApplication(Application):
     """
     Custom class to wrap the execution of the CoreNLP java script.
     """
+
     application_name = 'corenlp'
 
     def __init__(self, input_data, **extra_args):
@@ -112,8 +114,7 @@ class GnlpApplication(Application):
         inputs[input_data] = "./input.txt"
 
         # adding wrapper main script
-        gnlp_wrapper_sh = resource_filename(Requirement.parse("gc3pie"),
-                                              "gc3libs/etc/gnlp_wrapper.py")
+        gnlp_wrapper_sh = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gnlp_wrapper.py")
 
         inputs[gnlp_wrapper_sh] = "./wrapper.py"
 
@@ -124,13 +125,14 @@ class GnlpApplication(Application):
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gnlp.log',
-            stderr = 'gnlp.err',
-            executables = "./wrapper.py",
-            **extra_args)
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout='gnlp.log',
+            stderr='gnlp.err',
+            executables="./wrapper.py",
+            **extra_args
+        )
 
 
 class GnlpScript(SessionBasedScript):
@@ -157,31 +159,38 @@ class GnlpScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = GnlpApplication,
+            version=__version__,  # module version == script version
+            application=GnlpApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = GnlpApplication,
-            )
+            stats_only_for=GnlpApplication,
+        )
 
     def setup_options(self):
-        self.add_param("-k", "--chunk", metavar="[NUM]",
-                       dest="chunk_size", default="1000",
-                       help="How to split the .XML input data set. "
-                       "Default: 1000")
+        self.add_param(
+            "-k",
+            "--chunk",
+            metavar="[NUM]",
+            dest="chunk_size",
+            default="1000",
+            help="How to split the .XML input data set. " "Default: 1000",
+        )
 
-        self.add_param("--result-file", metavar="[STRING]",
-                       dest="result_file", default='result.xml',
-                       help="Name of the result file generated as the aggregation"
-                       " of all results from each chunked execution. "
-                       "Default: result.xml")
+        self.add_param(
+            "--result-file",
+            metavar="[STRING]",
+            dest="result_file",
+            default='result.xml',
+            help="Name of the result file generated as the aggregation"
+            " of all results from each chunked execution. "
+            "Default: result.xml",
+        )
 
     def setup_args(self):
 
-        self.add_param('input_data', type=str,
-                       help="Input data full path name.")
+        self.add_param('input_data', type=str, help="Input data full path name.")
 
     def parse_args(self):
         """
@@ -191,8 +200,8 @@ class GnlpScript(SessionBasedScript):
         # check args:
         if not os.path.isfile(self.params.input_data):
             raise gc3libs.exceptions.InvalidUsage(
-                "Invalid path to input data: '%s'. File not found"
-                % self.params.input_data)
+                "Invalid path to input data: '%s'. File not found" % self.params.input_data
+            )
 
         # Verify that 'self.params.chunk_size' is int
         int(self.params.chunk_size)
@@ -206,10 +215,11 @@ class GnlpScript(SessionBasedScript):
         tasks = []
         last_index = 0
 
-        for (input_file, index_chunk) in self._generate_chunked_files_and_list(self.params.input_data,
-                                                                              self.params.chunk_size):
+        for (input_file, index_chunk) in self._generate_chunked_files_and_list(
+            self.params.input_data, self.params.chunk_size
+        ):
 
-            jobname = "gnlp-%d-%d" % (last_index,index_chunk)
+            jobname = "gnlp-%d-%d" % (last_index, index_chunk)
 
             extra_args = extra.copy()
 
@@ -226,15 +236,11 @@ class GnlpScript(SessionBasedScript):
             extra_args['output_dir'] = extra_args['output_dir'].replace('DATE', jobname)
             extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', jobname)
 
-            self.log.debug("Creating Application for index : %d - %d" %
-                           (last_index,index_chunk))
+            self.log.debug("Creating Application for index : %d - %d" % (last_index, index_chunk))
 
-            tasks.append(GnlpApplication(
-                    input_file,
-                    **extra_args))
+            tasks.append(GnlpApplication(input_file, **extra_args))
 
             last_index = index_chunk
-
 
         return tasks
 
@@ -252,15 +258,15 @@ class GnlpScript(SessionBasedScript):
 
         # Open Session result file
         try:
-            with open(self.params.result_file,'w+') as fd:
+            with open(self.params.result_file, 'w+') as fd:
                 # Write header
                 fd.write(XML_HEADER)
 
                 for task in self.session:
-                    if isinstance(task,GnlpApplication) and task.execution.returncode == 0:
-                        with open(os.path.join(task.output_dir,task.output_file),'r') as fin:
+                    if isinstance(task, GnlpApplication) and task.execution.returncode == 0:
+                        with open(os.path.join(task.output_dir, task.output_file), 'r') as fin:
                             for line in fin:
-                                if line.strip() in ['<?xml version="1.0"?>','<ROWSET>','</ROWSET>']:
+                                if line.strip() in ['<?xml version="1.0"?>', '<ROWSET>', '</ROWSET>']:
                                     continue
                                 fd.write(line)
 
@@ -282,24 +288,26 @@ class GnlpScript(SessionBasedScript):
         chunk = []
         fout = None
         failure = False
-        chunk_files_dir = os.path.join(self.session.path,"tmp")
+        chunk_files_dir = os.path.join(self.session.path, "tmp")
 
         # creating 'chunk_files_dir'
-        if not(os.path.isdir(chunk_files_dir)):
+        if not (os.path.isdir(chunk_files_dir)):
             try:
                 os.mkdir(chunk_files_dir)
             except OSError as osx:
-                gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
-                                  "Error %s." % str(osx) +
-                                  "Using default '/tmp'")
+                gc3libs.log.error(
+                    "Failed while creating tmp folder %s. " % chunk_files_dir
+                    + "Error %s." % str(osx)
+                    + "Using default '/tmp'"
+                )
                 chunk_files_dir = "/tmp"
 
         try:
 
-            with open(file_to_chunk,'r') as fin:
+            with open(file_to_chunk, 'r') as fin:
                 for line in fin:
                     # Ignore header and ROWSET
-                    if line.strip() in ['<?xml version="1.0"?>','<ROWSET>','']:
+                    if line.strip() in ['<?xml version="1.0"?>', '<ROWSET>', '']:
                         # Ignore and continue
                         continue
 
@@ -311,11 +319,11 @@ class GnlpScript(SessionBasedScript):
                                 fout.close()
                                 chunk.append((fout.name, index))
                             # Create new chunk file
-                            fout = open(os.path.join(chunk_files_dir,"input-%d" % index),"w")
+                            fout = open(os.path.join(chunk_files_dir, "input-%d" % index), "w")
                             fout.write(XML_HEADER)
                         index += 1
                     if not fout:
-                        fout = open(os.path.join(chunk_files_dir,"input-%d" % index),"w")
+                        fout = open(os.path.join(chunk_files_dir, "input-%d" % index), "w")
                     fout.write(line)
 
             # Just close the current fout file if needed
@@ -323,20 +331,16 @@ class GnlpScript(SessionBasedScript):
             chunk.append((fout.name, index))
 
         except OSError as osx:
-            gc3libs.log.critical("Failed while creating chunk files." +
-                                 "Error %s", (str(osx)))
+            gc3libs.log.critical("Failed while creating chunk files." + "Error %s", (str(osx)))
             failure = True
         finally:
             if failure:
                 # remove all tmp file created
-                gc3libs.log.info("Could not generate full chunk list. "
-                                 "Removing all existing tmp files... ")
+                gc3libs.log.info("Could not generate full chunk list. " "Removing all existing tmp files... ")
                 for (cfile, index) in chunk:
                     try:
                         os.remove(cfile)
                     except OSError as osx:
-                        gc3libs.log.error("Failed while removing " +
-                                          "tmp file %s. " +
-                                          "Message %s" % osx.message)
+                        gc3libs.log.error("Failed while removing " + "tmp file %s. " + "Message %s" % osx.message)
 
         return chunk
