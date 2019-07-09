@@ -43,6 +43,7 @@ __version__ = '1.0'
 # for details, see: https://github.com/uzh/gc3pie/issues/95
 if __name__ == "__main__":
     import gcrashdetect
+
     gcrashdetect.GcrashdetectScript().run()
 
 import os
@@ -64,11 +65,11 @@ import gc3libs.utils
 from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
 from gc3libs.workflow import RetryableTask
 
-DEFAULT_ITERATIONS=1000
-DEFAULT_CHUNKS=1
-DEFAULT_REMOTE_OUTPUT_FOLDER="results"
-MATLAB_CMD="matlab -nosplash -nodisplay -nodesktop -r \'{main_function}({iterations} {mask} {fn} {output});quit\'"
-GCRASHDETECT_VALID_INPUT_FILE_EXTENSIONS = ['.m','.cpp','.mat']
+DEFAULT_ITERATIONS = 1000
+DEFAULT_CHUNKS = 1
+DEFAULT_REMOTE_OUTPUT_FOLDER = "results"
+MATLAB_CMD = "matlab -nosplash -nodisplay -nodesktop -r \'{main_function}({iterations} {mask} {fn} {output});quit\'"
+GCRASHDETECT_VALID_INPUT_FILE_EXTENSIONS = ['.m', '.cpp', '.mat']
 GCRASHDETECT_INPUT_ARCHIVE = "gcrashdetect.tgz"
 
 # utility methods
@@ -82,21 +83,26 @@ def _scan_and_tar(tarfile_folder, input_folder):
         cwd = os.getcwd()
         os.chdir(input_folder)
 
-        tar = tarfile.open(os.path.join(tarfile_folder,
-                                        GCRASHDETECT_INPUT_ARCHIVE),
-                           "w:gz",
-                           dereference=True)
+        tar = tarfile.open(os.path.join(tarfile_folder, GCRASHDETECT_INPUT_ARCHIVE), "w:gz", dereference=True)
 
-        for f in [ elem for elem in os.listdir('.') if os.path.splitext(elem)[-1] in GCRASHDETECT_VALID_INPUT_FILE_EXTENSIONS or os.path.isdir(elem)]:
+        for f in [
+            elem
+            for elem in os.listdir('.')
+            if os.path.splitext(elem)[-1] in GCRASHDETECT_VALID_INPUT_FILE_EXTENSIONS or os.path.isdir(elem)
+        ]:
             tar.add(f)
         tar.close()
         os.chdir(cwd)
-        return os.path.join(tarfile_folder,GCRASHDETECT_INPUT_ARCHIVE)
-    except Exception, x:
-        gc3libs.log.error("Failed creating input archive '%s': %s: %s",
-                          os.path.join(tarfile_folder, GCRASHDETECT_INPUT_ARCHIVE),
-                          x.__class__,x.message)
+        return os.path.join(tarfile_folder, GCRASHDETECT_INPUT_ARCHIVE)
+    except Exception as x:
+        gc3libs.log.error(
+            "Failed creating input archive '%s': %s: %s",
+            os.path.join(tarfile_folder, GCRASHDETECT_INPUT_ARCHIVE),
+            x.__class__,
+            x.message,
+        )
         raise
+
 
 ## custom application class
 class GcrashdetectApplication(Application):
@@ -104,6 +110,7 @@ class GcrashdetectApplication(Application):
     Execute Matlab main function passing the arguments extracted
     from the main input .csv file.
     """
+
     application_name = 'gcrashdetect'
 
     def __init__(self, matlab_function, parameter_list, tarfile=None, **extra_args):
@@ -112,8 +119,7 @@ class GcrashdetectApplication(Application):
         outputs = dict()
 
         # execution wrapper needs to be added anyway
-        wrapper = resource_filename(Requirement.parse("gc3pie"),
-                                    "gc3libs/etc/gcrashdetect_wrapper.sh")
+        wrapper = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/gcrashdetect_wrapper.sh")
 
         inputs[wrapper] = "./wrapper.sh"
 
@@ -130,13 +136,14 @@ class GcrashdetectApplication(Application):
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = [DEFAULT_REMOTE_OUTPUT_FOLDER],
-            stdout = 'gcrashdetect.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=[DEFAULT_REMOTE_OUTPUT_FOLDER],
+            stdout='gcrashdetect.log',
             join=True,
-            executables = "./wrapper.sh",
-            **extra_args)
+            executables="./wrapper.sh",
+            **extra_args
+        )
 
 
 class GcrashdetectScript(SessionBasedScript):
@@ -161,35 +168,38 @@ class GcrashdetectScript(SessionBasedScript):
 
     def __init__(self):
         SessionBasedScript.__init__(
-            self,
-            version = __version__,
-            application = GcrashdetectApplication,
-            stats_only_for = GcrashdetectApplication,
-            )
+            self, version=__version__, application=GcrashdetectApplication, stats_only_for=GcrashdetectApplication
+        )
 
     def setup_options(self):
-        self.add_param("-d", "--mfuncs", metavar="PATH", type=str,
-                       dest="matlab_source_folder", default=None,
-                       help="Location of the Matlab scripts and "
-                       "related Matlab functions. Default: %(default)s.")
+        self.add_param(
+            "-d",
+            "--mfuncs",
+            metavar="PATH",
+            type=str,
+            dest="matlab_source_folder",
+            default=None,
+            help="Location of the Matlab scripts and " "related Matlab functions. Default: %(default)s.",
+        )
 
     def setup_args(self):
 
-        self.add_param('matlab_function', type=str,
-                       help="Matlab function name")
+        self.add_param('matlab_function', type=str, help="Matlab function name")
 
-        self.add_param('csv_input_file', type=existing_file,
-                       help="Input .csv file with all parameters to be passed"
-                       " to the Matlab function.")
+        self.add_param(
+            'csv_input_file',
+            type=existing_file,
+            help="Input .csv file with all parameters to be passed" " to the Matlab function.",
+        )
 
     def parse_args(self):
         """
         Check if in source_folder there is a Matlab file named after
         the Matlab function passed as input argument.
         """
-        assert os.path.isfile(os.path.join(self.params.matlab_source_folder,
-                                           self.params.matlab_function+'.m')), \
-                                           "Matlab function file '%s' not found." % self.params.matlab_function
+        assert os.path.isfile(os.path.join(self.params.matlab_source_folder, self.params.matlab_function + '.m')), (
+            "Matlab function file '%s' not found." % self.params.matlab_function
+        )
 
     def new_tasks(self, extra):
         """
@@ -201,7 +211,6 @@ class GcrashdetectScript(SessionBasedScript):
         tarfile = None
         if self.params.matlab_source_folder:
             tarfile = _scan_and_tar(self.session.path, self.params.matlab_source_folder)
-
 
         for parameter in self._enumerate_csv(self.params.csv_input_file):
             parameter_str = '.'.join(str(x) for x in parameter)
@@ -218,14 +227,9 @@ class GcrashdetectScript(SessionBasedScript):
             extra_args['output_dir'] = extra_args['output_dir'].replace('TIME', jobname)
 
             extra_args['matlab_source_folder'] = self.params.matlab_source_folder
-            self.log.debug("Creating Application for parameter : %s" %
-                           (parameter_str))
+            self.log.debug("Creating Application for parameter : %s" % (parameter_str))
 
-            tasks.append(GcrashdetectApplication(
-                self.params.matlab_function,
-                parameter,
-                tarfile,
-                **extra_args))
+            tasks.append(GcrashdetectApplication(self.params.matlab_function, parameter, tarfile, **extra_args))
 
         return tasks
 
@@ -235,5 +239,5 @@ class GcrashdetectScript(SessionBasedScript):
         return list of parameters
         """
         parameters = pandas.read_csv(input_csv)
-        for i,p in enumerate(parameters.values):
+        for i, p in enumerate(parameters.values):
             yield p.tolist()

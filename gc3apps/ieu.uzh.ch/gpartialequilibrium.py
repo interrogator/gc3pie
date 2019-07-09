@@ -49,6 +49,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: http://code.google.com/p/gc3pie/issues/detail?id=95
 if __name__ == "__main__":
     import gpartialequilibrium
+
     gpartialequilibrium.GpartialequilibriumScript().run()
 
 import os
@@ -72,11 +73,12 @@ from gc3libs.workflow import RetryableTask
 
 DEFAULT_REMOTE_OUTPUT_FOLDER = "./results"
 DEFAULT_FUNCTION = "partialequilibrium"
-TARFILE="source.tgz"
-TEMP_FOLDER="/var/tmp"
+TARFILE = "source.tgz"
+TEMP_FOLDER = "/var/tmp"
 
 
 ## utility funtions
+
 
 def _getchunk(file_to_chunk, chunk_size=2, chunk_files_dir='/var/tmp'):
     """
@@ -91,13 +93,15 @@ def _getchunk(file_to_chunk, chunk_size=2, chunk_files_dir='/var/tmp'):
     chunks = []
 
     # creating 'chunk_files_dir'
-    if not(os.path.isdir(chunk_files_dir)):
+    if not (os.path.isdir(chunk_files_dir)):
         try:
             os.mkdir(chunk_files_dir)
         except OSError as osx:
-            gc3libs.log.error("Failed while creating tmp folder %s. " % chunk_files_dir +
-                              "Error %s." % str(osx) +
-                              "Using default '/tmp'")
+            gc3libs.log.error(
+                "Failed while creating tmp folder %s. " % chunk_files_dir
+                + "Error %s." % str(osx)
+                + "Using default '/tmp'"
+            )
             chunk_files_dir = "/tmp"
 
     reader = pandas.read_csv(file_to_chunk, header=None, chunksize=chunk_size)
@@ -105,9 +109,9 @@ def _getchunk(file_to_chunk, chunk_size=2, chunk_files_dir='/var/tmp'):
     index = 0
     for chunk in reader:
         index += 1
-        filename = "%s/chunk_%s.csv" % (chunk_files_dir,index)
+        filename = "%s/chunk_%s.csv" % (chunk_files_dir, index)
         chunk.to_csv(filename, header=None, index=False)
-        chunks.append((filename,index))
+        chunks.append((filename, index))
 
     return chunks
 
@@ -121,7 +125,7 @@ def _scanandtar(dir_to_scan, temp_folder=TEMP_FOLDER):
         if not os.path.isdir(temp_folder):
             os.mkdir(temp_folder)
 
-        with tarfile.open(os.path.join(temp_folder,TARFILE), "w:gz") as tar:
+        with tarfile.open(os.path.join(temp_folder, TARFILE), "w:gz") as tar:
 
             tar.add(dir_to_scan, arcname=".")
             os.chdir(cwd)
@@ -129,23 +133,22 @@ def _scanandtar(dir_to_scan, temp_folder=TEMP_FOLDER):
             gc3libs.log.info("Created tar file '%s'" % TARFILE)
             return tar.name
 
-    except Exception, x:
-        gc3libs.log.error("Failed creating input archive '%s': %s %s",
-                          os.path.join(dir_to_scan,),
-                          type(x),x.message)
+    except Exception as x:
+        gc3libs.log.error("Failed creating input archive '%s': %s %s", os.path.join(dir_to_scan), type(x), x.message)
         raise
 
 
 ## custom application class
 
+
 class GpartialequilibriumApplication(Application):
     """
     Custom class to wrap the execution of the R scripts passed in src_dir.
     """
+
     application_name = 'gpartialequilibrium'
 
     def __init__(self, input_file, mfunct, **extra_args):
-
 
         executables = []
         inputs = dict()
@@ -153,15 +156,12 @@ class GpartialequilibriumApplication(Application):
 
         self.results = extra_args['session_output_dir']
 
-        wrapper = resource_filename(Requirement.parse("gc3pie"),
-                                    "gc3libs/etc/matlab_wrapper.sh")
+        wrapper = resource_filename(Requirement.parse("gc3pie"), "gc3libs/etc/matlab_wrapper.sh")
         inputs[wrapper] = "./wrapper.sh"
 
         inputs[input_file] = os.path.basename(input_file)
 
-        arguments = "./wrapper.sh %s %s %s" % (mfunct,
-                                               os.path.basename(input_file),
-                                               DEFAULT_REMOTE_OUTPUT_FOLDER)
+        arguments = "./wrapper.sh %s %s %s" % (mfunct, os.path.basename(input_file), DEFAULT_REMOTE_OUTPUT_FOLDER)
 
         if 'source' in extra_args:
             inputs[extra_args['source']] = os.path.basename(extra_args['source'])
@@ -170,24 +170,23 @@ class GpartialequilibriumApplication(Application):
         # Set output
         outputs[DEFAULT_REMOTE_OUTPUT_FOLDER] = DEFAULT_REMOTE_OUTPUT_FOLDER
 
-        gc3libs.log.info("Creating application for executing: %s",
-                          arguments)
+        gc3libs.log.info("Creating application for executing: %s", arguments)
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gpartialequilibrium.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout='gpartialequilibrium.log',
             join=True,
-            executables = executables,
-            **extra_args)
+            executables=executables,
+            **extra_args
+        )
 
     def terminated(self):
         folder_files = os.path.join(self.output_dir, DEFAULT_REMOTE_OUTPUT_FOLDER)
         for f in os.listdir(folder_files):
-            os.rename(os.path.join(folder_files ,f),
-                      os.path.join(self.results, f))
+            os.rename(os.path.join(folder_files, f), os.path.join(self.results, f))
 
 
 class GpartialequilibriumScript(SessionBasedScript):
@@ -220,33 +219,40 @@ class GpartialequilibriumScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__,
-            application = GpartialequilibriumApplication,
-            stats_only_for = GpartialequilibriumApplication,
-            )
+            version=__version__,
+            application=GpartialequilibriumApplication,
+            stats_only_for=GpartialequilibriumApplication,
+        )
 
     def setup_options(self):
-        self.add_param("-R", "--src",
-                       metavar="PATH",
-                       dest="source",
-                       default=None,
-                       type=existing_directory,
-                       help="Location of the Matlab functions.")
+        self.add_param(
+            "-R",
+            "--src",
+            metavar="PATH",
+            dest="source",
+            default=None,
+            type=existing_directory,
+            help="Location of the Matlab functions.",
+        )
 
-        self.add_param("-k", "--chunk",
-                       metavar="INT",
-                       type=positive_int,
-                       dest="chunk_size",
-                       default=1000,
-                       help="How to split the edges input data set.")
+        self.add_param(
+            "-k",
+            "--chunk",
+            metavar="INT",
+            type=positive_int,
+            dest="chunk_size",
+            default=1000,
+            help="How to split the edges input data set.",
+        )
 
-        self.add_param("-f", "--function",
-                       metavar="STRING",
-                       dest="mfunct",
-                       default=DEFAULT_FUNCTION,
-                       help="Name of the Matlab function to call."
-                       " Default: %(default)s.")
-
+        self.add_param(
+            "-f",
+            "--function",
+            metavar="STRING",
+            dest="mfunct",
+            default=DEFAULT_FUNCTION,
+            help="Name of the Matlab function to call." " Default: %(default)s.",
+        )
 
     def parse_args(self):
         """
@@ -255,10 +261,9 @@ class GpartialequilibriumScript(SessionBasedScript):
         """
         try:
 
-            assert os.path.isfile(os.path.join(self.params.source,
-                                               self.params.mfunct + ".m")), \
-                "Matlab funtion file %s/%s.m not found" % (self.params.source,
-                                                           self.params.mfunct)
+            assert os.path.isfile(
+                os.path.join(self.params.source, self.params.mfunct + ".m")
+            ), "Matlab funtion file %s/%s.m not found" % (self.params.source, self.params.mfunct)
 
         except AssertionError as ex:
             raise ValueError(ex.message)
@@ -271,14 +276,16 @@ class GpartialequilibriumScript(SessionBasedScript):
         tasks = []
 
         if self.params.source:
-            tar_file = _scanandtar(os.path.abspath(self.params.source),
-                                  temp_folder=os.path.join(self.session.path,"tmp"))
+            tar_file = _scanandtar(
+                os.path.abspath(self.params.source), temp_folder=os.path.join(self.session.path, "tmp")
+            )
 
         for csv_input_file in self.params.args:
-            for (input_file, index_chunk) in _getchunk(csv_input_file,
-                                                       self.params.chunk_size,
-                                                       chunk_files_dir=os.path.join(self.session.path,
-                                                                                    "tmp",os.path.basename(csv_input_file))):
+            for (input_file, index_chunk) in _getchunk(
+                csv_input_file,
+                self.params.chunk_size,
+                chunk_files_dir=os.path.join(self.session.path, "tmp", os.path.basename(csv_input_file)),
+            ):
 
                 jobname = "gpartialequilibrium-%s" % (str(index_chunk))
 
@@ -288,20 +295,18 @@ class GpartialequilibriumScript(SessionBasedScript):
                 extra_args['jobname'] = jobname
 
                 extra_args['output_dir'] = self.params.output
-                extra_args['output_dir'] = extra_args['output_dir'].replace('NAME',
-                                                                            os.path.join(os.path.basename(csv_input_file),
-                                                                                         jobname))
+                extra_args['output_dir'] = extra_args['output_dir'].replace(
+                    'NAME', os.path.join(os.path.basename(csv_input_file), jobname)
+                )
                 extra_args['session_output_dir'] = os.path.dirname(self.params.output)
 
                 if self.params.source:
                     extra_args['source'] = tar_file
 
-                self.log.info("Creating Application for index : %d - %d" %
-                              (index_chunk, (index_chunk + self.params.chunk_size)))
+                self.log.info(
+                    "Creating Application for index : %d - %d" % (index_chunk, (index_chunk + self.params.chunk_size))
+                )
 
-                tasks.append(GpartialequilibriumApplication(
-                    input_file,
-                    self.params.mfunct,
-                    **extra_args))
+                tasks.append(GpartialequilibriumApplication(input_file, self.params.mfunct, **extra_args))
 
         return tasks

@@ -192,7 +192,7 @@ def engineProgress(self):
                     currently_in_flight -= 1
             self._terminated.append(task)
             transitioned.append(index)
-        except Exception, x:
+        except Exception as x:
             gc3libs.log.error("Ignored error in killing task '%s': %s: %s"
                               % (task, x.__class__.__name__, str(x)),
                               exc_info=True)
@@ -225,11 +225,11 @@ def engineProgress(self):
             elif state == Run.State.TERMINATED:
                 self._terminated.append(task)
                 transitioned.append(index) # task changed state, mark as to remove
-        except Exception, x:
+        except Exception as x:
             gc3libs.log.error("Ignoring error in updating state of STOPPED task '%s': %s: %s"
                               % (task, x.__class__.__name__, str(x)),
                               exc_info=True)
-        # except Exception, x:
+        # except Exception as x:
         #     gc3libs.log.error("Ignoring error in updating state of STOPPED task '%s': %s: %s"
         #                       % (task, x.__class__.__name__, str(x)),
         #                       exc_info=True)
@@ -258,7 +258,7 @@ def engineProgress(self):
                     if isinstance(task, Application):
                         currently_submitted += 1
                         currently_in_flight += 1
-                except Exception, x:
+                except Exception as x:
 #                    sys.excepthook(*sys.exc_info()) # DEBUG
                     import traceback
                     traceback.print_exc()
@@ -290,7 +290,7 @@ def engineProgress(self):
                                              posix.EX_IOERR)
                 task.execution.state = Run.State.TERMINATED
                 task.changed = True
-            except Exception, x:
+            except Exception as x:
                 gc3libs.log.error("Ignored error in fetching output of task '%s': %s: %s"
                                   % (task, x.__class__.__name__, str(x)), exc_info=True)
             if task.execution.state == Run.State.TERMINATED:

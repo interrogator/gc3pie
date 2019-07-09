@@ -8,7 +8,7 @@ import re
 import sys
 import time
 import tarfile
-from multiprocessing import Manager, Pool, Process, current_process
+from multiprocessing import Manager, Process, current_process
 from zipfile import ZipFile, is_zipfile
 
 import pandas
@@ -62,7 +62,7 @@ def extract_tweets(lines):
 
 def process_twitter_json_file(archive_path, y, m, fq, wq):
     """
-    Worker that processes a single twitter json file from the archive   
+    Worker that processes a single twitter json file from the archive
     :param archive_path: name of the archive
     :param y: cached year value
     :param m: cached month value
@@ -96,24 +96,24 @@ def process_twitter_json_file(archive_path, y, m, fq, wq):
                         day, hour, p = archive_file.name.split('/')
                     else:
                         raise ValueError('cannot infer date from filename and/or directory structure')
-                    wq.put('{y}.{m}.{d}.{h}.{p};{neg};{pos};{neu};{com};\n'.format(y=yr,
-                                                                                   m=mt,
-                                                                                   d=day,
-                                                                                   p=p.split('.')[0],
-                                                                                   h=hour,
-                                                                                   neg=neg,
-                                                                                   pos=pos,
-                                                                                   neu=neu,
-                                                                                   com=com))
+                    wq.put(
+                        '{y}.{m}.{d}.{h}.{p};{neg};{pos};{neu};{com};\n'.format(
+                            y=yr, m=mt, d=day, p=p.split('.')[0], h=hour, neg=neg, pos=pos, neu=neu, com=com
+                        )
+                    )
                 else:
-                    print('file pointer not opened, something went wrong for {0} in {1}, skipping..,'.format(archive_file.name, archive_path))
+                    print(
+                        'file pointer not opened, something went wrong for {0} in {1}, skipping..,'.format(
+                            archive_file.name, archive_path
+                        )
+                    )
 
 
 def mp_writer(o, wq):
     """
     Multiprocess listener. Listens to message on Queue and writes them to file
     :param o: name of the output file
-    :param wq: queue to read from 
+    :param wq: queue to read from
     """
     with open(o, 'wb') as fp:
         while True:
@@ -129,7 +129,7 @@ def queue_archive_files(archive_path, fq):
     """
     Extract all data and process everything :)
     :param archive_path: name of the archive
-    :param fq: puts the file names on the queue 
+    :param fq: puts the file names on the queue
     """
     if is_zipfile(archive_path):
         with ZipFile(archive_path, 'r') as archive:
@@ -161,25 +161,31 @@ if __name__ == "__main__":
         if len(match.groups()) == 2:
             year = match.group(1)
             month = match.group(2)
-            print('found something resembling a year/month thingy ({0}-{1})in the file name, caching it.'.format(year, month))
+            print(
+                'found something resembling a year/month thingy ({0}-{1})in the file name, caching it.'.format(
+                    year, month
+                )
+            )
         print('setting up multiprocessing')
         manager = Manager()
         file_queue = manager.Queue()
         writer_queue = manager.Queue()
         print('Setup our file indexer')
-        indexer = Process(target=queue_archive_files, args=(sys.argv[1], file_queue,))
+        indexer = Process(target=queue_archive_files, args=(sys.argv[1], file_queue))
         indexer.start()
         print('Setup our output writer')
-        writer = Process(target=mp_writer, args=('{fn}.csv'.format(fn=os.path.basename(sys.argv[1])), writer_queue,))
+        writer = Process(target=mp_writer, args=('{fn}.csv'.format(fn=os.path.basename(sys.argv[1])), writer_queue))
         writer.start()
         print('Setup file processors and start crunching')
-	jobs = []
-	for index in range(0,int(sys.argv[2])):
-	    jobs.append(Process(target=process_twitter_json_file, args=(sys.argv[1], year, month, file_queue, writer_queue,)))
-   	for job in jobs:
-	    job.start()
-	    print('Started process {0} in pid {1}'.format(job.name,job.pid))
-	print('wait for our indexer to finish')
+        jobs = []
+        for index in range(int(sys.argv[2])):
+            jobs.append(
+                Process(target=process_twitter_json_file, args=(sys.argv[1], year, month, file_queue, writer_queue))
+            )
+        for job in jobs:
+            job.start()
+            print('Started process {0} in pid {1}'.format(job.name, job.pid))
+        print('wait for our indexer to finish')
         indexer.join()
         print('add terminators to index file queue (as last element)')
         for job in jobs:
@@ -194,5 +200,3 @@ if __name__ == "__main__":
     else:
         print('Invalid argument count, should only be one single archive and a cpu core count.')
         exit(-1)
-
-

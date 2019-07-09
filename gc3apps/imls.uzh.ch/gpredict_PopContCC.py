@@ -49,6 +49,7 @@ __docformat__ = 'reStructuredText'
 # for details, see: http://code.google.com/p/gc3pie/issues/detail?id=95
 if __name__ == "__main__":
     import gpredict_PopContCC
+
     gpredict_PopContCC.Gpredict_PopContCCScript().run()
 
 import os
@@ -69,29 +70,31 @@ import gc3libs.utils
 from gc3libs.quantity import Memory, kB, MB, GB, Duration, hours, minutes, seconds
 from gc3libs.workflow import RetryableTask
 
-DEFAULT_MATLAB_FUNCTION="predict_PopContCC"
+DEFAULT_MATLAB_FUNCTION = "predict_PopContCC"
 DEFAULT_REMOTE_OUTPUT_FOLDER = "./results"
-TARFILE="source.tgz"
-TEMP_FOLDER="/var/tmp"
+TARFILE = "source.tgz"
+TEMP_FOLDER = "/var/tmp"
 DEFAULT_REPETITIONS = 100
 DEFAULT_BUNDLE = 10
-MATLAB_COMMAND="matlab -nodesktop -nodisplay -nosplash -r \'{mfunct} {MatPredictor} " \
+MATLAB_COMMAND = (
+    "matlab -nodesktop -nodisplay -nosplash -r \'{mfunct} {MatPredictor} "
     "{VecResponse} {numberOfSamples} {numberOfTrees} {bundles} {results} ;quit()'"
+)
 
 ## utility funtions
-def _get_iterations(repetitions,bundle):
+def _get_iterations(repetitions, bundle):
     """
     Yield iterator number and bundle size.
     Last bundle value may be shorter than 'bundle'
     """
-    total_iterations = repetitions/bundle
-    last_iteration = repetitions%bundle
+    total_iterations = repetitions / bundle
+    last_iteration = repetitions % bundle
 
-    for iteration in range(1,total_iterations+1):
-        yield (iteration,bundle)
+    for iteration in range(1, total_iterations + 1):
+        yield (iteration, bundle)
 
-    if repetitions%bundle > 0:
-        yield (total_iterations+1,repetitions%bundle)
+    if repetitions % bundle > 0:
+        yield (total_iterations + 1, repetitions % bundle)
 
 
 def _scanandtar(dir_to_scan, temp_folder=TEMP_FOLDER):
@@ -103,7 +106,7 @@ def _scanandtar(dir_to_scan, temp_folder=TEMP_FOLDER):
         if not os.path.isdir(temp_folder):
             os.mkdir(temp_folder)
 
-        with tarfile.open(os.path.join(temp_folder,TARFILE), "w:gz") as tar:
+        with tarfile.open(os.path.join(temp_folder, TARFILE), "w:gz") as tar:
 
             tar.add(dir_to_scan, arcname=".")
             os.chdir(cwd)
@@ -111,23 +114,32 @@ def _scanandtar(dir_to_scan, temp_folder=TEMP_FOLDER):
             gc3libs.log.info("Created tar file '%s'" % TARFILE)
             return tar.name
 
-    except Exception, x:
-        gc3libs.log.error("Failed creating input archive '%s': %s %s",
-                          os.path.join(dir_to_scan,),
-                          type(x),x.message)
+    except Exception as x:
+        gc3libs.log.error("Failed creating input archive '%s': %s %s", os.path.join(dir_to_scan), type(x), x.message)
         raise
 
 
 ## custom application class
 
+
 class Gpredict_PopContCCApplication(Application):
     """
     Custom class to wrap the execution of the matlab function.
     """
+
     application_name = 'gpredictpopcontcc'
 
-    def __init__(self, Mfunct, MatPredictor_file, VecResponse_file,
-                 numberOfSamples, numberOfTrees, bundles, iteration, **extra_args):
+    def __init__(
+        self,
+        Mfunct,
+        MatPredictor_file,
+        VecResponse_file,
+        numberOfSamples,
+        numberOfTrees,
+        bundles,
+        iteration,
+        **extra_args
+    ):
 
         executables = []
         inputs = dict()
@@ -141,35 +153,37 @@ class Gpredict_PopContCCApplication(Application):
         inputs[MatPredictor_file] = os.path.basename(MatPredictor_file)
         inputs[VecResponse_file] = os.path.basename(VecResponse_file)
 
-        arguments = MATLAB_COMMAND.format(mfunct=function_name,
-                                          MatPredictor=inputs[MatPredictor_file],
-                                          VecResponse=inputs[VecResponse_file],
-                                          numberOfSamples=numberOfSamples,
-                                          numberOfTrees=numberOfTrees,
-                                          bundles=bundles,
-                                          results=DEFAULT_REMOTE_OUTPUT_FOLDER)
+        arguments = MATLAB_COMMAND.format(
+            mfunct=function_name,
+            MatPredictor=inputs[MatPredictor_file],
+            VecResponse=inputs[VecResponse_file],
+            numberOfSamples=numberOfSamples,
+            numberOfTrees=numberOfTrees,
+            bundles=bundles,
+            results=DEFAULT_REMOTE_OUTPUT_FOLDER,
+        )
 
         # Set output
         outputs[DEFAULT_REMOTE_OUTPUT_FOLDER] = DEFAULT_REMOTE_OUTPUT_FOLDER
 
-        gc3libs.log.debug("Creating application for executing: %s",
-                          arguments)
+        gc3libs.log.debug("Creating application for executing: %s", arguments)
 
         Application.__init__(
             self,
-            arguments = arguments,
-            inputs = inputs,
-            outputs = outputs,
-            stdout = 'gpredict_PopContCC.log',
+            arguments=arguments,
+            inputs=inputs,
+            outputs=outputs,
+            stdout='gpredict_PopContCC.log',
             join=True,
-            executables = executables,
-            **extra_args)
+            executables=executables,
+            **extra_args
+        )
 
     def terminated(self):
         folder_files = os.path.join(self.output_dir, DEFAULT_REMOTE_OUTPUT_FOLDER)
         for f in os.listdir(folder_files):
-            os.rename(os.path.join(folder_files ,f),
-                      os.path.join(self.results, "%d_%s" % (self.iteration,f)))
+            os.rename(os.path.join(folder_files, f), os.path.join(self.results, "%d_%s" % (self.iteration, f)))
+
 
 class Gpredict_PopContCCScript(SessionBasedScript):
     """
@@ -200,56 +214,48 @@ class Gpredict_PopContCCScript(SessionBasedScript):
     def __init__(self):
         SessionBasedScript.__init__(
             self,
-            version = __version__, # module version == script version
-            application = Gpredict_PopContCCApplication,
+            version=__version__,  # module version == script version
+            application=Gpredict_PopContCCApplication,
             # only display stats for the top-level policy objects
             # (which correspond to the processed files) omit counting
             # actual applications because their number varies over
             # time as checkpointing and re-submission takes place.
-            stats_only_for = Gpredict_PopContCCApplication,
-            )
+            stats_only_for=Gpredict_PopContCCApplication,
+        )
 
     def setup_args(self):
-        self.add_param('Mfunct',
-                       type=existing_file,
-                       help="Path to the gpredict_PopContCC file.")
+        self.add_param('Mfunct', type=existing_file, help="Path to the gpredict_PopContCC file.")
 
-        self.add_param('MatPredictor',
-                       type=existing_file,
-                       help="Path to the MatPredictor file.")
+        self.add_param('MatPredictor', type=existing_file, help="Path to the MatPredictor file.")
 
-        self.add_param('VecResponse',
-                       type=existing_file,
-                       help="Path to the VecResponse file.")
+        self.add_param('VecResponse', type=existing_file, help="Path to the VecResponse file.")
 
+        self.add_param('numberOfSamples', type=positive_int, help="Number of samples.")
 
-        self.add_param('numberOfSamples',
-                       type=positive_int,
-                       help="Number of samples.")
-
-        self.add_param('numberOfTrees',
-                       type=positive_int,
-                       help="Number of trees.")
+        self.add_param('numberOfTrees', type=positive_int, help="Number of trees.")
 
     def setup_options(self):
-        self.add_param("-R", "--repetitions",
-                       metavar="[INT]",
-                       type=positive_int,
-                       dest="repetitions",
-                       default=DEFAULT_REPETITIONS,
-                       help="Number of repetitions. "
-                       " Repeat Matlab execution. "
-                       " Default: repeat '%(default)s' times.")
+        self.add_param(
+            "-R",
+            "--repetitions",
+            metavar="[INT]",
+            type=positive_int,
+            dest="repetitions",
+            default=DEFAULT_REPETITIONS,
+            help="Number of repetitions. " " Repeat Matlab execution. " " Default: repeat '%(default)s' times.",
+        )
 
-        self.add_param("-B", "--bundle",
-                       metavar="[INT]",
-                       type=positive_int,
-                       dest="bundle",
-                       default=DEFAULT_BUNDLE,
-                       help="Group execution of repetitions in bundles. "
-                       " Total executions: repetitions / bundle. "
-                       " Default: bundle in group of '%(default)s' repetitions.")
-
+        self.add_param(
+            "-B",
+            "--bundle",
+            metavar="[INT]",
+            type=positive_int,
+            dest="bundle",
+            default=DEFAULT_BUNDLE,
+            help="Group execution of repetitions in bundles. "
+            " Total executions: repetitions / bundle. "
+            " Default: bundle in group of '%(default)s' repetitions.",
+        )
 
     def new_tasks(self, extra):
         """
@@ -258,7 +264,7 @@ class Gpredict_PopContCCScript(SessionBasedScript):
         """
         tasks = []
 
-        for iteration,bundle_size in _get_iterations(self.params.repetitions,self.params.bundle):
+        for iteration, bundle_size in _get_iterations(self.params.repetitions, self.params.bundle):
             jobname = "gpredict_PopContCC-%d" % (iteration)
 
             extra_args = extra.copy()
@@ -268,14 +274,17 @@ class Gpredict_PopContCCScript(SessionBasedScript):
 
             self.log.debug("Creating Application for iteration : %d" % iteration)
 
-            tasks.append(Gpredict_PopContCCApplication(
-                os.path.abspath(self.params.Mfunct),
-                os.path.abspath(self.params.MatPredictor),
-                os.path.abspath(self.params.VecResponse),
-                self.params.numberOfSamples,
-                self.params.numberOfTrees,
-                bundle_size,
-                iteration,
-                **extra_args))
+            tasks.append(
+                Gpredict_PopContCCApplication(
+                    os.path.abspath(self.params.Mfunct),
+                    os.path.abspath(self.params.MatPredictor),
+                    os.path.abspath(self.params.VecResponse),
+                    self.params.numberOfSamples,
+                    self.params.numberOfTrees,
+                    bundle_size,
+                    iteration,
+                    **extra_args
+                )
+            )
 
         return tasks

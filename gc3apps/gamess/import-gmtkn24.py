@@ -714,7 +714,7 @@ These data have initially been imported from the online
                             % (args[0], PROG))
         sys.exit(1)
 
-    except HTTPError, x:
+    except HTTPError as x:
         logger.critical("HTTP error %d requesting page: %s" % (x.code, x.msg))
         sys.exit(1)
 
