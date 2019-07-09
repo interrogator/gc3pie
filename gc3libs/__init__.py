@@ -129,7 +129,7 @@ from gc3libs.events import TaskStateChange
 import gc3libs.exceptions
 from gc3libs.persistence import Persistable
 from gc3libs.url import UrlKeyDict, UrlValueDict
-from gc3libs.utils import (defproperty, deploy_configuration_file, Enum,
+from gc3libs.utils import (deploy_configuration_file, Enum,
                            History, Struct, safe_repr, sh_quote_unsafe)
 
 
@@ -1800,8 +1800,8 @@ class Run(Struct):
         if 'timestamp' not in self:
             self.timestamp = OrderedDict()
 
-    @defproperty
-    def info():
+    @property
+    def info(self):
         """
         A simplified interface for reading/writing entries into `history`.
 
@@ -1871,8 +1871,8 @@ class Run(Struct):
         def __setattr__(self, name, value):
             raise TypeError("Cannot overwrite value of constant '%s'" % name)
 
-    @defproperty
-    def state():
+    @property
+    def state(self):
         """
         The state a `Run` is in.
 
@@ -1987,8 +1987,8 @@ class Run(Struct):
         else:
             return False
 
-    @defproperty
-    def signal():
+    @property
+    def signal(self):
         """
         The "signal number" part of a `Run.returncode`, see
         `os.WTERMSIG` for details.
@@ -2013,8 +2013,8 @@ class Run(Struct):
                 self._signal = int(value) & 0x7f
         return (locals())
 
-    @defproperty
-    def exitcode():
+    @property
+    def exitcode(self):
         """
         The "exit code" part of a `Run.returncode`, see `os.WEXITSTATUS`.
         This is an 8-bit integer, whose meaning is entirely
@@ -2119,7 +2119,6 @@ class Run(Struct):
         if signal is None:
             signal = 0
         return (exitcode << 8) | signal
-
 
     # `Run.Signals` is an instance of global class `_Signals`
     Signals = _Signals()

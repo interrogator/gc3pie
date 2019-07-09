@@ -92,8 +92,8 @@ class TaskCollection(Task):
             (task for task in self.tasks),
         )
 
-    @gc3libs.utils.defproperty
-    def changed():
+    @property
+    def changed(self):
         """
         Evaluates to `True` if this task or any of its subtasks has been
         modified and should be saved to persistent storage.
@@ -1028,8 +1028,8 @@ class RetryableTask(Task):
         self.would_output = self.task.would_output
         Task.__init__(self, **extra_args)
 
-    @gc3libs.utils.defproperty
-    def changed():
+    @property
+    def changed(self):
         """
         Evaluates to `True` if this task or any of its subtasks has been
         modified and should be saved to persistent storage.
