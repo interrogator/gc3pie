@@ -1893,7 +1893,7 @@ def to_bytes(s):
     num, unit = s[:-1], s[-1]
     # map suffix to pow multipliers
     mapped = {l: i for i, l in enumerate('kmgtpezy', start=1)}
-    return int(num) * pow(k, mapped[unit])
+    return int(num) * (k ** mapped[unit])
 
 
 def send_mail(send_from, send_to, subject, text, files=[], server="localhost"):
