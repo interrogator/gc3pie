@@ -1818,19 +1818,21 @@ class Run(Struct):
           u'a second message ...'
 
         """
-
-        def fget(self):
-            return self.history.last()
-
-        def fset(self, value):
-            try:
-                self.history.append(str(value, errors='replace'))
-            except (TypeError, ValueError):
-                try:
-                    self.history.append(str(value))
-                except Exception as err:
-                    log.error("Cannot append `%s` to history of task %s", value, self)
         return locals()
+
+    @info.setter
+    def info(self, value):
+        try:
+            self.history.append(str(value, errors='replace'))
+        except (TypeError, ValueError):
+            try:
+                self.history.append(str(value))
+            except Exception as err:
+                log.error("Cannot append `%s` to history of task %s", value, self)
+
+    @info.getter
+    def info(self):
+        return self.history.last()
 
     # states that a `Run` can be in
     State = Enum(
@@ -2002,16 +2004,15 @@ class Run(Struct):
         "fake" one that GC3Libs uses to represent Grid middleware
         errors (see `Run.Signals`).
         """
-
-        def fget(self):
-            return self._signal
-
-        def fset(self, value):
-            if value is None:
-                self._signal = None
-            else:
-                self._signal = int(value) & 0x7f
         return (locals())
+
+    @signal.setter
+    def signal(self, value):
+        self._signal = None if value is None else int(value) & 0x7f
+
+    @signal.getter
+    def signal(self):
+        return self._signal
 
     @property
     def exitcode(self):
@@ -2022,16 +2023,15 @@ class Run(Struct):
         to mean that an error has occurred and the application could
         not end its execution normally.)
         """
-
-        def fget(self):
-            return self._exitcode
-
-        def fset(self, value):
-            if value is None:
-                self._exitcode = None
-            else:
-                self._exitcode = int(value) & 0xff
         return (locals())
+
+    @exitcode.setter
+    def exitcode(self, value):
+        self._exitcode = None if value is None else int(value) & 0xff
+
+    @exitcode.getter
+    def exitcode(self):
+        return self._exitcode
 
     @property
     def returncode(self):

@@ -98,19 +98,20 @@ class TaskCollection(Task):
         Evaluates to `True` if this task or any of its subtasks has been
         modified and should be saved to persistent storage.
         """
-
-        def fget(self):
-            if self._changed:
-                return True
-            for task in self.tasks:
-                if '_changed' in task:
-                    if task._changed:
-                        return True
-            return False
-
-        def fset(self, value):
-            self._changed = value
         return locals()
+
+    @changed.getter
+    def changed(self):
+        if self._changed:
+            return True
+        for task in self.tasks:
+            if '_changed' in task and task._changed:
+                return True
+        return False
+
+    @changed.setter
+    def changed(self, value):
+        self._changed = value
 
     # manipulate the "controller" interface used to control the associated task
     def attach(self, controller):
@@ -1034,13 +1035,15 @@ class RetryableTask(Task):
         Evaluates to `True` if this task or any of its subtasks has been
         modified and should be saved to persistent storage.
         """
-
-        def fget(self):
-            return self._changed or self.task.changed
-
-        def fset(self, value):
-            self._changed = value
         return locals()
+
+    @changed.getter
+    def changed(self):
+        return self._changed or self.task.changed
+
+    @changed.setter
+    def changed(self, value):
+        self._changed = value
 
     def __getattr__(self, name):
         """Proxy public attributes of the wrapped task."""
