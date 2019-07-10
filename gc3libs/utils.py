@@ -74,6 +74,10 @@ except AttributeError:
         """this exception should never be raised"""
     WindowsError = NeverUsedException
 
+# map suffix to pow multipliers. This is 2.6 compatible.
+BYTE_SUFFIX_TO_POW = dict(((l, i)) for i, l in enumerate('kmgtpezy', start=1))
+# 2.7 +:  mapped = {l: i for i, l in enumerate('kmgtpezy', start=1)}
+
 
 def backup(path):
     """
@@ -1891,9 +1895,7 @@ def to_bytes(s):
     if s.isdigit():
         return int(s)
     num, unit = s[:-1], s[-1]
-    # map suffix to pow multipliers
-    mapped = {l: i for i, l in enumerate('kmgtpezy', start=1)}
-    return int(num) * (k ** mapped[unit])
+    return int(num) * (k ** BYTE_SUFFIX_TO_POW[unit])
 
 
 def send_mail(send_from, send_to, subject, text, files=[], server="localhost"):
