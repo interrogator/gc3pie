@@ -2314,7 +2314,8 @@ def write_contents(path, data):
       >>> os.remove(tmpfile)
 
     """
-    with open(path, 'wb') as stream:
+    mode = 'wb' if isinstance(data, bytes) else 'w'
+    with open(path, mode) as stream:
         return stream.write(data)
 
 
