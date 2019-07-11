@@ -39,7 +39,6 @@ from six import with_metaclass
 import datetime
 import operator
 import re
-import types
 
 try:
     # Python 2

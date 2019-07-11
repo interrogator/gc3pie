@@ -382,7 +382,6 @@ class FilePoller(Poller):
         else:
             return []
 
-
     def _get_events_dir(self, dirpath):
         new_events = []
 
@@ -497,6 +496,7 @@ class SwiftPoller(Poller):
                 self._known_objects.pop(url)
         return newevents
 
+
 # register for multiple schemes
 register_poller('swift')(SwiftPoller)
 register_poller('swifts')(SwiftPoller)
@@ -504,8 +504,7 @@ register_poller('swt')(SwiftPoller)
 register_poller('swts')(SwiftPoller)
 
 
-## main: run tests
-
+# main: run tests
 if "__main__" == __name__:
     import doctest
     doctest.testmod(name="poller",

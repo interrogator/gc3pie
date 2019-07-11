@@ -41,6 +41,7 @@ _UrlFields = namedtuple('_UrlFields', [
     'username', 'password', 'fragment'
 ])
 
+
 class Url(_UrlFields):
 
     """

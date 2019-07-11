@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-#
+
 """
 Deal with GC3Pie configuration files.
 """
