@@ -1,10 +1,11 @@
 #! /usr/bin/env python
-#
+
 """
 This module implements "pollers". A "Poller" is an object that
 monitors a given URL and returns `events` whenever a new object is
 created inside that URL.
 """
+
 # Copyright (C) 2017-2019,  University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -19,9 +20,7 @@ created inside that URL.
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
 
-# stdlib imports
 from __future__ import absolute_import, print_function, unicode_literals
 from builtins import str
 from builtins import object
