@@ -52,7 +52,12 @@ import sys
 import tempfile
 import time
 import io as StringIO
-import UserDict
+try:
+    # Python 2
+    from UserDict import DictMixin
+except ImportError:
+    # Python 3
+    from collections.abc import MutableMapping as DictMixin
 
 
 from gc3libs.compat._collections import OrderedDict
@@ -1402,7 +1407,7 @@ def prettyprint(
         sk = sk if sk[0] not in  u'\0 \t\r\n\x85\u2028\u2029-?:,[]{}#&*!|>\'\"%@`' else  "'%s'" % sk
         first = ''.join([leading_spaces, sk, ': '])
         if isinstance(
-                v, (dict, UserDict.DictMixin, UserDict.UserDict, OrderedDict)):
+                v, (dict, DictMixin, OrderedDict)):
             if maxdepth is None or maxdepth > 0:
                 if maxdepth is None:
                     depth = None
@@ -1887,9 +1892,9 @@ class PlusInfinity(Singleton):
 
 # In Python 2.7 still, `DictMixin` is an old-style class; thus, we need
 # to make `Struct` inherit from `object` otherwise we loose properties
-# when setting/pickling/unpickling
-class Struct(object, UserDict.DictMixin):
-
+# when setting/pickling/unpickling and *very importantly* the ability to
+# use `@property` ...
+class Struct(DictMixin, object):
     """
     A `dict`-like object, whose keys can be accessed with the usual
     '[...]' lookup syntax, or with the '.' get attribute syntax.
@@ -1926,13 +1931,13 @@ class Struct(object, UserDict.DictMixin):
         if initializer is not None:
             try:
                 # initializer is `dict`-like?
-                for name, value in list(initializer.items()):
+                for name, value in initializer.items():
                     self[name] = value
             except AttributeError:
                 # initializer is a sequence of (name,value) pairs?
                 for name, value in initializer:
                     self[name] = value
-        for name, value in list(extra_args.items()):
+        for name, value in extra_args.items():
             self[name] = value
 
     def copy(self):
@@ -1941,11 +1946,20 @@ class Struct(object, UserDict.DictMixin):
 
     # the `DictMixin` class defines all std `dict` methods, provided
     # that `__getitem__`, `__setitem__` and `keys` are defined.
-    def __setitem__(self, name, val):
-        self.__dict__[name] = val
+    def __delitem__(self, name):
+        del self.__dict__[name]
 
     def __getitem__(self, name):
         return self.__dict__[name]
+
+    def __setitem__(self, name, val):
+        self.__dict__[name] = val
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __len__(self):
+        return len(self.__dict__)
 
     def keys(self):
         return list(self.__dict__.keys())
