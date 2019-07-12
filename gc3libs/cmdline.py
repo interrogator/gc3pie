@@ -106,7 +106,7 @@ from gc3libs.utils import (
     read_contents,
     remove as rm_f,
     same_docstring_as,
-    test_file,
+    check_file_access,
     write_contents,
 )
 import gc3libs.url
@@ -260,19 +260,19 @@ def positive_int(num):
 
 
 def existing_file(path):
-    test_file(path, os.F_OK | os.R_OK,
+    check_file_access(path, os.F_OK | os.R_OK,
               argparse.ArgumentTypeError)
     return path
 
 
 def executable_file(path):
-    test_file(path, os.F_OK | os.R_OK | os.X_OK,
+    check_file_access(path, os.F_OK | os.R_OK | os.X_OK,
               argparse.ArgumentTypeError)
     return path
 
 
 def existing_directory(path):
-    test_file(path, os.F_OK | os.R_OK | os.X_OK,
+    check_file_access(path, os.F_OK | os.R_OK | os.X_OK,
               argparse.ArgumentTypeError, isdir=True)
     return path
 
