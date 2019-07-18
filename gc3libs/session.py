@@ -27,7 +27,7 @@ __docformat__ = 'reStructuredText'
 # stdlib imports
 import atexit
 import csv
-import itertools
+import errno
 import os
 import sys
 import shutil
@@ -189,7 +189,7 @@ class Session(list):
             except IOError as err:
                 gc3libs.log.debug("Cannot load session '%s': %s", path, err)
                 # "No such file or directory" => create new session
-                if err.errno == os.errno.ENOENT:
+                if err.errno == errno.ENOENT:
                     # only create session if no task IDs were given
                     if create and not task_ids:
                         gc3libs.log.debug(
@@ -393,12 +393,43 @@ class Session(list):
     def __iter__(self):
         return iter(self.tasks.values())
 
+    class _BfsIterator(object):
+        """
+        Iterate over tasks in a group, recursively descending `TaskCollection`s.
+
+        Iteration is done in a breadth-first manner.
+        """
+        __slots__ = ('_queue')
+
+        def __init__(self, toplevel=None):
+            self._queue = []
+            if toplevel:
+                self._queue.extend(toplevel)
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            try:
+                task = self._queue.pop(0)
+                try:
+                    self._queue.extend(task.tasks)
+                except AttributeError:
+                    pass  # `task` is no `TaskCollection`
+                return task
+            except IndexError: # empty queue
+                raise StopIteration()
+
+        next = __next__
+
     def iter_workflow(self):
-        task_collections = [x for x in list(self.tasks.values()) if isinstance(x, TaskCollection)]
-        proper_tasks = set(self.tasks.values()).difference(task_collections)
-        return itertools.chain(
-            *([proper_tasks]
-              + [x.iter_workflow() for x in task_collections]))
+        """
+        Iterate over all tasks in this session.
+
+        Recursively descends `TaskCollection`:class:
+        in  a breadth-first manner.
+        """
+        return self._BfsIterator(self.tasks.values())
 
     def list_ids(self):
         """

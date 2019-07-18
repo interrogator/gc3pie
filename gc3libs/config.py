@@ -28,15 +28,26 @@ from builtins import zip
 from builtins import str
 
 # stdlib imports
-try:
-    # Python 2
-    import ConfigParser as configparser
-except ImportError:
-    # Python 3
-    import configparser
 import inspect
 import os
 import re
+import sys
+if sys.version_info[0] == 2:
+    from ConfigParser import SafeConfigParser
+    from ConfigParser import Error as ConfigParserError
+    def make_config_parser():
+        return SafeConfigParser()
+    def read_config_lines(parser, stream, source):
+        return parser.readfp(stream, source)
+else:
+    # `SafeConfigParser` was deprecated in Py3 in favor of `ConfigParser`
+    from configparser import ConfigParser
+    from configparser import Error as ConfigParserError
+    def make_config_parser():
+        return ConfigParser(strict=False)
+    # `readfp()` is deprecated since Py3.2
+    def read_config_lines(parser, stream, source):
+        return parser.read_file(stream, source)
 
 # GC3Pie imports
 import gc3libs
@@ -333,10 +344,10 @@ class Configuration(gc3libs.utils.Struct):
         resources = defaultdict(dict)
         auths = defaultdict(dict)
 
-        parser = configparser.SafeConfigParser()
+        parser = make_config_parser()
         try:
-            parser.readfp(stream, filename)
-        except configparser.Error as err:
+            read_config_lines(parser, stream, filename)
+        except ConfigParserError as err:
             if filename is None:
                 try:
                     filename = stream.name
@@ -517,7 +528,7 @@ class Configuration(gc3libs.utils.Struct):
                         filename)
                     config_items[key] = changed[value]
 
-    _path_key_regexp = re.compile('^(\w+_)?(prologue|epilogue)$')
+    _path_key_regexp = re.compile(r'^(\w+_)?(prologue|epilogue)$')
 
     @staticmethod
     def _perform_filename_conversion(config_items, path_regexp, filename):
@@ -623,7 +634,7 @@ class Configuration(gc3libs.utils.Struct):
                 try:
                     mod = __import__(modname,
                                      globals(), locals(),
-                                     [clsname], -1)
+                                     [clsname], 0)
                     cls = getattr(mod, clsname)
                 except (ImportError, AttributeError) as err:
                     raise gc3libs.exceptions.Error(

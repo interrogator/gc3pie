@@ -35,6 +35,11 @@ __docformat__ = 'reStructuredText'
 
 
 from collections import defaultdict, deque
+try:
+    # Python 3
+    from collections.abc import Mapping, MutableMapping
+except ImportError:
+    from collections import Mapping, MutableMapping
 import contextlib
 import functools
 import os
@@ -54,7 +59,6 @@ import sys
 import tempfile
 import time
 import io as StringIO
-import UserDict
 
 
 from gc3libs.compat._collections import OrderedDict
@@ -385,9 +389,9 @@ class ExponentialBackoff(object):
     so you can just retrieve waiting times with the `.next()` method,
     or by looping over it::
 
-      >>> random.seed(314) # not-so-random for testing purposes...
-      >>> list(ExponentialBackoff())
-      [0.0, 0.0, 0.0, 0.25, 0.15000000000000002, 0.30000000000000004]
+      >>> lapses = list(ExponentialBackoff(max_retries=7))
+      >>> len(lapses)
+      8
 
     .. _`exponential backoff`: http://goo.gl/PxVICA
 
@@ -738,11 +742,10 @@ def irange(start, stop, step=1):
 
     Of course, a null `step` is not allowed::
 
-      >>> list(irange(1, 2, 0))
-      Traceback (most recent call last):
-        ...
-      AssertionError: Null step in irange.
-
+      >>> try:
+      ...   list(irange(1, 2, 0))
+      ... except AssertionError as err:
+      ...   assert 'Null step in irange.' in str(err)
     """
     assert float(step) != 0.0, "Null step in irange."
     value = start
@@ -1272,7 +1275,7 @@ def prettyprint(
         sk = sk if sk[0] not in  u'\0 \t\r\n\x85\u2028\u2029-?:,[]{}#&*!|>\'\"%@`' else  "'%s'" % sk
         first = ''.join([leading_spaces, sk, ': '])
         if isinstance(
-                v, (dict, UserDict.DictMixin, UserDict.UserDict, OrderedDict)):
+                v, (dict, Mapping, OrderedDict)):
             if maxdepth is None or maxdepth > 0:
                 if maxdepth is None:
                     depth = None
@@ -1631,9 +1634,9 @@ class PlusInfinity(object):
 
 # In Python 2.7 still, `DictMixin` is an old-style class; thus, we need
 # to make `Struct` inherit from `object` otherwise we loose properties
-# when setting/pickling/unpickling
-class Struct(object, UserDict.DictMixin):
-
+# when setting/pickling/unpickling and *very importantly* the ability to
+# use `@property` ...
+class Struct(MutableMapping):
     """
     A `dict`-like object, whose keys can be accessed with the usual
     '[...]' lookup syntax, or with the '.' get attribute syntax.
@@ -1685,11 +1688,20 @@ class Struct(object, UserDict.DictMixin):
 
     # the `DictMixin` class defines all std `dict` methods, provided
     # that `__getitem__`, `__setitem__` and `keys` are defined.
-    def __setitem__(self, name, val):
-        self.__dict__[name] = val
+    def __delitem__(self, name):
+        del self.__dict__[name]
 
     def __getitem__(self, name):
         return self.__dict__[name]
+
+    def __setitem__(self, name, val):
+        self.__dict__[name] = val
+
+    def __iter__(self):
+        return iter(self.__dict__)
+
+    def __len__(self):
+        return len(self.__dict__)
 
     def keys(self):
         return list(self.__dict__.keys())
@@ -1755,7 +1767,7 @@ def tempdir(**kwargs):
             shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-def test_file(path, mode, exception=RuntimeError, isdir=False):
+def check_file_access(path, mode, exception=RuntimeError, isdir=False):
     """
     Test for access to a path; if access is not granted, raise an
     instance of `exception` with an appropriate error message.
@@ -1769,18 +1781,18 @@ def test_file(path, mode, exception=RuntimeError, isdir=False):
 
     If the test succeeds, `True` is returned::
 
-      >>> test_file('/bin/cat', os.F_OK)
+      >>> check_file_access('/bin/cat', os.F_OK)
       True
-      >>> test_file('/bin/cat', os.R_OK)
+      >>> check_file_access('/bin/cat', os.R_OK)
       True
-      >>> test_file('/bin/cat', os.X_OK)
+      >>> check_file_access('/bin/cat', os.X_OK)
       True
-      >>> test_file('/tmp', os.X_OK)
+      >>> check_file_access('/tmp', os.X_OK)
       True
 
     However, if the test fails, then an exception is raised::
 
-      >>> test_file('/bin/cat', os.W_OK)
+      >>> check_file_access('/bin/cat', os.W_OK)
       Traceback (most recent call last):
         ...
       RuntimeError: Cannot write to file '/bin/cat'.
@@ -1788,10 +1800,10 @@ def test_file(path, mode, exception=RuntimeError, isdir=False):
     If the optional argument `isdir` is `True`, then additionally test
     that `path` points to a directory inode::
 
-      >>> test_file('/tmp', os.F_OK, isdir=True)
+      >>> check_file_access('/tmp', os.F_OK, isdir=True)
       True
 
-      >>> test_file('/bin/cat', os.F_OK, isdir=True)
+      >>> check_file_access('/bin/cat', os.F_OK, isdir=True)
       Traceback (most recent call last):
         ...
       RuntimeError: Expected '/bin/cat' to be a directory, but it's not.
@@ -1976,7 +1988,8 @@ def write_contents(path, data):
       >>> os.remove(tmpfile)
 
     """
-    with open(path, 'wb') as stream:
+    mode = 'wb' if isinstance(data, bytes) else 'w'
+    with open(path, mode) as stream:
         return stream.write(data)
 
 

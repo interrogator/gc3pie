@@ -174,7 +174,7 @@ class NoOpLrms(LRMS):
         for prob, to_state in sorted(transitions.items()):
             if dice < prob:
                 log.debug(
-                    "Task %s transitions to state '%s'", app, state)
+                    "Task %s transitions to state '%s'", app, to_state)
                 # update resource state based on old and new app state
                 if app.execution.state == Run.State.SUBMITTED:
                     self.queued -= 1

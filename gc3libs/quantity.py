@@ -33,7 +33,7 @@ from past.utils import old_div
 # implementation here, because `Quantity` defines its own `__init__`
 # and `__call__` , which `future.utils.with_metaclass` overrides with
 # the std ones coming from Python's builtin `type`
-from six import with_metaclass
+from six import add_metaclass
 
 # stdlib imports
 import datetime
@@ -194,7 +194,6 @@ class _Quantity(object):
         '_base',
         '_name',
         '_unit',
-        '_UNITS',
     )
 
     def amount(self, unit=None, conv=(lambda value: value)):
@@ -524,8 +523,9 @@ class Quantity(object):
     The name of the base unit is given as argument to the metaclass
     instance::
 
-      >>> class Memory1(object):
-      ...   __metaclass__ = Quantity('B')
+      >>> @add_metaclass(Quantity('B'))
+      ... class Memory1(object):
+      ...   pass
       ...
       >>> B = Memory1('1 B')
       >>> print (2*B)
@@ -535,8 +535,9 @@ class Quantity(object):
     key gives the unit name, and its value gives the ratio of the new
     unit to the base unit.  For example::
 
-      >>> class Memory2(object):
-      ...   __metaclass__ = Quantity('B', kB=1000, MB=1000*1000)
+      >>> @add_metaclass(Quantity('B', kB=1000, MB=1000*1000))
+      ... class Memory2(object):
+      ...   pass
       ...
       >>> a_thousand_kB = Memory2('1000kB')
       >>> MB = Memory2('1   MB')
@@ -575,7 +576,7 @@ class Quantity(object):
         return newcls
 
 
-class Memory(with_metaclass(Quantity(
+@add_metaclass(Quantity(
         # base unit is "bytes"; use the symbol 'B', although this is not the SI
         # usage.
         'B',
@@ -591,7 +592,8 @@ class Memory(with_metaclass(Quantity(
         GiB=1024 * 1024 * 1024,      # GiBiByte
         TiB=1024 * 1024 * 1024 * 1024,  # TiBiByte
         PiB=1024 * 1024 * 1024 * 1024 * 1024,  # PiBiByte
-    ), object)):
+    ))
+class Memory(object):
 
     """
     Represent an amount of RAM.
@@ -720,7 +722,7 @@ class Memory(with_metaclass(Quantity(
     """
 
 
-class Duration(with_metaclass(Quantity(
+@add_metaclass(Quantity(
         # base unit is nanoseconds; use the SI symbol 'ns'
         'ns',
         # alternate spellings
@@ -762,7 +764,8 @@ class Duration(with_metaclass(Quantity(
         wk=7 * 24 * 60 * 60 * 10 ** 9,
         week=7 * 24 * 60 * 60 * 10 ** 9,
         weeks=7 * 24 * 60 * 60 * 10 ** 9,
-    ), object)):
+    ))
+class Duration(object):
 
     """
     Represent the duration of a time lapse.
