@@ -35,7 +35,6 @@ __docformat__ = 'reStructuredText'
 
 
 from collections import defaultdict, deque
-from functools import total_ordering
 import contextlib
 import functools
 import os
@@ -59,6 +58,7 @@ import UserDict
 
 
 from gc3libs.compat._collections import OrderedDict
+from gc3libs.compat._functools import total_ordering
 import lockfile
 
 import gc3libs
