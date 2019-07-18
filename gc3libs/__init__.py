@@ -1923,38 +1923,35 @@ class Run(Struct):
         at all, for example, in case of a fatal failure during the
         submission step.
         """
+        return self._state
 
-        def fget(self):
-            return self._state
-
-        def fset(self, value):
-            assert value in Run.State, \
-                ("Value '{0}' is not a legal `gc3libs.Run.State` value."
-                 .format(value))
-            if self._state == value:
-                # no changes
-                return
-            self.state_last_changed = time.time()
-            self.timestamp[value] = time.time()
-            # record state-transition in Task execution history
-            # (can be later queried with `ginfo` for e.g. debugging)
-            if value == Run.State.TERMINATED:
-                self.history.append(
-                    "Transition from state {0} to state {1} (returncode: {2})"
-                    .format(self._state, value, self.returncode))
-            else:
-                self.history.append(
-                    "Transition from state {0} to state {1}"
-                    .format(self._state, value))
-            if self._ref is not None:
-                self._ref.changed = True
-                # signal state-transition
-                TaskStateChange.send(
-                    self._ref, from_state=self._state, to_state=value)
-            # finally, update state
-            self._state = value
-
-        return locals()
+    @state.setter
+    def state(self, value):
+        assert value in Run.State, \
+            ("Value '{0}' is not a legal `gc3libs.Run.State` value."
+             .format(value))
+        if self._state == value:
+            # no changes
+            return
+        self.state_last_changed = time.time()
+        self.timestamp[value] = time.time()
+        # record state-transition in Task execution history
+        # (can be later queried with `ginfo` for e.g. debugging)
+        if value == Run.State.TERMINATED:
+            self.history.append(
+                "Transition from state {0} to state {1} (returncode: {2})"
+                .format(self._state, value, self.returncode))
+        else:
+            self.history.append(
+                "Transition from state {0} to state {1}"
+                .format(self._state, value))
+        if self._ref is not None:
+            self._ref.changed = True
+            # signal state-transition
+            TaskStateChange.send(
+                self._ref, from_state=self._state, to_state=value)
+        # finally, update state
+        self._state = value
 
     def in_state(self, *names):
         """
@@ -1995,15 +1992,11 @@ class Run(Struct):
         "fake" one that GC3Libs uses to represent Grid middleware
         errors (see `Run.Signals`).
         """
-        return (locals())
+        return self._signal
 
     @signal.setter
     def signal(self, value):
         self._signal = None if value is None else int(value) & 0x7f
-
-    @signal.getter
-    def signal(self):
-        return self._signal
 
     @property
     def exitcode(self):
@@ -2014,15 +2007,11 @@ class Run(Struct):
         to mean that an error has occurred and the application could
         not end its execution normally.)
         """
-        return (locals())
+        return self._exitcode
 
     @exitcode.setter
     def exitcode(self, value):
         self._exitcode = None if value is None else int(value) & 0xff
-
-    @exitcode.getter
-    def exitcode(self):
-        return self._exitcode
 
     @property
     def returncode(self):

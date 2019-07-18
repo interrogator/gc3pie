@@ -99,10 +99,6 @@ class TaskCollection(Task):
         Evaluates to `True` if this task or any of its subtasks has been
         modified and should be saved to persistent storage.
         """
-        return locals()
-
-    @changed.getter
-    def changed(self):
         if self._changed:
             return True
         for task in self.tasks:
@@ -1036,10 +1032,6 @@ class RetryableTask(Task):
         Evaluates to `True` if this task or any of its subtasks has been
         modified and should be saved to persistent storage.
         """
-        return locals()
-
-    @changed.getter
-    def changed(self):
         return self._changed or self.task.changed
 
     @changed.setter
