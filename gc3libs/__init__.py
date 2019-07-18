@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-#
+
 # Copyright (C) 2009-2019  University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
+
 """
 GC3Libs is a python package for controlling the life-cycle of a Grid
 or batch computational job.
@@ -47,7 +47,6 @@ import platform
 import string
 import sys
 import time
-import types
 import subprocess
 import shlex
 import uuid
@@ -70,6 +69,11 @@ from gc3libs.quantity import MB, hours, minutes, seconds, MiB
 from gc3libs.compat._collections import OrderedDict
 from gc3libs.compat._2and3 import to_filesystem_path
 
+import gc3libs.exceptions
+from gc3libs.persistence import Persistable
+from gc3libs.url import UrlKeyDict, UrlValueDict
+from gc3libs.utils import (deploy_configuration_file, Enum,
+                           History, Struct, safe_repr)
 # this needs to be defined before we import other GC3Libs modules, as
 # they may depend on it
 
@@ -124,14 +128,6 @@ class Default(object):
     # on batch systems, this should be visible from both
     # the frontend and the compute nodes
     SPOOLDIR = "$HOME/.gc3pie_jobs"
-
-
-from gc3libs.events import TaskStateChange
-import gc3libs.exceptions
-from gc3libs.persistence import Persistable
-from gc3libs.url import UrlKeyDict, UrlValueDict
-from gc3libs.utils import (defproperty, deploy_configuration_file, Enum,
-                           History, Struct, safe_repr, sh_quote_unsafe)
 
 
 # when used in the `output` attribute of an application,
@@ -208,6 +204,7 @@ def configure_logger(
             log.warning("Could not import `coloredlogs` module: %s", err)
     return log
 
+
 def _load_logging_configuration_file(name):
     if name is None:
         name = os.path.basename(sys.argv[0])
@@ -248,13 +245,11 @@ def error_ignored(*ctx):
     if UNIGNORE_ALL_ERRORS:
         return False
     else:
-        return (0 == len(UNIGNORE_ERRORS.intersection(set(str(word).lower()
-                                                          for word in ctx))))
+        words = set(str(word).lower() for word in ctx)
+        return not UNIGNORE_ERRORS.intersection(words)
 
 
 # Task and Application classes
-#
-
 class Task(Persistable, Struct):
 
     """
@@ -541,10 +536,8 @@ class Task(Persistable, Struct):
              (self._controller, self))
         self._controller.free(self, **extra_args)
 
-
     # convenience methods, do not really add any functionality over
     # what's above
-
     def progress(self):
         """
         Advance the associated job through all states of a regular
@@ -591,7 +584,6 @@ class Task(Persistable, Struct):
             self.fetch_output()
             return self.execution.returncode
 
-
     def redo(self, *args, **kwargs):
         """
         Reset the state of this Task instance to ``NEW``.
@@ -617,7 +609,6 @@ class Task(Persistable, Struct):
             " task {0} is in state {1} instead."
             .format(self, self.execution.state))
         self.execution.state = Run.State.NEW
-
 
     def wait(self, interval=60):
         """
@@ -1790,8 +1781,8 @@ class Run(Struct):
         if 'timestamp' not in self:
             self.timestamp = OrderedDict()
 
-    @defproperty
-    def info():
+    @property
+    def info(self):
         """
         A simplified interface for reading/writing entries into `history`.
 
@@ -1808,19 +1799,21 @@ class Run(Struct):
           a second message ...
 
         """
-
-        def fget(self):
-            return self.history.last()
-
-        def fset(self, value):
-            try:
-                self.history.append(str(value, errors='replace'))
-            except (TypeError, ValueError):
-                try:
-                    self.history.append(str(value))
-                except Exception as err:
-                    log.error("Cannot append `%s` to history of task %s", value, self)
         return locals()
+
+    @info.setter
+    def info(self, value):
+        try:
+            self.history.append(str(value, errors='replace'))
+        except (TypeError, ValueError):
+            try:
+                self.history.append(str(value))
+            except Exception as err:
+                log.error("Cannot append `%s` to history of task %s", value, self)
+
+    @info.getter
+    def info(self):
+        return self.history.last()
 
     # states that a `Run` can be in
     State = Enum(
@@ -1861,8 +1854,8 @@ class Run(Struct):
         def __setattr__(self, name, value):
             raise TypeError("Cannot overwrite value of constant '%s'" % name)
 
-    @defproperty
-    def state():
+    @property
+    def state(self):
         """
         The state a `Run` is in.
 
@@ -1920,38 +1913,35 @@ class Run(Struct):
         at all, for example, in case of a fatal failure during the
         submission step.
         """
+        return self._state
 
-        def fget(self):
-            return self._state
-
-        def fset(self, value):
-            assert value in Run.State, \
-                ("Value '{0}' is not a legal `gc3libs.Run.State` value."
-                 .format(value))
-            if self._state == value:
-                # no changes
-                return
-            self.state_last_changed = time.time()
-            self.timestamp[value] = time.time()
-            # record state-transition in Task execution history
-            # (can be later queried with `ginfo` for e.g. debugging)
-            if value == Run.State.TERMINATED:
-                self.history.append(
-                    "Transition from state {0} to state {1} (returncode: {2})"
-                    .format(self._state, value, self.returncode))
-            else:
-                self.history.append(
-                    "Transition from state {0} to state {1}"
-                    .format(self._state, value))
-            if self._ref is not None:
-                self._ref.changed = True
-                # signal state-transition
-                TaskStateChange.send(
-                    self._ref, from_state=self._state, to_state=value)
-            # finally, update state
-            self._state = value
-
-        return locals()
+    @state.setter
+    def state(self, value):
+        assert value in Run.State, \
+            ("Value '{0}' is not a legal `gc3libs.Run.State` value."
+             .format(value))
+        if self._state == value:
+            # no changes
+            return
+        self.state_last_changed = time.time()
+        self.timestamp[value] = time.time()
+        # record state-transition in Task execution history
+        # (can be later queried with `ginfo` for e.g. debugging)
+        if value == Run.State.TERMINATED:
+            self.history.append(
+                "Transition from state {0} to state {1} (returncode: {2})"
+                .format(self._state, value, self.returncode))
+        else:
+            self.history.append(
+                "Transition from state {0} to state {1}"
+                .format(self._state, value))
+        if self._ref is not None:
+            self._ref.changed = True
+            # signal state-transition
+            TaskStateChange.send(
+                self._ref, from_state=self._state, to_state=value)
+        # finally, update state
+        self._state = value
 
     def in_state(self, *names):
         """
@@ -1977,8 +1967,8 @@ class Run(Struct):
         else:
             return False
 
-    @defproperty
-    def signal():
+    @property
+    def signal(self):
         """
         The "signal number" part of a `Run.returncode`, see
         `os.WTERMSIG` for details.
@@ -1992,19 +1982,14 @@ class Run(Struct):
         "fake" one that GC3Libs uses to represent Grid middleware
         errors (see `Run.Signals`).
         """
+        return self._signal
 
-        def fget(self):
-            return self._signal
+    @signal.setter
+    def signal(self, value):
+        self._signal = None if value is None else int(value) & 0x7f
 
-        def fset(self, value):
-            if value is None:
-                self._signal = None
-            else:
-                self._signal = int(value) & 0x7f
-        return (locals())
-
-    @defproperty
-    def exitcode():
+    @property
+    def exitcode(self):
         """
         The "exit code" part of a `Run.returncode`, see `os.WEXITSTATUS`.
         This is an 8-bit integer, whose meaning is entirely
@@ -2012,16 +1997,11 @@ class Run(Struct):
         to mean that an error has occurred and the application could
         not end its execution normally.)
         """
+        return self._exitcode
 
-        def fget(self):
-            return self._exitcode
-
-        def fset(self, value):
-            if value is None:
-                self._exitcode = None
-            else:
-                self._exitcode = int(value) & 0xff
-        return (locals())
+    @exitcode.setter
+    def exitcode(self, value):
+        self._exitcode = None if value is None else int(value) & 0xff
 
     @property
     def returncode(self):
@@ -2109,7 +2089,6 @@ class Run(Struct):
         if signal is None:
             signal = 0
         return (exitcode << 8) | signal
-
 
     # `Run.Signals` is an instance of global class `_Signals`
     Signals = _Signals()

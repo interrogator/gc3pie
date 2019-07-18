@@ -1,8 +1,9 @@
 #! /usr/bin/env python
-#
+
 """
 Deal with GC3Pie configuration files.
 """
+
 # Copyright (C) 2012-2016, 2018, 2019  University of Zurich. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -17,7 +18,8 @@ Deal with GC3Pie configuration files.
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
+
+
 from __future__ import absolute_import, print_function, unicode_literals
 
 from future import standard_library
@@ -54,7 +56,6 @@ from collections import defaultdict
 import gc3libs.utils
 
 from gc3libs.quantity import Memory, GB, MB, MiB, Duration, hours
-from gc3libs.utils import defproperty
 
 
 # module metadata
@@ -588,7 +589,6 @@ class Configuration(gc3libs.utils.Struct):
                     err.__class__.__name__, str(err))
                 raise
         return self._auth_factory
-
 
     def make_auth(self, name):
         """

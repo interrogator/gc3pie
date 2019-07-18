@@ -44,16 +44,15 @@ if __name__ == '__main__':
         path2Pymods = os.path.join(os.path.dirname(__file__), '../')
         if not sys.path.count(path2Pymods):
             sys.path.append(path2Pymods)
-        from pymods.support.support import rmFilesAndFolders
         curPath = os.getcwd()
         filesAndFolder = os.listdir(curPath)
         if 'ghousing.log' in filesAndFolder:
             if 'para.loop' in os.listdir(os.getcwd()):
                 shutil.copyfile(os.path.join(curPath, 'para.loop'), os.path.join('/tmp', 'para.loop'))
-                rmFilesAndFolders(curPath)
+                shutil.rmtree(curPath)
                 shutil.copyfile(os.path.join('/tmp', 'para.loop'), os.path.join(curPath, 'para.loop'))
             else:
-                rmFilesAndFolders(curPath)
+                shutil.rmtree(curPath)
 
 
 # ugly workaround for Issue 95,
@@ -611,14 +610,10 @@ Read `.loop` files and execute the `housingOut` program accordingly.
         for name in [self.params.initial, os.path.join(self.params.initial, '../code')]:
             tar.add(name)
         tar.close()
-        #codeBaseFolder = os.path.join(os.getcwd(), 'codeBase/')
-        #codeFolder = os.path.join(self.params.initial, '../code/')
-        #shutil.copytree(self.params.initial, os.path.join(codeBaseFolder, 'base'))
-        #shutil.copytree(codeFolder, os.path.join(codeBaseFolder, 'code'))
 
         # Copy base dir
         localBaseDir = os.path.join(os.getcwd(), 'localBaseDir')
-        gc3libs.utils.copytree(self.params.initial, localBaseDir)
+        shutil.copytree(self.params.initial, localBaseDir)
 
         # update ctry Parameters. Important, before I do the para.loop adjustments
         ctryInParaLoop = False
@@ -628,7 +623,8 @@ Read `.loop` files and execute the `housingOut` program accordingly.
             paraLoopFile = open(para_loop, 'r')
             paraLoopFile.readline()
             for line in paraLoopFile:
-                if not line.rstrip(): continue
+                if not line.rstrip():
+                    continue
                 eles = line.split()
                 var = eles[0]
                 val = eles[6]
@@ -717,7 +713,7 @@ def fillInputDir(baseDir, input_dir):
       exclude the markov directory which contains markov information
       for all country pairs.
     '''
-    gc3libs.utils.copytree(baseDir , input_dir)
+    shutil.copytree(baseDir, input_dir)
 
 def combinedThresholdPlot():
     import copy
