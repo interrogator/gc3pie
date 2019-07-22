@@ -23,11 +23,11 @@ __docformat__ = 'reStructuredText'
 
 # stdlib imports
 import os
-import sys
 from weakref import WeakValueDictionary
 
 # GC3Pie imports
 import gc3libs
+from gc3libs import Default
 import gc3libs.exceptions
 from gc3libs.utils import same_docstring_as
 from gc3libs.url import Url
@@ -69,7 +69,7 @@ class FilesystemStore(Store):
     """
 
     def __init__(self,
-                 directory=gc3libs.Default.JOBS_DIR,
+                 directory=Default.JOBS_DIR,
                  idfactory=IdFactory(),
                  protocol=DEFAULT_PROTOCOL,
                  **extra_args):
