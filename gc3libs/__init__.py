@@ -187,19 +187,15 @@ def configure_logger(
     if colorize:
         try:
             import coloredlogs
-            for name in set([
-                    #None,  # root logger
-                    "gc3.gc3libs",
-                    name,
-            ]):
+            for subname in {"gc3.gc3libs", name}:
                 coloredlogs.install(
-                    logger=logging.getLogger(name),
+                    logger=logging.getLogger(subname),
                     reconfigure=True,
                     stream=sys.stderr,
                     level=level,
                     fmt=format,
                     datefmt=datefmt,
-                    programname=name)
+                    programname=subname)
         except ImportError as err:
             log.warning("Could not import `coloredlogs` module: %s", err)
     return log
